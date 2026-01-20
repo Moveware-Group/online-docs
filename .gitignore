@@ -31,8 +31,17 @@ yarn-error.log*
 # local env files
 .env*.local
 
-# vercel
-.vercel
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+# System files
+.DS_Store
+Thumbs.db
 
 # typescript
 *.tsbuildinfo
