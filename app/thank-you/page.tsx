@@ -179,13 +179,13 @@ function ThankYouContent() {
               >
                 Back to Home
               </Link>
-              <button
-                onClick={() => window.print()}
+              <Link
+                href={`/quote?jobId=${jobId}&coId=${coId}&print=true`}
                 style={{ backgroundColor: primaryColor }}
-                className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity inline-block"
               >
                 Print Confirmation
-              </button>
+              </Link>
             </div>
           </div>
 

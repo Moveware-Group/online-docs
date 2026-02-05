@@ -74,6 +74,7 @@ function QuotePageContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get('jobId');
   const companyId = searchParams.get('coId');
+  const shouldPrint = searchParams.get('print') === 'true';
   
   const [job, setJob] = useState<Job | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -172,6 +173,18 @@ function QuotePageContent() {
       setLoading(false);
     }
   }, [jobId, companyId]);
+
+  // Auto-generate PDF if print parameter is present
+  useEffect(() => {
+    if (shouldPrint && !loading && job) {
+      // Small delay to ensure everything is rendered
+      const timer = setTimeout(() => {
+        generatePDF();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shouldPrint, loading, job]);
 
   // Auto-select if there's only one costing option
   useEffect(() => {
