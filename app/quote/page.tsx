@@ -75,6 +75,7 @@ function QuotePageContent() {
   const jobId = searchParams.get('jobId');
   const companyId = searchParams.get('coId');
   const shouldPrint = searchParams.get('print') === 'true';
+  const acceptanceId = searchParams.get('acceptanceId');
   
   const [job, setJob] = useState<Job | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -168,11 +169,16 @@ function QuotePageContent() {
   useEffect(() => {
     if (jobId && companyId) {
       fetchJobData(jobId, companyId);
+      
+      // If acceptanceId is provided, fetch and populate form data
+      if (acceptanceId) {
+        fetchAcceptanceData(acceptanceId);
+      }
     } else {
       setError('Missing required parameters: jobId and coId are required');
       setLoading(false);
     }
-  }, [jobId, companyId]);
+  }, [jobId, companyId, acceptanceId]);
 
   // Auto-generate PDF if print parameter is present
   useEffect(() => {
@@ -197,6 +203,28 @@ function QuotePageContent() {
   useEffect(() => {
     setCurrentPage(1);
   }, [inventory.length]);
+
+  const fetchAcceptanceData = async (acceptanceIdParam: string) => {
+    try {
+      const response = await fetch(`/api/quotes/acceptance/${acceptanceIdParam}`);
+      const result = await response.json();
+
+      if (response.ok && result.success && result.data) {
+        const acceptance = result.data;
+        // Populate form fields with accepted data
+        setSignatureName(acceptance.signatureName);
+        setReloFromDate(acceptance.reloFromDate ? new Date(acceptance.reloFromDate.split('/').reverse().join('-')) : null);
+        setInsuredValue(acceptance.insuredValue);
+        setPurchaseOrderNumber(acceptance.purchaseOrderNumber);
+        setSpecialRequirements(acceptance.specialRequirements || '');
+        setSignature(acceptance.signatureData);
+        setSelectedCostingId(acceptance.costingItemId);
+        setAgreedToTerms(acceptance.agreedToTerms);
+      }
+    } catch (err) {
+      console.error('Error fetching acceptance data:', err);
+    }
+  };
 
   const fetchJobData = async (jobIdParam: string, coIdParam: string) => {
     try {
@@ -385,6 +413,11 @@ function QuotePageContent() {
 
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to accept quote');
+      }
+
+      // Store acceptance ID in sessionStorage for PDF generation
+      if (result.data?.id) {
+        sessionStorage.setItem('quoteAcceptanceId', result.data.id);
       }
 
       // Show success message inline

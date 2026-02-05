@@ -179,13 +179,20 @@ function ThankYouContent() {
               >
                 Back to Home
               </Link>
-              <Link
-                href={`/quote?jobId=${jobId}&coId=${coId}&print=true`}
+              <button
+                onClick={() => {
+                  const acceptanceId = sessionStorage.getItem('quoteAcceptanceId');
+                  if (acceptanceId) {
+                    window.open(`/quote?jobId=${jobId}&coId=${coId}&acceptanceId=${acceptanceId}&print=true`, '_blank');
+                  } else {
+                    window.open(`/quote?jobId=${jobId}&coId=${coId}&print=true`, '_blank');
+                  }
+                }}
                 style={{ backgroundColor: primaryColor }}
-                className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity inline-block"
+                className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
               >
                 Print Confirmation
-              </Link>
+              </button>
             </div>
           </div>
 
