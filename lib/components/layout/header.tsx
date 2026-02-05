@@ -10,7 +10,7 @@ export function Header() {
 
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Get a Quote', href: '/quote' },
+    { name: 'Quote', href: 'https://oa.holdingsite.com.au/quote?jobId=111505&coId=12' },
     { name: 'Performance', href: '/performance' },
   ];
 
@@ -35,13 +35,23 @@ export function Header() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex md:items-center md:space-x-6">
             {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="text-gray-700 font-medium transition-colors hover:text-[#1A70B9]"
-              >
-                {item.name}
-              </Link>
+              item.href.startsWith('http') ? (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-gray-700 font-medium transition-colors hover:text-[#1A70B9]"
+                >
+                  {item.name}
+                </a>
+              ) : (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="text-gray-700 font-medium transition-colors hover:text-[#1A70B9]"
+                >
+                  {item.name}
+                </Link>
+              )
             ))}
             <Link
               href="/quote"
@@ -75,14 +85,25 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-1 border-t border-gray-200">
             {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors hover:text-[#1A70B9]"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
+              item.href.startsWith('http') ? (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors hover:text-[#1A70B9]"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </a>
+              ) : (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors hover:text-[#1A70B9]"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              )
             ))}
             <div className="px-3 py-2">
               <Link
