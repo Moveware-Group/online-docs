@@ -98,6 +98,7 @@ function QuotePageContent() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [animateSteps, setAnimateSteps] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfGenerated, setPdfGenerated] = useState(false);
   
   // Pagination state for inventory table
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -180,17 +181,18 @@ function QuotePageContent() {
     }
   }, [jobId, companyId, acceptanceId]);
 
-  // Auto-generate PDF if print parameter is present
+  // Auto-generate PDF if print parameter is present (only once)
   useEffect(() => {
-    if (shouldPrint && !loading && job) {
+    if (shouldPrint && !loading && job && !pdfGenerated) {
       // Small delay to ensure everything is rendered
       const timer = setTimeout(() => {
         generatePDF();
+        setPdfGenerated(true);
       }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [shouldPrint, loading, job]);
+  }, [shouldPrint, loading, job, pdfGenerated]);
 
   // Auto-select if there's only one costing option
   useEffect(() => {
