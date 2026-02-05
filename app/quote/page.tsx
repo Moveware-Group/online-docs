@@ -578,29 +578,81 @@ function QuotePageContent() {
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Next Steps</h2>
             
+            <style jsx>{`
+              @keyframes fadeInUp {
+                from {
+                  opacity: 0;
+                  transform: translateY(20px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+
+              @keyframes drawLine {
+                from {
+                  width: 0;
+                }
+                to {
+                  width: 100%;
+                }
+              }
+
+              .step-1 {
+                animation: fadeInUp 0.6s ease-out 0.2s both;
+              }
+
+              .line-1 {
+                animation: drawLine 0.8s ease-out 0.8s both;
+              }
+
+              .step-2 {
+                animation: fadeInUp 0.6s ease-out 1.6s both;
+              }
+
+              .line-2 {
+                animation: drawLine 0.8s ease-out 2.2s both;
+              }
+
+              .step-3 {
+                animation: fadeInUp 0.6s ease-out 3s both;
+              }
+            `}</style>
+            
             {/* Horizontal Steps Indicator */}
-            <div className="grid md:grid-cols-3 gap-6 mb-6">
+            <div className="flex items-start justify-between mb-6 relative">
               {/* Step 1 */}
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
+              <div className="text-center flex-1 step-1">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3 relative z-10" style={{ backgroundColor: primaryColor }}>
                   1
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Review Your Quote</h4>
                 <p className="text-sm text-gray-600">Please review all details including the inventory list, services, and pricing.</p>
               </div>
 
+              {/* Line 1 to 2 */}
+              <div className="flex items-center justify-center" style={{ width: '100px', marginTop: '24px' }}>
+                <div className="h-1 line-1" style={{ backgroundColor: primaryColor, width: 0 }}></div>
+              </div>
+
               {/* Step 2 */}
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
+              <div className="text-center flex-1 step-2">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3 relative z-10" style={{ backgroundColor: primaryColor }}>
                   2
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Contact Us</h4>
                 <p className="text-sm text-gray-600">If you have any questions or need adjustments, our team is here to help.</p>
               </div>
 
+              {/* Line 2 to 3 */}
+              <div className="flex items-center justify-center" style={{ width: '100px', marginTop: '24px' }}>
+                <div className="h-1 line-2" style={{ backgroundColor: primaryColor, width: 0 }}></div>
+              </div>
+
               {/* Step 3 */}
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
+              <div className="text-center flex-1 step-3">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3 relative z-10" style={{ backgroundColor: primaryColor }}>
                   3
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Confirm Your Booking</h4>
