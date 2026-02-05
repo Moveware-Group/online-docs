@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageShell } from '@/lib/components/layout';
 import { Loader2, AlertCircle } from 'lucide-react';
+import SignatureCanvas from '@/lib/components/forms/signature-canvas';
 
 interface Job {
   id: number;
@@ -286,7 +287,7 @@ function QuotePageContent() {
             return (
               <div key={costing.id} className="bg-white rounded-lg shadow mb-6">
                 {/* Header */}
-                <div className="px-6 py-4" style={{ backgroundColor: '#0071bc' }}>
+                <div className="px-6 py-4" style={{ backgroundColor: primaryColor }}>
                   <div className="flex justify-between items-center text-white">
                     <h3 className="text-xl font-bold">Your Estimate</h3>
                     <div className="text-right">
@@ -334,7 +335,7 @@ function QuotePageContent() {
                 {/* Select Option Button */}
                 <div className="px-6 py-4 text-right">
                   <button 
-                    style={{ backgroundColor: '#0071bc' }}
+                    style={{ backgroundColor: primaryColor }}
                     className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-opacity"
                   >
                     Select Option
@@ -438,12 +439,15 @@ function QuotePageContent() {
             </div>
           )}
 
-          {/* Next Steps - Horizontal Indicator */}
+          {/* Next Steps Section */}
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <div className="grid md:grid-cols-3 gap-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Next Steps</h2>
+            
+            {/* Horizontal Steps Indicator */}
+            <div className="grid md:grid-cols-3 gap-6 mb-6">
               {/* Step 1 */}
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mx-auto mb-3">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
                   1
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Review Your Quote</h4>
@@ -452,7 +456,7 @@ function QuotePageContent() {
 
               {/* Step 2 */}
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mx-auto mb-3">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
                   2
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Contact Us</h4>
@@ -461,31 +465,15 @@ function QuotePageContent() {
 
               {/* Step 3 */}
               <div className="text-center">
-                <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-bold mx-auto mb-3">
+                <div className="w-12 h-12 rounded-full text-white flex items-center justify-center text-xl font-bold mx-auto mb-3" style={{ backgroundColor: primaryColor }}>
                   3
                 </div>
                 <h4 className="font-bold text-gray-900 mb-2">Confirm Your Booking</h4>
                 <p className="text-sm text-gray-600">Once you're ready, confirm your booking to secure your move date.</p>
               </div>
             </div>
-          </div>
 
-          {/* Terms & Conditions */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Terms & Conditions</h3>
-            <ul className="text-sm text-gray-600 space-y-2">
-              <li>• This quote is valid for 30 days from the date of issue.</li>
-              <li>• All prices are in Australian Dollars (AUD) and include GST.</li>
-              <li>• Final pricing may vary based on actual inventory and conditions.</li>
-              <li>• Payment: 50% deposit to confirm, balance due on completion.</li>
-              <li>• Cancellation: Full refund if cancelled 7+ days before move date.</li>
-            </ul>
-          </div>
-
-          {/* Signature Form */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Next Step</h2>
-            <p className="text-sm text-gray-700 mb-6">
+            <p className="text-sm text-gray-700 mb-6 border-t pt-6">
               To confirm the service, please fill in the fields below, sign and accept. If the pricing options are not matching your requirements, 
               please decline the quote and provide the information as for the reasons why and we will make sure to update our quote if requested.
             </p>
@@ -501,7 +489,8 @@ function QuotePageContent() {
                     type="text"
                     value={signatureName}
                     onChange={(e) => setSignatureName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    style={{ outlineColor: primaryColor }}
                   />
                 </div>
                 <div>
@@ -512,7 +501,8 @@ function QuotePageContent() {
                     type="date"
                     value={reloFromDate}
                     onChange={(e) => setReloFromDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    style={{ outlineColor: primaryColor }}
                   />
                 </div>
               </div>
@@ -526,7 +516,8 @@ function QuotePageContent() {
                     type="text"
                     value={insuredValue}
                     onChange={(e) => setInsuredValue(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    style={{ outlineColor: primaryColor }}
                   />
                 </div>
                 <div>
@@ -537,7 +528,8 @@ function QuotePageContent() {
                     type="text"
                     value={purchaseOrderNumber}
                     onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    style={{ outlineColor: primaryColor }}
                   />
                 </div>
               </div>
@@ -550,33 +542,23 @@ function QuotePageContent() {
                   value={specialRequirements}
                   onChange={(e) => setSpecialRequirements(e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                  style={{ outlineColor: primaryColor }}
                 />
               </div>
             </div>
 
-            {/* Signature Canvas Placeholder */}
+            {/* Signature Canvas */}
             <div className="mb-6">
-              <div className="border-2 border-gray-300 rounded-lg p-8 bg-gray-50 text-center">
-                <p className="text-gray-400 text-4xl font-light mb-4" style={{ fontFamily: 'cursive' }}>Sign here</p>
-                <p className="text-sm text-gray-500 mb-4">Type signature</p>
-                <input
-                  type="text"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Type your signature"
-                  className="w-full max-w-md mx-auto px-3 py-2 border border-gray-300 rounded mb-4"
-                  style={{ fontFamily: 'cursive', fontSize: '24px' }}
-                />
-                <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors">
-                  Clear
-                </button>
-              </div>
+              <SignatureCanvas
+                value={signature}
+                onChange={setSignature}
+              />
             </div>
 
             {/* Terms Checkbox */}
             <div className="mb-6">
-              <a href="#" className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1 mb-3">
+              <a href="#" className="hover:underline text-sm inline-flex items-center gap-1 mb-3" style={{ color: primaryColor }}>
                 Read Terms & Conditions here
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -599,18 +581,31 @@ function QuotePageContent() {
                 Decline
               </button>
               <button 
-                style={{ backgroundColor: '#0071bc' }}
+                style={{ backgroundColor: primaryColor }}
                 className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity"
               >
                 Create PDF
               </button>
               <button 
                 disabled={!agreedToTerms}
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-400 font-semibold rounded cursor-not-allowed"
+                style={{ backgroundColor: agreedToTerms ? primaryColor : '#e5e7eb' }}
+                className="flex-1 px-6 py-3 text-white font-semibold rounded transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Accept
               </button>
             </div>
+          </div>
+
+          {/* Terms & Conditions - Moved to end */}
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Terms & Conditions</h3>
+            <ul className="text-sm text-gray-600 space-y-2">
+              <li>• This quote is valid for 30 days from the date of issue.</li>
+              <li>• All prices are in Australian Dollars (AUD) and include GST.</li>
+              <li>• Final pricing may vary based on actual inventory and conditions.</li>
+              <li>• Payment: 50% deposit to confirm, balance due on completion.</li>
+              <li>• Cancellation: Full refund if cancelled 7+ days before move date.</li>
+            </ul>
           </div>
 
         </div>
