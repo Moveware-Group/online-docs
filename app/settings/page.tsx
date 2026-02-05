@@ -461,30 +461,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="flex space-x-8" aria-label="Tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  ${activeTab === tab.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }
-                `}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Tab Content */}
+        {/* Content */}
         <div className="bg-white rounded-xl shadow-md p-6 space-y-6">
-          {activeTab === 'companies' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <div>
@@ -582,7 +560,6 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-          )}
         </div>
       </div>
     </PageShell>
