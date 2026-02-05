@@ -63,6 +63,42 @@ export interface QuoteData {
 }
 
 export interface QuoteResponse {
+  id: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  address?: string;
+  serviceType: string;
+  moveDate?: string;
+  details?: string;
+  signatureData: string;
+  typedName: string;
+  acceptedTerms: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateQuoteRequest {
+  customerName: string;
+  email: string;
+  phone: string;
+  address?: string;
+  serviceType: string;
+  moveDate?: string;
+  details?: string;
+  signatureData: string;
+  typedName: string;
+  acceptedTerms: boolean;
+}
+
+export interface CreateQuoteResponse {
+  success: boolean;
+  quote?: QuoteResponse;
+  error?: string;
+}
+
+export interface QuoteApiResponse {
   success: boolean;
   data?: QuoteData;
   error?: string;

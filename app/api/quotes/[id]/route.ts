@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { QuoteData, QuoteResponse } from '@/lib/types/quote';
+import { QuoteData, QuoteApiResponse } from '@/lib/types/quote';
 
 // GET /api/quotes/[id] - Fetch quote details by ID
 export async function GET(
@@ -165,7 +165,7 @@ export async function GET(
       },
     };
 
-    const response: QuoteResponse = {
+    const response: QuoteApiResponse = {
       success: true,
       data: mockQuoteData,
     };
@@ -174,7 +174,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching quote:', error);
     
-    const errorResponse: QuoteResponse = {
+    const errorResponse: QuoteApiResponse = {
       success: false,
       error: 'Failed to fetch quote details',
     };

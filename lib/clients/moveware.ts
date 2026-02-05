@@ -35,11 +35,11 @@ function validateConfig(): void {
 /**
  * Creates authentication headers for Moveware API requests
  */
-function getAuthHeaders(): HeadersInit {
+function getAuthHeaders(): Record<string, string> {
   return {
-    'mw-company-id': config.companyId,
-    'mw-username': config.username,
-    'mw-password': config.password,
+    'mw-company-id': config.companyId || '',
+    'mw-username': config.username || '',
+    'mw-password': config.password || '',
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };

@@ -34,13 +34,18 @@ export async function submitAcceptanceActivity(
   const endpoint = `${config.apiUrl}/api/jobs/${jobId}/activities`;
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+    };
+    
+    if (config.apiVersion) {
+      headers['X-API-Version'] = config.apiVersion;
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-        'X-API-Version': config.apiVersion,
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -92,12 +97,17 @@ export async function testMovewareConnection(): Promise<{
     const config = getMovewareConfig();
     const endpoint = `${config.apiUrl}/api/health`;
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${config.apiKey}`,
+    };
+    
+    if (config.apiVersion) {
+      headers['X-API-Version'] = config.apiVersion;
+    }
+
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'X-API-Version': config.apiVersion,
-      },
+      headers,
     });
 
     if (response.ok) {

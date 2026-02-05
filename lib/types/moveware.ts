@@ -6,11 +6,14 @@
  * Configuration for the Moveware API client
  */
 export interface MovewareConfig {
-  baseUrl: string;
-  companyId: string;
-  username: string;
-  password: string;
-  version: string;
+  baseUrl?: string;
+  apiUrl?: string;
+  companyId?: string;
+  username?: string;
+  password?: string;
+  apiKey?: string;
+  version?: string;
+  apiVersion?: string;
 }
 
 /**
@@ -53,4 +56,43 @@ export interface PaginatedResponse<T> {
     total: number;
     totalPages: number;
   };
+}
+
+/**
+ * Activity payload for Moveware API
+ */
+export interface MovewareActivityPayload {
+  activityType: string;
+  timestamp: string;
+  customerDetails: {
+    name: string;
+    email: string;
+    phone: string;
+    address?: string;
+  };
+  serviceDetails: {
+    serviceType: string;
+    moveDate?: string;
+    details?: string;
+  };
+  acceptance: {
+    signatureData: string;
+    typedName: string;
+    acceptedTerms: boolean;
+    acceptedAt: string;
+  };
+  selectedOptions?: Record<string, unknown>;
+  comments?: string;
+}
+
+/**
+ * Activity response from Moveware API
+ */
+export interface MovewareActivityResponse {
+  success: boolean;
+  activityId?: string;
+  jobId?: string;
+  timestamp?: string;
+  message?: string;
+  error?: string;
 }
