@@ -5,24 +5,6 @@ import { PageShell } from '@/lib/components/layout';
 import { Button } from '@/lib/components/ui';
 import { AlertCircle, Check, Loader2 } from 'lucide-react';
 
-interface BrandingSettings {
-  logoUrl: string;
-  primaryColor: string;
-  secondaryColor: string;
-}
-
-interface HeroSettings {
-  imageUrl: string;
-  title: string;
-  subtitle: string;
-}
-
-interface CopySettings {
-  welcomeMessage: string;
-  ctaText: string;
-  footerText: string;
-}
-
 interface CompanyBranding {
   id?: string;
   companyId: string;
@@ -348,77 +330,16 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Branding state
-  const [branding, setBranding] = useState<BrandingSettings>({
-    logoUrl: '',
-    primaryColor: '#2563eb',
-    secondaryColor: '#60a5fa',
-  });
-
-  // Hero state
-  const [hero, setHero] = useState<HeroSettings>({
-    imageUrl: '',
-    title: '',
-    subtitle: '',
-  });
-
-  // Copy state
-  const [copy, setCopy] = useState<CopySettings>({
-    welcomeMessage: '',
-    ctaText: '',
-    footerText: '',
-  });
-
   // Companies state
   const [companies, setCompanies] = useState<CompanyBranding[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<CompanyBranding | null>(null);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
-  // Load existing settings
+  // Load companies
   useEffect(() => {
     const loadSettings = async () => {
       setLoadingData(true);
       try {
-        // Load branding
-        const brandingRes = await fetch('/api/settings/branding');
-        if (brandingRes.ok) {
-          const brandingData = await brandingRes.json();
-          if (brandingData) {
-            setBranding({
-              logoUrl: brandingData.logoUrl || '',
-              primaryColor: brandingData.primaryColor || '#2563eb',
-              secondaryColor: brandingData.secondaryColor || '#60a5fa',
-            });
-          }
-        }
-
-        // Load hero
-        const heroRes = await fetch('/api/settings/hero');
-        if (heroRes.ok) {
-          const heroData = await heroRes.json();
-          if (heroData) {
-            setHero({
-              imageUrl: heroData.imageUrl || '',
-              title: heroData.title || '',
-              subtitle: heroData.subtitle || '',
-            });
-          }
-        }
-
-        // Load copy
-        const copyRes = await fetch('/api/settings/copy');
-        if (copyRes.ok) {
-          const copyData = await copyRes.json();
-          if (copyData) {
-            setCopy({
-              welcomeMessage: copyData.welcomeMessage || '',
-              ctaText: copyData.ctaText || '',
-              footerText: copyData.footerText || '',
-            });
-          }
-        }
-
-        // Load companies
         const companiesRes = await fetch('/api/settings/companies');
         if (companiesRes.ok) {
           const companiesData = await companiesRes.json();
