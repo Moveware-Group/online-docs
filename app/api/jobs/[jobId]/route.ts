@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { jobService } from '@/lib/services/jobService';
 import { movewareClient } from '@/lib/clients/moveware';
+import { transformJobForDatabase } from '@/lib/types/job';
 
 export async function GET(
   request: NextRequest,
@@ -16,43 +18,50 @@ export async function GET(
       );
     }
 
-    // Fetch job details from Moveware API
-    const jobDetails = await movewareClient.get(`/jobs/${jobId}`);
+    const jobIdInt = parseInt(jobId);
 
-    if (!jobDetails) {
-      return NextResponse.json(
-        { error: 'Job not found' },
-        { status: 404 }
-      );
+    // Try to fetch job from database first
+    let job = await jobService.getJob(jobIdInt);
+
+    // If not in database, fetch from Moveware API and save
+    if (!job) {
+      console.log(`Job ${jobId} not found in database. Fetching from Moveware API...`);
+      
+      try {
+        // Fetch from Moveware API
+        const movewareJob = await movewareClient.get(`/jobs/${jobId}`);
+        
+        if (!movewareJob) {
+          return NextResponse.json(
+            { error: 'Job not found in Moveware API' },
+            { status: 404 }
+          );
+        }
+
+        // Transform and save to database
+        const jobData = transformJobForDatabase(movewareJob);
+        job = await jobService.upsertJob(jobData);
+        
+        console.log(`✓ Job ${jobId} saved to database`);
+      } catch (apiError) {
+        console.error(`Error fetching from Moveware API:`, apiError);
+        return NextResponse.json(
+          { error: 'Job not found in database or Moveware API' },
+          { status: 404 }
+        );
+      }
     }
 
     return NextResponse.json(
       {
         success: true,
-        data: jobDetails
+        data: job
       },
       { status: 200 }
     );
   } catch (error) {
     const awaitedParams = await params;
     console.error(`Error fetching job details for job ${awaitedParams.jobId}:`, error);
-    
-    // Handle specific error types
-    if (error instanceof Error) {
-      if (error.message.includes('404') || error.message.includes('not found')) {
-        return NextResponse.json(
-          { error: 'Job not found' },
-          { status: 404 }
-        );
-      }
-      
-      if (error.message.includes('401') || error.message.includes('unauthorized')) {
-        return NextResponse.json(
-          { error: 'Unauthorized access to Moveware API' },
-          { status: 401 }
-        );
-      }
-    }
 
     return NextResponse.json(
       { error: 'Failed to fetch job details' },

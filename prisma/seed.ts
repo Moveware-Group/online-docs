@@ -19,6 +19,7 @@ async function main() {
       companyId: 'crown-worldwide',
       brandCode: 'MWB',
       companyName: 'Crown Worldwide',
+      logoUrl: 'https://via.placeholder.com/300x100/1E40AF/FFFFFF?text=Crown+Worldwide',
       primaryColor: '#1E40AF',
       secondaryColor: '#3B82F6',
       fontFamily: 'Inter',
