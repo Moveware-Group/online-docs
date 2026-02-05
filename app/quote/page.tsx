@@ -1,65 +1,131 @@
-import { Suspense } from 'react';
-import { PageShell } from '@/lib/components/layout';
-import { QuoteForm } from '@/lib/components/forms/quote-form';
+'use client';
 
-export const metadata = {
-  title: 'Request a Quote - Moveware',
-  description: 'Get a customized quote for your documentation needs',
-};
+import { useEffect, useState } from 'react';
+import { PageShell } from '@/lib/components/layout';
+import { JobDetailsCard, InventoryTable, CostBreakdownCard } from '@/lib/components/quotes';
+import { QuoteData } from '@/lib/types/quote';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export default function QuotePage() {
+  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchQuoteData();
+  }, []);
+
+  const fetchQuoteData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // TODO: Get actual quote ID from URL params or context
+      const quoteId = 'sample-quote-123';
+      
+      const response = await fetch(`/api/quotes/${quoteId}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setQuoteData(result.data);
+      } else {
+        setError(result.error || 'Failed to load quote data');
+      }
+    } catch (err) {
+      console.error('Error fetching quote:', err);
+      setError('An unexpected error occurred while loading the quote');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <PageShell>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+            <p className="text-lg text-gray-600">Loading quote details...</p>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageShell>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="max-w-md w-full bg-white rounded-xl shadow-md p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Quote</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <button
+              onClick={fetchQuoteData}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!quoteData) {
+    return (
+      <PageShell>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-lg text-gray-600">No quote data available</p>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto">
-          {/* Header Section */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Request a Quote
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Tell us about your documentation needs and we'll provide a customized quote tailored to your requirements.
-            </p>
+      <div className="min-h-screen bg-gray-50">
+        {/* Page Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+                  Online Quote
+                </h1>
+                <p className="text-lg text-gray-600 mt-2">
+                  Review your moving quote details and pricing
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Form Section */}
-          <Suspense fallback={
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          }>
-            <QuoteForm />
-          </Suspense>
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-8">
+            {/* Job Details Section */}
+            <JobDetailsCard jobDetails={quoteData.jobDetails} />
 
-          {/* Additional Info */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">Fast Response</h3>
-              <p className="text-sm text-gray-600">We'll get back to you within 24 hours</p>
-            </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">Secure & Private</h3>
-              <p className="text-sm text-gray-600">Your information is kept confidential</p>
-            </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">No Obligation</h3>
-              <p className="text-sm text-gray-600">Free quotes with no commitment required</p>
-            </div>
+            {/* Inventory Section */}
+            <InventoryTable items={quoteData.inventory} />
+
+            {/* Cost Breakdown Section */}
+            <CostBreakdownCard costings={quoteData.costings} />
+          </div>
+        </div>
+
+        {/* Footer Note */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold text-gray-900">Note:</span> This quote is valid for
+              30 days from the date of issue. All prices are in Australian Dollars (AUD) and
+              include GST. Final pricing may vary based on actual inventory and conditions at
+              pickup and delivery locations.
+            </p>
           </div>
         </div>
       </div>
