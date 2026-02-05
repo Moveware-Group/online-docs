@@ -90,6 +90,8 @@ export interface UpdateCopyInput {
  * Condition types for display logic
  */
 export type ConditionType = 
+  | 'jobType'
+  | 'customerId'
   | 'userRole'
   | 'companySize'
   | 'subscription'
