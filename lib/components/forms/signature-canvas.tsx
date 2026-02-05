@@ -180,7 +180,7 @@ export default function SignatureCanvas({ value, onChange, error }: SignatureCan
 
       {mode === 'draw' ? (
         <div
-          className={`relative border-2 rounded-lg overflow-hidden max-w-2xl ${
+          className={`relative border-2 rounded-lg overflow-hidden w-full ${
             error ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-gray-50'
           }`}
         >
@@ -205,7 +205,7 @@ export default function SignatureCanvas({ value, onChange, error }: SignatureCan
           )}
         </div>
       ) : (
-        <div className="max-w-2xl">
+        <div className="w-full">
           <input
             type="text"
             value={typedName}

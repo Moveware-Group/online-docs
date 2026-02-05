@@ -101,8 +101,9 @@ function QuotePageContent() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Ref for PDF content
+  // Refs
   const pdfContentRef = useRef<HTMLDivElement>(null);
+  const nextStepsRef = useRef<HTMLDivElement>(null);
   
   // Validation states
   const [errors, setErrors] = useState({
@@ -129,15 +130,15 @@ function QuotePageContent() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && !animateSteps) {
+          if (entry.isIntersecting) {
             setAnimateSteps(true);
           }
         });
       },
-      { threshold: 0.3 }
+      { threshold: 0.1, rootMargin: '0px 0px -100px 0px' }
     );
 
-    const stepsSection = document.getElementById('next-steps-section');
+    const stepsSection = nextStepsRef.current;
     if (stepsSection) {
       observer.observe(stepsSection);
     }
@@ -147,7 +148,7 @@ function QuotePageContent() {
         observer.unobserve(stepsSection);
       }
     };
-  }, [animateSteps]);
+  }, []);
 
   useEffect(() => {
     if (jobId && companyId) {
@@ -759,7 +760,7 @@ function QuotePageContent() {
           )}
 
           {/* Next Steps Section */}
-          <div id="next-steps-section" className="bg-white rounded-lg shadow p-6 mb-6">
+          <div ref={nextStepsRef} className="bg-white rounded-lg shadow p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Next Steps</h2>
             
             <style jsx global>{`
