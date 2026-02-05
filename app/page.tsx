@@ -149,10 +149,8 @@ export default async function Home() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full text-white py-3 px-4 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg"
+                className="w-full text-white py-3 px-4 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:opacity-90"
                 style={{ backgroundColor: '#1A70B9' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#155a94'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1A70B9'}
               >
                 Sign In
               </button>
@@ -217,10 +215,8 @@ export default async function Home() {
             <div className="mt-8">
               <a
                 href="/getting-started"
-                className="inline-block rounded-md bg-white px-8 py-3 text-base font-semibold shadow-lg transition-all hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
+                className="inline-block rounded-md bg-white hover:bg-gray-50 px-8 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2"
                 style={{ color: '#1A70B9' }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F5F5F5'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
               >
                 Get Started Now
               </a>
