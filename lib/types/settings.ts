@@ -91,12 +91,7 @@ export interface UpdateCopyInput {
  */
 export type ConditionType = 
   | 'jobType'
-  | 'customerId'
-  | 'userRole'
-  | 'companySize'
-  | 'subscription'
-  | 'feature'
-  | 'custom';
+  | 'customerId';
 
 export type ConditionOperator = 
   | 'equals'
