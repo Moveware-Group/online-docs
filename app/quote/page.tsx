@@ -842,7 +842,7 @@ function QuotePageContent() {
                   </label>
                   <DatePicker
                     selected={reloFromDate}
-                    onChange={(date) => {
+                    onChange={(date: Date | null) => {
                       setReloFromDate(date);
                       if (errors.reloFromDate) {
                         setErrors({ ...errors, reloFromDate: '' });
