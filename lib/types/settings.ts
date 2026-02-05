@@ -99,7 +99,7 @@ export type ConditionOperator =
   | 'contains';
 
 export interface Condition {
-  id: string;
+  id?: string;
   type: ConditionType;
   operator: ConditionOperator;
   value: string | number | boolean | string[];
