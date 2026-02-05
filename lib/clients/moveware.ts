@@ -19,7 +19,7 @@ const baseConfig = {
 /**
  * Validates that all required configuration is present
  */
-function validateConfig(companyId?: string): void {
+function validateConfig(companyId?: number): void {
   const missing: string[] = [];
   
   if (!baseConfig.baseUrl) missing.push('MOVEWARE_API_URL');
@@ -35,9 +35,9 @@ function validateConfig(companyId?: string): void {
 /**
  * Creates authentication headers for Moveware API requests
  */
-function getAuthHeaders(companyId: string): Record<string, string> {
+function getAuthHeaders(companyId: number): Record<string, string> {
   return {
-    'mw-company-id': companyId,
+    'mw-company-id': companyId.toString(),
     'mw-username': baseConfig.username,
     'mw-password': baseConfig.password,
     'Content-Type': 'application/json',
@@ -50,7 +50,7 @@ function getAuthHeaders(companyId: string): Record<string, string> {
  */
 async function request<T>(
   endpoint: string,
-  companyId: string,
+  companyId: number,
   options: RequestInit = {}
 ): Promise<MovewareResponse<T>> {
   validateConfig(companyId);
@@ -101,8 +101,9 @@ async function request<T>(
 /**
  * Factory function to create a Moveware API Client with a specific company ID
  * This allows for multi-tenant support where company ID comes from the URL
+ * @param companyId - Integer company ID (e.g., 123, 456)
  */
-export function createMovewareClient(companyId: string) {
+export function createMovewareClient(companyId: number) {
   return {
     /**
      * Makes a GET request
@@ -178,6 +179,7 @@ export function createMovewareClient(companyId: string) {
  * Default client for backward compatibility (uses MOVEWARE_COMPANY_ID from env)
  * @deprecated Use createMovewareClient(companyId) for multi-tenant support
  */
-export const movewareClient = createMovewareClient(process.env.MOVEWARE_COMPANY_ID || '');
+const envCompanyId = process.env.MOVEWARE_COMPANY_ID ? parseInt(process.env.MOVEWARE_COMPANY_ID) : 0;
+export const movewareClient = createMovewareClient(envCompanyId);
 
 export default movewareClient;

@@ -68,12 +68,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 Visit a quote by job ID with company ID parameter:
 ```
-http://localhost:3000/jobs/111505?coId=ABC123
+http://localhost:3000/quote?jobId=111505&coId=123
 ```
 
 **Parameters**:
-- `jobId` (path parameter): The job/quote ID
-- `coId` (query parameter): The company ID for multi-tenant support
+- `jobId` (query parameter): The job/quote ID number
+- `coId` (query parameter): The company ID (integer) for multi-tenant support
+
+**Note**: `coId` is the integer company ID (e.g., 123, 456), not the brandCode string (e.g., "MWB")
 
 **First access**: System automatically fetches data from Moveware API and saves to database  
 **Subsequent access**: Data loads instantly from local database
@@ -89,12 +91,14 @@ npm start
 
 ### Data Flow
 
-1. **User visits** `/jobs/[jobId]?coId={companyId}`
-2. **System extracts** company ID from URL parameter
+1. **User visits** `/quote?jobId={jobId}&coId={companyId}`
+2. **System extracts** company ID (integer) from URL parameter
 3. **System checks** PostgreSQL database for job data
 4. **If not found**: Fetches from Moveware API using company ID, transforms, and saves to database
 5. **If found**: Loads directly from database (fast!)
 6. **Displays** beautiful quote document
+
+**Important**: The `coId` parameter must be an integer (e.g., 123), not a string like "MWB". The brandCode is stored separately in the database.
 
 See [DATA_SYNC.md](./DATA_SYNC.md) for detailed documentation.
 

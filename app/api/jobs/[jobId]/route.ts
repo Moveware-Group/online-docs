@@ -12,7 +12,7 @@ export async function GET(
 
     // Extract company ID from URL parameter
     const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('coId');
+    const coIdParam = searchParams.get('coId');
 
     // Validate jobId parameter
     if (!jobId) {
@@ -22,10 +22,18 @@ export async function GET(
       );
     }
 
-    // Validate company ID
-    if (!companyId) {
+    // Validate and parse company ID as integer
+    if (!coIdParam) {
       return NextResponse.json(
         { error: 'Company ID (coId) parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    const companyId = parseInt(coIdParam);
+    if (isNaN(companyId)) {
+      return NextResponse.json(
+        { error: 'Company ID (coId) must be a valid integer' },
         { status: 400 }
       );
     }
@@ -37,10 +45,10 @@ export async function GET(
 
     // If not in database, fetch from Moveware API and save
     if (!job) {
-      console.log(`Job ${jobId} not found in database. Fetching from Moveware API (Company: ${companyId})...`);
+      console.log(`Job ${jobId} not found in database. Fetching from Moveware API (Company ID: ${companyId})...`);
       
       try {
-        // Create client with dynamic company ID
+        // Create client with dynamic company ID (integer)
         const movewareClient = createMovewareClient(companyId);
         
         // Fetch from Moveware API
