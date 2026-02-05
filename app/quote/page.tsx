@@ -305,8 +305,8 @@ function QuotePageContent() {
 
       // Show success message inline
       setError(null);
-      // Optionally redirect to thank you page
-      window.location.href = '/thank-you';
+      // Redirect to thank you page with parameters
+      window.location.href = `/thank-you?jobId=${jobId}&coId=${companyId}`;
     } catch (err) {
       console.error('Error accepting quote:', err);
       setError(err instanceof Error ? err.message : 'Failed to accept quote. Please try again.');
