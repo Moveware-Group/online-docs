@@ -1,10 +1,7 @@
-/**
- * Job Costings API Route
- * GET /api/jobs/:jobId/costings - Get costings for a specific job
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobCosting } from '@/lib/services/costingsService';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET(
   request: NextRequest,
@@ -12,20 +9,40 @@ export async function GET(
 ) {
   try {
     const { jobId } = await params;
-    const costing = await getJobCosting(jobId);
 
-    if (!costing) {
+    // Validate jobId parameter
+    if (!jobId) {
       return NextResponse.json(
-        { error: 'Job costing not found' },
-        { status: 404 }
+        { error: 'Job ID is required' },
+        { status: 400 }
       );
     }
 
-    return NextResponse.json({ costing });
-  } catch (error) {
-    console.error('Error fetching job costing:', error);
+    const jobIdInt = parseInt(jobId);
+
+    // Fetch costings from database
+    const costings = await prisma.costingItem.findMany({
+      where: {
+        jobId: jobIdInt,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
     return NextResponse.json(
-      { error: 'Failed to fetch job costing' },
+      {
+        success: true,
+        data: costings
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    const awaitedParams = await params;
+    console.error(`Error fetching costings for job ${awaitedParams.jobId}:`, error);
+
+    return NextResponse.json(
+      { error: 'Failed to fetch job costings' },
       { status: 500 }
     );
   }

@@ -274,11 +274,49 @@ async function main() {
   }
   console.log(`✓ Created ${inventoryCount} inventory items`);
 
-  // 4. Summary
+  // 4. Create Costing Item
+  console.log('Creating costing item for job #111505...');
+  await prisma.costingItem.upsert({
+    where: { id: 'costing-111505-local' },
+    update: {},
+    create: {
+      id: 'costing-111505-local',
+      jobId: 111505,
+      name: 'Local Removal',
+      category: 'Moving Service',
+      description: 'Local Moving service with collection from 3 Spring Water Crescent, Cranbourne and delivering to Hawthorn East.',
+      quantity: 1,
+      rate: 300.00,
+      netTotal: 'N/A',
+      totalPrice: 300.00,
+      taxIncluded: true,
+      rawData: {
+        inclusions: [
+          'Protection of floors, hallways & lifts where applicable',
+          'Full packing service, including all boxes and materials',
+          'Dismantling of non flat-packed goods',
+          'Delivery into destination address, positioning & setting up of goods one time into relevant rooms',
+        ],
+        exclusions: [
+          'Disconnection and/or reconnection to mains supply (water electricity)',
+          'Unexpected difficult access, use of outside lifting machine, long carry over 30 metres',
+          'Parking charges (optional)',
+          'Removals and storage insurance cover (see below)',
+          'Unpacking services (optional)',
+          'Reassembly of items not dismantled by us (optional)',
+          'Any other additional/optional services',
+        ],
+      },
+    },
+  });
+  console.log('✓ Created costing item');
+
+  // 5. Summary
   console.log('\n📊 Seed Summary:');
   console.log('- Branding: 1 (MWB - Crown Worldwide)');
   console.log('- Jobs: 1 (Job #111505)');
   console.log(`- Inventory Items: ${inventoryCount}`);
+  console.log('- Costing Items: 1');
   console.log('\n✅ Database seeded successfully!');
 }
 

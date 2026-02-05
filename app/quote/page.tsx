@@ -51,6 +51,22 @@ interface InventoryItem {
   typeCode?: string;
 }
 
+interface CostingItem {
+  id: string;
+  name?: string;
+  category?: string;
+  description?: string;
+  quantity?: number;
+  rate?: number;
+  netTotal?: string;
+  totalPrice?: number;
+  taxIncluded?: boolean;
+  rawData?: {
+    inclusions?: string[];
+    exclusions?: string[];
+  };
+}
+
 function QuotePageContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get('jobId');
@@ -58,9 +74,20 @@ function QuotePageContent() {
   
   const [job, setJob] = useState<Job | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [costings, setCostings] = useState<CostingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Form state for signature section
+  const [signatureName, setSignatureName] = useState('');
+  const [reloFromDate, setReloFromDate] = useState('');
+  const [insuredValue, setInsuredValue] = useState('');
+  const [purchaseOrderNumber, setPurchaseOrderNumber] = useState('');
+  const [specialRequirements, setSpecialRequirements] = useState('');
+  const [signature, setSignature] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showDetailsIndex, setShowDetailsIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (jobId && companyId) {
@@ -88,8 +115,13 @@ function QuotePageContent() {
       const inventoryResponse = await fetch(`/api/jobs/${jobIdParam}/inventory?coId=${coIdParam}`);
       const inventoryResult = await inventoryResponse.json();
 
+      // Fetch costings with company ID
+      const costingsResponse = await fetch(`/api/jobs/${jobIdParam}/costings?coId=${coIdParam}`);
+      const costingsResult = await costingsResponse.json();
+
       setJob(jobResult.data);
       setInventory(inventoryResult.data || []);
+      setCostings(costingsResult.data || []);
     } catch (err) {
       console.error('Error fetching job data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load job data');
@@ -244,26 +276,117 @@ function QuotePageContent() {
             )}
           </div>
 
-          {/* Quote Summary */}
-          {job.jobValue && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Quote Summary</h3>
-              <div className="grid grid-cols-3 gap-6 text-center">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Volume</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalCube.toFixed(2)} m³</p>
+          {/* Estimate Section */}
+          {costings.length > 0 && costings.map((costing, index) => {
+            const subtotal = costing.totalPrice || 0;
+            const totalAmount = subtotal;
+            const inclusions = costing.rawData?.inclusions || [];
+            const exclusions = costing.rawData?.exclusions || [];
+            
+            return (
+              <div key={costing.id} className="bg-white rounded-lg shadow mb-6">
+                {/* Header */}
+                <div className="px-6 py-4" style={{ backgroundColor: '#0071bc' }}>
+                  <div className="flex justify-between items-center text-white">
+                    <h3 className="text-xl font-bold">Your Estimate</h3>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">(AUD) A${totalAmount.toFixed(2)}</div>
+                      <div className="text-sm">Tax included</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Items</p>
-                  <p className="text-2xl font-bold text-gray-900">{inventory.length}</p>
+
+                {/* Service Details */}
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900">{costing.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        Qty: {costing.quantity || 1} | Rate: A${(costing.rate || 0).toFixed(2)} | NT: {costing.netTotal || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="text-right font-bold text-gray-900">
+                      A${(costing.totalPrice || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 mt-2">{costing.description}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Estimated Cost</p>
-                  <p className="text-2xl font-bold text-green-600">${job.jobValue.toFixed(2)}</p>
+
+                {/* Summary */}
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="space-y-2 text-right">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold">Subtotal</span>
+                      <span>A${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="font-semibold">Tax</span>
+                      <span>N/A</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-300">
+                      <span>Total</span>
+                      <span>A${totalAmount.toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-gray-600">Tax Included</p>
+                  </div>
+                </div>
+
+                {/* Select Option Button */}
+                <div className="px-6 py-4 text-right">
+                  <button 
+                    style={{ backgroundColor: '#0071bc' }}
+                    className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-opacity"
+                  >
+                    Select Option
+                  </button>
+                </div>
+
+                {/* Details Accordion */}
+                <div className="border-t border-gray-300">
+                  <button
+                    onClick={() => setShowDetailsIndex(showDetailsIndex === index ? null : index)}
+                    className="w-full px-6 py-4 flex justify-between items-center bg-gray-200 hover:bg-gray-300 transition-colors"
+                  >
+                    <span className="font-semibold text-gray-800">Details</span>
+                    <svg
+                      className={`w-5 h-5 transform transition-transform ${showDetailsIndex === index ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showDetailsIndex === index && (
+                    <div className="px-6 py-4 bg-gray-50">
+                      {inclusions.length > 0 && (
+                        <div className="mb-4">
+                          <h5 className="font-bold text-gray-900 mb-2">Inclusions</h5>
+                          <ul className="space-y-1">
+                            {inclusions.map((item, i) => (
+                              <li key={i} className="text-sm text-gray-700">• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {exclusions.length > 0 && (
+                        <div>
+                          <h5 className="font-bold text-gray-900 mb-2">Exclusions</h5>
+                          <ul className="space-y-1">
+                            {exclusions.map((item, i) => (
+                              <li key={i} className="text-sm text-gray-700">• {item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })}
 
           {/* Inventory Section */}
           {inventory.length > 0 && (
@@ -315,52 +438,134 @@ function QuotePageContent() {
             </div>
           )}
 
-          {/* Next Steps */}
+          {/* Next Step - Signature Form */}
           <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Next Steps</h3>
-            <ol className="space-y-3">
-              <li className="flex items-start">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold mr-3">1</span>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Review Your Quote</h4>
-                  <p className="text-sm text-gray-600">Please review all details including the inventory list, services, and pricing.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold mr-3">2</span>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Contact Us</h4>
-                  <p className="text-sm text-gray-600">If you have any questions or need adjustments, our team is here to help.</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold mr-3">3</span>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Confirm Your Booking</h4>
-                  <p className="text-sm text-gray-600">Once you're ready, confirm your booking to secure your move date.</p>
-                </div>
-              </li>
-            </ol>
-          </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Next Step</h2>
+            <p className="text-sm text-gray-700 mb-6">
+              To confirm the service, please fill in the fields below, sign and accept. If the pricing options are not matching your requirements, 
+              please decline the quote and provide the information as for the reasons why and we will make sure to update our quote if requested.
+            </p>
 
-          {/* Terms & Contact */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Terms & Conditions</h3>
-            <ul className="text-sm text-gray-600 space-y-2 mb-6">
-              <li>• This quote is valid for 30 days from the date of issue.</li>
-              <li>• All prices are in Australian Dollars (AUD) and include GST.</li>
-              <li>• Final pricing may vary based on actual inventory and conditions.</li>
-              <li>• Payment: 50% deposit to confirm, balance due on completion.</li>
-              <li>• Cancellation: Full refund if cancelled 7+ days before move date.</li>
-            </ul>
-
-            <div className="pt-6 border-t border-gray-200 text-center">
-              <h4 className="font-bold text-gray-900 mb-3">{companyName}</h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>Email: contact@moveware.com</p>
-                <p>Phone: 1300 MOVEWARE</p>
-                <p>Web: www.moveware.com</p>
+            {/* Form Fields */}
+            <div className="space-y-4 mb-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Signature Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={signatureName}
+                    onChange={(e) => setSignatureName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={reloFromDate}
+                    onChange={(e) => setReloFromDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Insured value <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={insuredValue}
+                    onChange={(e) => setInsuredValue(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Purchase order number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={purchaseOrderNumber}
+                    onChange={(e) => setPurchaseOrderNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Add any special requirements here
+                </label>
+                <textarea
+                  value={specialRequirements}
+                  onChange={(e) => setSpecialRequirements(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Signature Canvas Placeholder */}
+            <div className="mb-6">
+              <div className="border-2 border-gray-300 rounded-lg p-8 bg-gray-50 text-center">
+                <p className="text-gray-400 text-4xl font-light mb-4" style={{ fontFamily: 'cursive' }}>Sign here</p>
+                <p className="text-sm text-gray-500 mb-4">Type signature</p>
+                <input
+                  type="text"
+                  value={signature}
+                  onChange={(e) => setSignature(e.target.value)}
+                  placeholder="Type your signature"
+                  className="w-full max-w-md mx-auto px-3 py-2 border border-gray-300 rounded mb-4"
+                  style={{ fontFamily: 'cursive', fontSize: '24px' }}
+                />
+                <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {/* Terms Checkbox */}
+            <div className="mb-6">
+              <a href="#" className="text-blue-600 hover:underline text-sm inline-flex items-center gap-1 mb-3">
+                Read Terms & Conditions here
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4"
+                />
+                <span className="text-sm text-gray-700">I have read and agree to your Terms & Conditions</span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4">
+              <button className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 font-semibold rounded hover:bg-gray-400 transition-colors">
+                Decline
+              </button>
+              <button 
+                style={{ backgroundColor: '#0071bc' }}
+                className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity"
+              >
+                Create PDF
+              </button>
+              <button 
+                disabled={!agreedToTerms}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-400 font-semibold rounded cursor-not-allowed"
+              >
+                Accept
+              </button>
             </div>
           </div>
 

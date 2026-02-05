@@ -157,12 +157,15 @@ model CostingItem {
   id                String   @id @default(cuid())
   jobId             Int
   
-  // Costing details (to be filled in when you provide the costings API payload)
+  // Costing details
+  name              String?
   category          String?
   description       String?
   quantity          Float?
-  unitPrice         Float?
+  rate              Float?
+  netTotal          String?
   totalPrice        Float?
+  taxIncluded       Boolean  @default(true)
   
   // Store full raw data for reference
   rawData           Json?
