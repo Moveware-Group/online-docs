@@ -805,7 +805,7 @@ export default function SettingsPage() {
                     onClick={() => {
                       setIsAddingCompany(true);
                       setSelectedCompany({
-                        companyId: 0,
+                        companyId: '',
                         brandCode: '',
                         companyName: '',
                         logoUrl: '',
@@ -813,6 +813,14 @@ export default function SettingsPage() {
                         secondaryColor: '#fff',
                         tertiaryColor: '#5a5a5a',
                         fontFamily: 'Inter',
+                        heroHeading: '',
+                        heroSubheading: '',
+                        heroCtaText: '',
+                        heroCtaUrl: '',
+                        heroImageUrl: '',
+                        tagline: '',
+                        description: '',
+                        metaDescription: '',
                       });
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
