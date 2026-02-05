@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { PageShell } from '@/lib/components/layout';
-import { QuoteForm } from '@/lib/components/forms/quote-form';
+import { QuoteForm } from '@/lib/components/forms';
 
 export const metadata = {
   title: 'Request a Quote - Moveware',
