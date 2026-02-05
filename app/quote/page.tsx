@@ -97,6 +97,10 @@ function QuotePageContent() {
   const [animateSteps, setAnimateSteps] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   
+  // Pagination state for inventory table
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  
   // Ref for PDF content
   const pdfContentRef = useRef<HTMLDivElement>(null);
   
@@ -160,6 +164,11 @@ function QuotePageContent() {
       setSelectedCostingId(costings[0].id);
     }
   }, [costings, selectedCostingId]);
+
+  // Reset to page 1 when inventory changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [inventory.length]);
 
   const fetchJobData = async (jobIdParam: string, coIdParam: string) => {
     try {
@@ -401,6 +410,18 @@ function QuotePageContent() {
   const quoteDate = formatDate(new Date());
   const expiryDate = formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
 
+  // Pagination logic for inventory
+  const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(inventory.length / itemsPerPage);
+  const paginatedInventory = itemsPerPage === -1 
+    ? inventory 
+    : inventory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  
+  // Reset to page 1 when items per page changes
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
+
   return (
     <PageShell includeHeader={false}>
       <div ref={pdfContentRef} className="min-h-screen bg-gray-50">
@@ -605,8 +626,22 @@ function QuotePageContent() {
           {/* Inventory Section */}
           {inventory.length > 0 && (
             <div className="bg-white rounded-lg shadow mb-6">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Complete Inventory</h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">Show:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={-1}>All</option>
+                  </select>
+                  <span className="text-sm text-gray-600">items per page</span>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -619,7 +654,7 @@ function QuotePageContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {inventory.map((item) => (
+                    {paginatedInventory.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="text-sm font-medium text-gray-900">{item.description}</div>
@@ -649,6 +684,66 @@ function QuotePageContent() {
                   </tfoot>
                 </table>
               </div>
+              
+              {/* Pagination Controls */}
+              {itemsPerPage !== -1 && totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                  <div className="text-sm text-gray-600">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, inventory.length)} of {inventory.length} items
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    
+                    {/* Page Numbers */}
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => {
+                          // Show first page, last page, current page, and pages around current
+                          return page === 1 || 
+                                 page === totalPages || 
+                                 (page >= currentPage - 1 && page <= currentPage + 1);
+                        })
+                        .map((page, index, array) => {
+                          // Add ellipsis if there's a gap
+                          const prevPage = array[index - 1];
+                          const showEllipsis = prevPage && page - prevPage > 1;
+                          
+                          return (
+                            <div key={page} className="flex gap-1">
+                              {showEllipsis && (
+                                <span className="px-3 py-1 text-gray-500">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-3 py-1 border rounded text-sm transition-colors ${
+                                  currentPage === page
+                                    ? 'border-blue-500 bg-blue-50 text-blue-600 font-medium'
+                                    : 'border-gray-300 hover:bg-gray-50'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
