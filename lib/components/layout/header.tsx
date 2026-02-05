@@ -45,10 +45,8 @@ export function Header() {
             ))}
             <Link
               href="/quote"
-              className="text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2"
+              className="text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2"
               style={{ backgroundColor: '#1A70B9' }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#155a94'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1A70B9'}
             >
               Sign In
             </Link>
