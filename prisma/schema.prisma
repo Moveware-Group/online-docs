@@ -10,126 +10,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Company model - represents a client/company using the platform
-model Company {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  domain    String?  @unique // Custom domain for the company
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // One-to-one relationships with customization tables
-  branding Branding?
-  hero     Hero?
-  copy     Copy?
-
-  @@map("companies")
-  @@index([slug])
-  @@index([domain])
-}
-
-// Branding model - stores color scheme and logo information
 model Branding {
-  id        String   @id @default(cuid())
-  companyId String   @unique
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Color scheme
-  primaryColor   String? // Hex color code (e.g., #1E40AF)
-  secondaryColor String? // Hex color code
-  accentColor    String? // Hex color code
-  textColor      String? // Hex color code for primary text
-  backgroundColor String? // Hex color code for background
-
-  // Logo and branding assets
-  logoUrl         String? // URL to company logo
-  logoLightUrl    String? // URL to logo for dark backgrounds
-  logoDarkUrl     String? // URL to logo for light backgrounds
-  faviconUrl      String? // URL to favicon
-  
-  // Additional branding
-  fontFamily      String? // Font family name (e.g., "Inter", "Roboto")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("branding")
-  @@index([companyId])
+  id            String   @id @default(cuid())
+  companyId     String   @unique
+  logoUrl       String?
+  primaryColor  String?
+  secondaryColor String?
+  fontFamily    String?
+  companyName   String?
+  favicon       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-// Hero model - stores hero section configuration
 model Hero {
-  id        String   @id @default(cuid())
-  companyId String   @unique
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  // Hero image and layout
-  imageUrl        String? // URL to hero/banner image
-  imageMobileUrl  String? // URL to mobile-optimized hero image
-  videoUrl        String? // URL to hero video (alternative to image)
-  layout          String  @default("centered") // Layout type: "centered", "split", "full-width", "minimal"
-  overlayOpacity  Float?  @default(0.3) // Overlay opacity for image/video (0.0 to 1.0)
-
-  // Hero content
-  heading         String? // Main heading text
-  subheading      String? @db.Text // Subheading/description text
-  
-  // Call-to-action
-  ctaText         String? // CTA button text
-  ctaUrl          String? // CTA button URL
-  ctaSecondaryText String? // Secondary CTA button text
-  ctaSecondaryUrl String? // Secondary CTA button URL
-
-  // Display options
-  showCta         Boolean @default(true)
-  height          String? @default("large") // Height: "small", "medium", "large", "full"
-  alignment       String? @default("center") // Text alignment: "left", "center", "right"
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("hero")
-  @@index([companyId])
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  heading     String?
+  subheading  String?
+  ctaText     String?
+  ctaUrl      String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-// Copy model - stores all textual content for the company
 model Copy {
-  id        String   @id @default(cuid())
-  companyId String   @unique
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
 
-  // Company information
-  tagline         String? // Short tagline/slogan
-  description     String? @db.Text // Company description
-  metaDescription String? // SEO meta description
-  metaKeywords    String? // SEO keywords
+model Quote {
+  id            String   @id @default(cuid())
+  customerName  String
+  email         String
+  phone         String
+  address       String?
+  serviceType   String
+  moveDate      String?
+  details       String?
+  signatureData String
+  typedName     String
+  acceptedTerms Boolean  @default(false)
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  // Page content
-  aboutUs         String? @db.Text // About us page content
-  services        String? @db.Text // Services description
-  whyChooseUs     String? @db.Text // Why choose us section
-  testimonials    String? @db.Text // Customer testimonials (JSON format)
-
-  // Contact information
-  contactInfo     String? @db.Text // General contact information
-  email           String? // Contact email
-  phone           String? // Contact phone number
-  address         String? @db.Text // Physical address
-  supportHours    String? // Support hours text
-
-  // Footer content
-  footerText      String? @db.Text // Footer copyright/additional text
-  privacyPolicy   String? @db.Text // Privacy policy content
-  termsOfService  String? @db.Text // Terms of service content
-
-  // Social media
-  socialLinks     String? @db.Text // JSON object with social media links
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("copy")
-  @@index([companyId])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }
