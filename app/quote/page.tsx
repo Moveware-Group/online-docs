@@ -504,10 +504,10 @@ function QuotePageContent() {
                     <tr>
                       <td className="px-6 py-4 text-sm font-bold text-gray-900">Total</td>
                       <td className="px-6 py-4 text-center text-sm font-bold text-gray-900">
-                        {inventory.reduce((sum, item) => sum + (item.quantity || 1), 0)}
+                        <span className="text-red-600">Qty</span> {inventory.reduce((sum, item) => sum + (item.quantity || 1), 0)}
                       </td>
                       <td className="px-6 py-4 text-center text-sm font-bold text-gray-900">
-                        {totalCube.toFixed(2)}
+                        <span className="text-red-600">cubic metres</span> {totalCube.toFixed(2)}
                       </td>
                       <td></td>
                     </tr>
