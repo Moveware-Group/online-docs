@@ -85,3 +85,36 @@ export interface UpdateCopyInput {
   value?: string;
   locale?: string;
 }
+
+/**
+ * Condition types for display logic
+ */
+export type ConditionType = 
+  | 'userRole'
+  | 'companySize'
+  | 'subscription'
+  | 'feature'
+  | 'custom';
+
+export type ConditionOperator = 
+  | 'equals'
+  | 'notEquals'
+  | 'contains'
+  | 'notContains'
+  | 'greaterThan'
+  | 'lessThan'
+  | 'in'
+  | 'notIn';
+
+export interface Condition {
+  id: string;
+  type: ConditionType;
+  operator: ConditionOperator;
+  value: string | number | boolean | string[];
+  field?: string;
+}
+
+export interface DisplayConditions {
+  conditions: Condition[];
+  logic?: 'AND' | 'OR';
+}
