@@ -819,52 +819,155 @@ function QuotePageContent() {
               .react-datepicker {
                 font-family: inherit;
                 border: 2px solid #e5e7eb;
-                border-radius: 0.5rem;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                border-radius: 0.75rem;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                overflow: hidden;
               }
 
               .react-datepicker__header {
                 background-color: ${primaryColor};
                 border-bottom: none;
-                border-radius: 0.5rem 0.5rem 0 0;
-                padding-top: 1rem;
+                border-radius: 0;
+                padding: 1.25rem 0.75rem 0.75rem;
               }
 
-              .react-datepicker__current-month,
+              .react-datepicker__current-month {
+                color: white;
+                font-weight: 700;
+                font-size: 1.125rem;
+                margin-bottom: 0.5rem;
+              }
+
               .react-datepicker__day-name {
                 color: white;
                 font-weight: 600;
+                font-size: 0.875rem;
+                width: 2.5rem;
+                line-height: 2.5rem;
+                margin: 0.166rem;
               }
 
               .react-datepicker__day {
-                border-radius: 0.375rem;
+                border-radius: 0.5rem;
                 transition: all 0.2s;
+                width: 2.5rem;
+                line-height: 2.5rem;
+                margin: 0.166rem;
+                font-size: 0.9rem;
+                color: #374151;
               }
 
-              .react-datepicker__day:hover {
-                background-color: #fee;
+              .react-datepicker__day:hover:not(.react-datepicker__day--disabled) {
+                background-color: ${primaryColor}15;
                 color: ${primaryColor};
+                font-weight: 600;
               }
 
               .react-datepicker__day--selected,
               .react-datepicker__day--keyboard-selected {
-                background-color: ${primaryColor};
-                color: white;
-                font-weight: 600;
+                background-color: ${primaryColor} !important;
+                color: white !important;
+                font-weight: 700 !important;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
               }
 
               .react-datepicker__day--today {
-                font-weight: 600;
+                font-weight: 700;
                 color: ${primaryColor};
+                background-color: ${primaryColor}10;
                 border: 2px solid ${primaryColor};
+              }
+
+              .react-datepicker__day--today.react-datepicker__day--selected {
+                color: white !important;
+                background-color: ${primaryColor} !important;
+                border-color: transparent;
+              }
+
+              .react-datepicker__day--disabled {
+                color: #d1d5db !important;
+                cursor: not-allowed;
+              }
+
+              .react-datepicker__navigation {
+                top: 1.25rem;
+                width: 2rem;
+                height: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 0.375rem;
+                transition: background-color 0.2s;
+              }
+
+              .react-datepicker__navigation:hover {
+                background-color: rgba(255, 255, 255, 0.2);
               }
 
               .react-datepicker__navigation-icon::before {
                 border-color: white;
+                border-width: 2px 2px 0 0;
+                width: 8px;
+                height: 8px;
+                top: 50%;
+                transform: translateY(-50%);
               }
 
-              .react-datepicker__navigation:hover *::before {
-                border-color: #f0f0f0;
+              .react-datepicker__navigation--previous {
+                left: 0.75rem;
+              }
+
+              .react-datepicker__navigation--next {
+                right: 0.75rem;
+              }
+
+              .react-datepicker__month-container {
+                padding: 0.5rem;
+              }
+
+              .react-datepicker__month {
+                margin: 0.5rem;
+              }
+
+              .react-datepicker__header__dropdown {
+                display: flex;
+                gap: 0.5rem;
+                justify-content: center;
+                padding: 0.5rem 0;
+              }
+
+              .react-datepicker__month-dropdown-container,
+              .react-datepicker__year-dropdown-container {
+                margin: 0;
+              }
+
+              .react-datepicker__month-select,
+              .react-datepicker__year-select {
+                background-color: white;
+                color: ${primaryColor};
+                border: 2px solid white;
+                border-radius: 0.375rem;
+                padding: 0.375rem 0.5rem;
+                font-weight: 600;
+                font-size: 0.875rem;
+                cursor: pointer;
+                transition: all 0.2s;
+              }
+
+              .react-datepicker__month-select:hover,
+              .react-datepicker__year-select:hover {
+                background-color: ${primaryColor}10;
+                border-color: white;
+              }
+
+              .react-datepicker__month-select:focus,
+              .react-datepicker__year-select:focus {
+                outline: none;
+                box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+              }
+
+              .react-datepicker__triangle {
+                display: none;
               }
             `}</style>
             
@@ -961,6 +1064,11 @@ function QuotePageContent() {
                     placeholderText="Select move date"
                     minDate={new Date()}
                     showPopperArrow={false}
+                    showMonthDropdown
+                    showYearDropdown
+                    dropdownMode="select"
+                    yearDropdownItemNumber={15}
+                    scrollableYearDropdown
                     className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
                       errors.reloFromDate ? 'border-red-500' : 'border-gray-300'
                     }`}
