@@ -45,7 +45,7 @@ interface CompanyBranding {
   metaDescription?: string;
 }
 
-type TabType = 'companies' | 'branding' | 'hero' | 'copy';
+type TabType = 'companies';
 
 function CompanyForm({
   company,
@@ -342,7 +342,7 @@ function CompanyForm({
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('branding');
+  const [activeTab, setActiveTab] = useState<TabType>('companies');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState<string | null>(null);
@@ -548,9 +548,6 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'companies' as TabType, label: 'Companies' },
-    { id: 'branding' as TabType, label: 'Legacy: Branding' },
-    { id: 'hero' as TabType, label: 'Legacy: Hero' },
-    { id: 'copy' as TabType, label: 'Legacy: Copy' },
   ];
 
   if (loadingData) {
