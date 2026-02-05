@@ -51,9 +51,10 @@
 
 @layer base {
   * {
-    @apply border-gray-200;
+    border-color: rgb(229 231 235);
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: white;
+    color: rgb(17 24 39);
   }
 }
