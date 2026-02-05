@@ -91,6 +91,16 @@ function QuotePageContent() {
   const [showDetailsIndex, setShowDetailsIndex] = useState<number | null>(null);
   const [selectedCostingId, setSelectedCostingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Validation states
+  const [errors, setErrors] = useState({
+    signatureName: '',
+    reloFromDate: '',
+    insuredValue: '',
+    purchaseOrderNumber: '',
+    signature: '',
+    selectedCosting: '',
+  });
 
   useEffect(() => {
     if (jobId && companyId) {
@@ -166,19 +176,61 @@ function QuotePageContent() {
     }
   };
 
-  const handleAcceptQuote = async () => {
-    if (!selectedCostingId) {
-      alert('Please select a pricing option');
-      return;
+  const validateForm = () => {
+    const newErrors = {
+      signatureName: '',
+      reloFromDate: '',
+      insuredValue: '',
+      purchaseOrderNumber: '',
+      signature: '',
+      selectedCosting: '',
+    };
+
+    if (!signatureName.trim()) {
+      newErrors.signatureName = 'Signature name is required';
     }
 
-    if (!signatureName || !reloFromDate || !insuredValue || !purchaseOrderNumber || !signature) {
-      alert('Please fill in all required fields');
+    if (!reloFromDate) {
+      newErrors.reloFromDate = 'Move date is required';
+    }
+
+    if (!insuredValue.trim()) {
+      newErrors.insuredValue = 'Insured value is required';
+    }
+
+    if (!purchaseOrderNumber.trim()) {
+      newErrors.purchaseOrderNumber = 'Purchase order number is required';
+    }
+
+    if (!signature) {
+      newErrors.signature = 'Signature is required';
+    }
+
+    if (!selectedCostingId) {
+      newErrors.selectedCosting = 'Please select a pricing option';
+    }
+
+    setErrors(newErrors);
+    
+    return !Object.values(newErrors).some(error => error !== '');
+  };
+
+  const isFormValid = () => {
+    return signatureName.trim() && 
+           reloFromDate && 
+           insuredValue.trim() && 
+           purchaseOrderNumber.trim() && 
+           signature && 
+           selectedCostingId && 
+           agreedToTerms;
+  };
+
+  const handleAcceptQuote = async () => {
+    if (!validateForm()) {
       return;
     }
 
     if (!agreedToTerms) {
-      alert('Please agree to the terms and conditions');
       return;
     }
 
@@ -209,13 +261,13 @@ function QuotePageContent() {
         throw new Error(result.error || 'Failed to accept quote');
       }
 
-      alert('Quote accepted successfully! We will contact you shortly.');
-      
-      // Optionally redirect or reset form
-      // window.location.href = '/thank-you';
+      // Show success message inline
+      setError(null);
+      // Optionally redirect to thank you page
+      window.location.href = '/thank-you';
     } catch (err) {
       console.error('Error accepting quote:', err);
-      alert(err instanceof Error ? err.message : 'Failed to accept quote. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to accept quote. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -556,6 +608,13 @@ function QuotePageContent() {
               please decline the quote and provide the information as for the reasons why and we will make sure to update our quote if requested.
             </p>
 
+            {/* Validation Error Message */}
+            {errors.selectedCosting && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+                {errors.selectedCosting}
+              </div>
+            )}
+
             {/* Form Fields */}
             <div className="space-y-4 mb-6">
               <div className="grid md:grid-cols-2 gap-4">
@@ -566,10 +625,20 @@ function QuotePageContent() {
                   <input
                     type="text"
                     value={signatureName}
-                    onChange={(e) => setSignatureName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    onChange={(e) => {
+                      setSignatureName(e.target.value);
+                      if (errors.signatureName) {
+                        setErrors({ ...errors, signatureName: '' });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
+                      errors.signatureName ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     style={{ outlineColor: primaryColor }}
                   />
+                  {errors.signatureName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -578,10 +647,20 @@ function QuotePageContent() {
                   <input
                     type="date"
                     value={reloFromDate}
-                    onChange={(e) => setReloFromDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    onChange={(e) => {
+                      setReloFromDate(e.target.value);
+                      if (errors.reloFromDate) {
+                        setErrors({ ...errors, reloFromDate: '' });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
+                      errors.reloFromDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     style={{ outlineColor: primaryColor }}
                   />
+                  {errors.reloFromDate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -593,10 +672,20 @@ function QuotePageContent() {
                   <input
                     type="text"
                     value={insuredValue}
-                    onChange={(e) => setInsuredValue(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    onChange={(e) => {
+                      setInsuredValue(e.target.value);
+                      if (errors.insuredValue) {
+                        setErrors({ ...errors, insuredValue: '' });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
+                      errors.insuredValue ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     style={{ outlineColor: primaryColor }}
                   />
+                  {errors.insuredValue && (
+                    <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -605,10 +694,20 @@ function QuotePageContent() {
                   <input
                     type="text"
                     value={purchaseOrderNumber}
-                    onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    onChange={(e) => {
+                      setPurchaseOrderNumber(e.target.value);
+                      if (errors.purchaseOrderNumber) {
+                        setErrors({ ...errors, purchaseOrderNumber: '' });
+                      }
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
+                      errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     style={{ outlineColor: primaryColor }}
                   />
+                  {errors.purchaseOrderNumber && (
+                    <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>
+                  )}
                 </div>
               </div>
 
@@ -630,8 +729,17 @@ function QuotePageContent() {
             <div className="mb-6">
               <SignatureCanvas
                 value={signature}
-                onChange={setSignature}
+                onChange={(sig) => {
+                  setSignature(sig);
+                  if (errors.signature) {
+                    setErrors({ ...errors, signature: '' });
+                  }
+                }}
+                error={errors.signature}
               />
+              {errors.signature && (
+                <p className="mt-1 text-sm text-red-600">{errors.signature}</p>
+              )}
             </div>
 
             {/* Terms Checkbox */}
@@ -666,9 +774,9 @@ function QuotePageContent() {
               </button>
               <button 
                 onClick={handleAcceptQuote}
-                disabled={!agreedToTerms || submitting}
-                style={{ backgroundColor: agreedToTerms ? primaryColor : '#e5e7eb' }}
-                className="flex-1 px-6 py-3 text-white font-semibold rounded transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!isFormValid() || submitting}
+                style={{ backgroundColor: isFormValid() && !submitting ? primaryColor : '#e5e7eb' }}
+                className="flex-1 px-6 py-3 text-white font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Submitting...' : 'Accept'}
               </button>
