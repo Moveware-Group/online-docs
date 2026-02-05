@@ -464,7 +464,12 @@ function QuotePageContent() {
                 {/* Select Option Button */}
                 <div className="px-6 py-4 text-right">
                   <button 
-                    onClick={() => setSelectedCostingId(costing.id)}
+                    onClick={() => {
+                      setSelectedCostingId(costing.id);
+                      if (errors.selectedCosting) {
+                        setErrors({ ...errors, selectedCosting: '' });
+                      }
+                    }}
                     style={{ backgroundColor: selectedCostingId === costing.id ? '#22c55e' : primaryColor }}
                     className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-all"
                   >
