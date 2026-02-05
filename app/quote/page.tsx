@@ -645,7 +645,10 @@ function QuotePageContent() {
                   <select
                     value={itemsPerPage}
                     onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    style={{ 
+                      outlineColor: primaryColor,
+                    }}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:border-transparent transition-colors"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
@@ -707,7 +710,11 @@ function QuotePageContent() {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      style={{
+                        borderColor: currentPage === 1 ? '#d1d5db' : primaryColor,
+                        color: currentPage === 1 ? '#9ca3af' : primaryColor,
+                      }}
+                      className="px-3 py-1 border rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-80"
                     >
                       Previous
                     </button>
@@ -733,10 +740,22 @@ function QuotePageContent() {
                               )}
                               <button
                                 onClick={() => setCurrentPage(page)}
-                                className={`px-3 py-1 border rounded text-sm transition-colors ${
+                                style={
                                   currentPage === page
-                                    ? 'border-blue-500 bg-blue-50 text-blue-600 font-medium'
-                                    : 'border-gray-300 hover:bg-gray-50'
+                                    ? {
+                                        backgroundColor: primaryColor,
+                                        borderColor: primaryColor,
+                                        color: 'white',
+                                      }
+                                    : {
+                                        borderColor: '#d1d5db',
+                                        color: '#374151',
+                                      }
+                                }
+                                className={`px-3 py-1 border rounded text-sm transition-all ${
+                                  currentPage === page
+                                    ? 'font-bold shadow-md'
+                                    : 'hover:opacity-70'
                                 }`}
                               >
                                 {page}
@@ -749,7 +768,11 @@ function QuotePageContent() {
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      style={{
+                        borderColor: currentPage === totalPages ? '#d1d5db' : primaryColor,
+                        color: currentPage === totalPages ? '#9ca3af' : primaryColor,
+                      }}
+                      className="px-3 py-1 border rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-80"
                     >
                       Next
                     </button>
