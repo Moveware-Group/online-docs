@@ -1,411 +1,272 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
-import { Card } from '@/lib/components/ui/card';
-import { Button } from '@/lib/components/ui/button';
-import { Input } from '@/lib/components/ui/input';
+import { useState } from 'react';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 
-interface FormData {
-  companyName: string;
-  contactName: string;
+interface QuoteFormData {
+  name: string;
   email: string;
   phone: string;
-  message: string;
-}
-
-interface FormErrors {
-  companyName?: string;
-  contactName?: string;
-  email?: string;
-  phone?: string;
-  message?: string;
+  pickupAddress: string;
+  deliveryAddress: string;
+  moveDate: string;
+  propertyType: string;
+  bedrooms: string;
+  additionalInfo: string;
 }
 
 export function QuoteForm() {
-  const [formData, setFormData] = useState<FormData>({
-    companyName: '',
-    contactName: '',
+  const [formData, setFormData] = useState<QuoteFormData>({
+    name: '',
     email: '',
     phone: '',
-    message: '',
+    pickupAddress: '',
+    deliveryAddress: '',
+    moveDate: '',
+    propertyType: 'house',
+    bedrooms: '2',
+    additionalInfo: '',
   });
 
-  const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  // Validation functions
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
-  const validatePhone = (phone: string): boolean => {
-    const phoneRegex = /^[\d\s()+-]+$/;
-    return phone.length >= 10 && phoneRegex.test(phone);
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    // Company name validation
-    if (!formData.companyName.trim()) {
-      newErrors.companyName = 'Company name is required';
-    } else if (formData.companyName.trim().length < 2) {
-      newErrors.companyName = 'Company name must be at least 2 characters';
-    }
-
-    // Contact name validation
-    if (!formData.contactName.trim()) {
-      newErrors.contactName = 'Contact name is required';
-    } else if (formData.contactName.trim().length < 2) {
-      newErrors.contactName = 'Contact name must be at least 2 characters';
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    // Phone validation
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
-    }
-
-    // Message validation
-    if (!formData.message.trim()) {
-      newErrors.message = 'Please provide details about your requirements';
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = 'Please provide at least 10 characters';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleBlur = (field: keyof FormData) => {
-    setTouched({ ...touched, [field]: true });
-    
-    // Validate single field on blur
-    const newErrors = { ...errors };
-    
-    switch (field) {
-      case 'companyName':
-        if (!formData.companyName.trim()) {
-          newErrors.companyName = 'Company name is required';
-        } else if (formData.companyName.trim().length < 2) {
-          newErrors.companyName = 'Company name must be at least 2 characters';
-        } else {
-          delete newErrors.companyName;
-        }
-        break;
-      case 'contactName':
-        if (!formData.contactName.trim()) {
-          newErrors.contactName = 'Contact name is required';
-        } else if (formData.contactName.trim().length < 2) {
-          newErrors.contactName = 'Contact name must be at least 2 characters';
-        } else {
-          delete newErrors.contactName;
-        }
-        break;
-      case 'email':
-        if (!formData.email.trim()) {
-          newErrors.email = 'Email is required';
-        } else if (!validateEmail(formData.email)) {
-          newErrors.email = 'Please enter a valid email address';
-        } else {
-          delete newErrors.email;
-        }
-        break;
-      case 'phone':
-        if (!formData.phone.trim()) {
-          newErrors.phone = 'Phone number is required';
-        } else if (!validatePhone(formData.phone)) {
-          newErrors.phone = 'Please enter a valid phone number';
-        } else {
-          delete newErrors.phone;
-        }
-        break;
-      case 'message':
-        if (!formData.message.trim()) {
-          newErrors.message = 'Please provide details about your requirements';
-        } else if (formData.message.trim().length < 10) {
-          newErrors.message = 'Please provide at least 10 characters';
-        } else {
-          delete newErrors.message;
-        }
-        break;
-    }
-    
-    setErrors(newErrors);
-  };
-
-  const handleChange = (field: keyof FormData, value: string) => {
-    setFormData({ ...formData, [field]: value });
-    
-    // Clear error when user starts typing
-    if (touched[field] && errors[field]) {
-      const newErrors = { ...errors };
-      delete newErrors[field];
-      setErrors(newErrors);
-    }
-  };
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Mark all fields as touched
-    setTouched({
-      companyName: true,
-      contactName: true,
-      email: true,
-      phone: true,
-      message: true,
-    });
-
-    if (!validateForm()) {
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
     try {
-      // Simulate API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/quotes', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // });
-      
+      // Submit form data to API
+      const response = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit quote');
+      }
+
       setSubmitStatus('success');
-      
-      // Reset form after successful submission
-      setTimeout(() => {
-        setFormData({
-          companyName: '',
-          contactName: '',
-          email: '',
-          phone: '',
-          message: '',
-        });
-        setTouched({});
-        setErrors({});
-      }, 2000);
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        pickupAddress: '',
+        deliveryAddress: '',
+        moveDate: '',
+        propertyType: 'house',
+        bedrooms: '2',
+        additionalInfo: '',
+      });
     } catch (error) {
-      console.error('Error submitting quote request:', error);
+      console.error('Error submitting quote:', error);
       setSubmitStatus('error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const showError = (field: keyof FormData): boolean => {
-    return touched[field] && !!errors[field];
-  };
-
-  if (submitStatus === 'success') {
-    return (
-      <Card className="p-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-4">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Quote Request Submitted!</h2>
-        <p className="text-gray-600 mb-6">
-          Thank you for your interest. We've received your quote request and will get back to you within 24 hours.
-        </p>
-        <Button
-          onClick={() => setSubmitStatus('idle')}
-          variant="outline"
-          className="mx-auto"
-        >
-          Submit Another Request
-        </Button>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="p-8">
-      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-        {/* Company Name */}
-        <div>
-          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-2">
-            Company Name <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="companyName"
-            type="text"
-            value={formData.companyName}
-            onChange={(e) => handleChange('companyName', e.target.value)}
-            onBlur={() => handleBlur('companyName')}
-            placeholder="Enter your company name"
-            className={showError('companyName') ? 'border-red-500 focus:ring-red-500' : ''}
-            aria-invalid={showError('companyName')}
-            aria-describedby={showError('companyName') ? 'companyName-error' : undefined}
-          />
-          {showError('companyName') && (
-            <p id="companyName-error" className="mt-1 text-sm text-red-600" role="alert">
-              {errors.companyName}
-            </p>
-          )}
+    <Card className="p-6 max-w-2xl mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">Get Your Moving Quote</h2>
+          <p className="text-gray-600">Fill out the form below and we'll get back to you with a detailed quote.</p>
         </div>
 
-        {/* Contact Name */}
-        <div>
-          <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-2">
-            Contact Name <span className="text-red-500">*</span>
-          </label>
-          <Input
-            id="contactName"
-            type="text"
-            value={formData.contactName}
-            onChange={(e) => handleChange('contactName', e.target.value)}
-            onBlur={() => handleBlur('contactName')}
-            placeholder="Enter your full name"
-            className={showError('contactName') ? 'border-red-500 focus:ring-red-500' : ''}
-            aria-invalid={showError('contactName')}
-            aria-describedby={showError('contactName') ? 'contactName-error' : undefined}
-          />
-          {showError('contactName') && (
-            <p id="contactName-error" className="mt-1 text-sm text-red-600" role="alert">
-              {errors.contactName}
-            </p>
-          )}
-        </div>
-
-        {/* Email and Phone - Side by side on larger screens */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Email */}
+        {/* Personal Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+          
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address <span className="text-red-500">*</span>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name *
             </label>
             <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              onBlur={() => handleBlur('email')}
-              placeholder="your.email@company.com"
-              className={showError('email') ? 'border-red-500 focus:ring-red-500' : ''}
-              aria-invalid={showError('email')}
-              aria-describedby={showError('email') ? 'email-error' : undefined}
+              id="name"
+              name="name"
+              type="text"
+              required
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
             />
-            {showError('email') && (
-              <p id="email-error" className="mt-1 text-sm text-red-600" role="alert">
-                {errors.email}
-              </p>
-            )}
           </div>
 
-          {/* Phone */}
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <Input
-              id="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              onBlur={() => handleBlur('phone')}
-              placeholder="+1 (555) 123-4567"
-              className={showError('phone') ? 'border-red-500 focus:ring-red-500' : ''}
-              aria-invalid={showError('phone')}
-              aria-describedby={showError('phone') ? 'phone-error' : undefined}
-            />
-            {showError('phone') && (
-              <p id="phone-error" className="mt-1 text-sm text-red-600" role="alert">
-                {errors.phone}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Message */}
-        <div>
-          <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-            Project Requirements <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="message"
-            rows={6}
-            value={formData.message}
-            onChange={(e) => handleChange('message', e.target.value)}
-            onBlur={() => handleBlur('message')}
-            placeholder="Please describe your documentation needs, project scope, timeline, and any specific requirements..."
-            className={`w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-              showError('message') 
-                ? 'border-red-500 focus:ring-red-500' 
-                : 'border-gray-300'
-            }`}
-            aria-invalid={showError('message')}
-            aria-describedby={showError('message') ? 'message-error' : undefined}
-          />
-          {showError('message') && (
-            <p id="message-error" className="mt-1 text-sm text-red-600" role="alert">
-              {errors.message}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-gray-500">
-            {formData.message.length}/500 characters
-          </p>
-        </div>
-
-        {/* Submit Error */}
-        {submitStatus === 'error' && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg" role="alert">
-            <div className="flex items-start">
-              <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Submission Failed</h3>
-                <p className="text-sm text-red-700 mt-1">
-                  We couldn't submit your quote request. Please try again or contact us directly.
-                </p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email *
+              </label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="john@example.com"
+              />
             </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number *
+              </label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="(555) 123-4567"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Move Details */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900">Move Details</h3>
+
+          <div>
+            <label htmlFor="pickupAddress" className="block text-sm font-medium text-gray-700 mb-1">
+              Pickup Address *
+            </label>
+            <Input
+              id="pickupAddress"
+              name="pickupAddress"
+              type="text"
+              required
+              value={formData.pickupAddress}
+              onChange={handleChange}
+              placeholder="123 Main St, City, State ZIP"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="deliveryAddress" className="block text-sm font-medium text-gray-700 mb-1">
+              Delivery Address *
+            </label>
+            <Input
+              id="deliveryAddress"
+              name="deliveryAddress"
+              type="text"
+              required
+              value={formData.deliveryAddress}
+              onChange={handleChange}
+              placeholder="456 Oak Ave, City, State ZIP"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="moveDate" className="block text-sm font-medium text-gray-700 mb-1">
+              Preferred Move Date *
+            </label>
+            <Input
+              id="moveDate"
+              name="moveDate"
+              type="date"
+              required
+              value={formData.moveDate}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="propertyType" className="block text-sm font-medium text-gray-700 mb-1">
+                Property Type *
+              </label>
+              <select
+                id="propertyType"
+                name="propertyType"
+                required
+                value={formData.propertyType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="apartment">Apartment</option>
+                <option value="house">House</option>
+                <option value="condo">Condo</option>
+                <option value="office">Office</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="bedrooms" className="block text-sm font-medium text-gray-700 mb-1">
+                Number of Bedrooms
+              </label>
+              <select
+                id="bedrooms"
+                name="bedrooms"
+                value={formData.bedrooms}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="studio">Studio</option>
+                <option value="1">1 Bedroom</option>
+                <option value="2">2 Bedrooms</option>
+                <option value="3">3 Bedrooms</option>
+                <option value="4">4 Bedrooms</option>
+                <option value="5+">5+ Bedrooms</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="additionalInfo" className="block text-sm font-medium text-gray-700 mb-1">
+              Additional Information
+            </label>
+            <textarea
+              id="additionalInfo"
+              name="additionalInfo"
+              rows={4}
+              value={formData.additionalInfo}
+              onChange={handleChange}
+              placeholder="Tell us about special items, stairs, parking, or any other details..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Submit Status Messages */}
+        {submitStatus === 'success' && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-green-800 font-medium">Quote request submitted successfully! We'll contact you soon.</p>
+          </div>
+        )}
+
+        {submitStatus === 'error' && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-800 font-medium">Failed to submit quote. Please try again.</p>
           </div>
         )}
 
         {/* Submit Button */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-1 sm:flex-none sm:min-w-[200px]"
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Submitting...
-              </>
-            ) : (
-              'Request Quote'
-            )}
-          </Button>
-          <p className="text-sm text-gray-500 flex items-center">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Your information is secure and confidential
-          </p>
-        </div>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? 'Submitting...' : 'Get Your Free Quote'}
+        </Button>
       </form>
     </Card>
   );

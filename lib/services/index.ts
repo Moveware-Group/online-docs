@@ -1,7 +1,4 @@
-/**
- * Central export point for all service modules
- */
-
-export * from './brandingService';
-export * from './heroService';
-export * from './copyService';
+// Export all services from this central location
+export { brandingService } from './brandingService';
+export { copyService } from './copyService';
+export { heroService } from './heroService';
