@@ -72,6 +72,25 @@ model Quote {
   @@index([createdAt])
 }
 
+model QuoteAcceptance {
+  id                    String   @id @default(cuid())
+  jobId                 Int
+  costingItemId         String
+  signatureName         String
+  reloFromDate          String
+  insuredValue          String
+  purchaseOrderNumber   String
+  specialRequirements   String?
+  signatureData         String
+  agreedToTerms         Boolean  @default(false)
+  status                String   @default("accepted")
+  submittedAt           DateTime @default(now())
+  
+  @@index([jobId])
+  @@index([costingItemId])
+  @@index([submittedAt])
+}
+
 model Job {
   id                        Int      @id
   titleName                 String?

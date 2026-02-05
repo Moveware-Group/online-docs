@@ -89,6 +89,8 @@ function QuotePageContent() {
   const [signature, setSignature] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showDetailsIndex, setShowDetailsIndex] = useState<number | null>(null);
+  const [selectedCostingId, setSelectedCostingId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (jobId && companyId) {
@@ -98,6 +100,13 @@ function QuotePageContent() {
       setLoading(false);
     }
   }, [jobId, companyId]);
+
+  // Auto-select if there's only one costing option
+  useEffect(() => {
+    if (costings.length === 1 && !selectedCostingId) {
+      setSelectedCostingId(costings[0].id);
+    }
+  }, [costings, selectedCostingId]);
 
   const fetchJobData = async (jobIdParam: string, coIdParam: string) => {
     try {
@@ -154,6 +163,61 @@ function QuotePageContent() {
       setError(err instanceof Error ? err.message : 'Failed to sync data from Moveware');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleAcceptQuote = async () => {
+    if (!selectedCostingId) {
+      alert('Please select a pricing option');
+      return;
+    }
+
+    if (!signatureName || !reloFromDate || !insuredValue || !purchaseOrderNumber || !signature) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      alert('Please agree to the terms and conditions');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      
+      const response = await fetch('/api/quotes/accept', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jobId: jobId,
+          costingItemId: selectedCostingId,
+          signatureName,
+          reloFromDate,
+          insuredValue,
+          purchaseOrderNumber,
+          specialRequirements,
+          signatureData: signature,
+          agreedToTerms,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to accept quote');
+      }
+
+      alert('Quote accepted successfully! We will contact you shortly.');
+      
+      // Optionally redirect or reset form
+      // window.location.href = '/thank-you';
+    } catch (err) {
+      console.error('Error accepting quote:', err);
+      alert(err instanceof Error ? err.message : 'Failed to accept quote. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -348,10 +412,11 @@ function QuotePageContent() {
                 {/* Select Option Button */}
                 <div className="px-6 py-4 text-right">
                   <button 
-                    style={{ backgroundColor: primaryColor }}
-                    className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-opacity"
+                    onClick={() => setSelectedCostingId(costing.id)}
+                    style={{ backgroundColor: selectedCostingId === costing.id ? '#22c55e' : primaryColor }}
+                    className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-all"
                   >
-                    Select Option
+                    {selectedCostingId === costing.id ? '✓ Selected' : 'Select Option'}
                   </button>
                 </div>
 
@@ -600,11 +665,12 @@ function QuotePageContent() {
                 Create PDF
               </button>
               <button 
-                disabled={!agreedToTerms}
+                onClick={handleAcceptQuote}
+                disabled={!agreedToTerms || submitting}
                 style={{ backgroundColor: agreedToTerms ? primaryColor : '#e5e7eb' }}
                 className="flex-1 px-6 py-3 text-white font-semibold rounded transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Accept
+                {submitting ? 'Submitting...' : 'Accept'}
               </button>
             </div>
           </div>
