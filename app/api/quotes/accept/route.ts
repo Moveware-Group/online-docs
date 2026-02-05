@@ -7,6 +7,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    console.log('📝 Received quote acceptance request:', {
+      jobId: body.jobId,
+      costingItemId: body.costingItemId,
+      signatureName: body.signatureName,
+      reloFromDate: body.reloFromDate,
+    });
+    
     const {
       jobId,
       costingItemId,
@@ -21,6 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!jobId || !costingItemId || !signatureName || !reloFromDate || !insuredValue || !purchaseOrderNumber || !signatureData) {
+      console.error('❌ Validation failed: Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -28,6 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!agreedToTerms) {
+      console.error('❌ Validation failed: Terms not agreed');
       return NextResponse.json(
         { error: 'You must agree to the terms and conditions' },
         { status: 400 }
@@ -35,6 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save quote acceptance to database
+    console.log('💾 Saving to database...');
     const quoteAcceptance = await prisma.quoteAcceptance.create({
       data: {
         jobId: parseInt(jobId),
@@ -50,6 +60,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('✅ Quote acceptance saved successfully:', quoteAcceptance.id);
+
     return NextResponse.json(
       {
         success: true,
@@ -59,10 +71,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error accepting quote:', error);
+    console.error('❌ Error accepting quote:', error);
 
     return NextResponse.json(
-      { error: 'Failed to accept quote' },
+      { 
+        error: 'Failed to accept quote',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
