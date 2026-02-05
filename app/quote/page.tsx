@@ -237,11 +237,12 @@ function QuotePageContent() {
 
               {/* Right - Banner Image */}
               <div className="hidden md:block">
-                <div className="rounded-xl overflow-hidden shadow-md">
+                <div className="rounded-xl overflow-hidden shadow-md" style={{ maxHeight: '250px' }}>
                   <img 
                     src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=450&fit=crop" 
                     alt="Professional moving services"
-                    className="w-full h-full object-cover aspect-video"
+                    className="w-full h-full object-cover"
+                    style={{ maxHeight: '250px' }}
                   />
                 </div>
               </div>
