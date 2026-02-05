@@ -5,6 +5,8 @@
 import { prisma } from '../db';
 import { Hero } from '@prisma/client';
 
+export type HeroContent = Hero;
+
 class HeroService {
   /**
    * Get hero for a specific company

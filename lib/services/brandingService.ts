@@ -5,6 +5,8 @@
 import { prisma } from '../db';
 import { Branding } from '@prisma/client';
 
+export type BrandingContent = Branding;
+
 class BrandingService {
   /**
    * Get branding for a specific company
