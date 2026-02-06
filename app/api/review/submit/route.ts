@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,23 +14,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Save to database once ReviewSubmission model is added to Prisma schema
-    // For now, just log the submission and return success
-    console.log('Performance review submitted:', {
-      jobId,
-      token,
-      brand,
-      coId,
-      answersCount: Object.keys(answers).length,
-      timestamp: new Date().toISOString(),
+    // Save the review submission to the database
+    const submission = await prisma.reviewSubmission.create({
+      data: {
+        jobId: String(jobId),
+        token,
+        brand: brand || null,
+        companyId: coId ? String(coId) : null,
+        answers: JSON.stringify(answers),
+      },
     });
 
-    // Generate a mock submission ID
-    const submissionId = `SUB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Performance review submitted successfully:', {
+      submissionId: submission.id,
+      jobId,
+      answersCount: Object.keys(answers).length,
+      timestamp: submission.submittedAt.toISOString(),
+    });
 
     return NextResponse.json({
       success: true,
-      submissionId,
+      submissionId: submission.id,
       message: 'Review submitted successfully'
     });
   } catch (error) {
