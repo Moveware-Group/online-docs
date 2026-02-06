@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,190 +7,179 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Branding {
-  id             String   @id @default(cuid())
-  companyId      String   @unique
-  brandCode      String?  @unique
-  logoUrl        String?
-  primaryColor   String?
-  secondaryColor String?
-  tertiaryColor  String?
-  fontFamily     String?
-  companyName    String?
-  favicon        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  jobs           Job[]    @relation("BrandingJobs")
-  
-  @@index([brandCode])
-}
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  apiKey    String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-model Hero {
-  id          String   @id @default(cuid())
-  companyId   String   @unique
-  heading     String?
-  subheading  String?
-  ctaText     String?
-  ctaUrl      String?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Copy {
-  id              String   @id @default(cuid())
-  companyId       String   @unique
-  tagline         String?
-  description     String?
-  metaDescription String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model Quote {
-  id            String   @id @default(cuid())
-  customerName  String
-  email         String
-  phone         String
-  address       String?
-  serviceType   String
-  moveDate      String?
-  details       String?
-  signatureData String
-  typedName     String
-  acceptedTerms Boolean  @default(false)
-  status        String   @default("pending")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([email])
-  @@index([status])
-  @@index([createdAt])
-}
-
-model QuoteAcceptance {
-  id                    String   @id @default(cuid())
-  jobId                 Int
-  costingItemId         String
-  signatureName         String
-  reloFromDate          String
-  insuredValue          String
-  purchaseOrderNumber   String
-  specialRequirements   String?
-  signatureData         String
-  agreedToTerms         Boolean  @default(false)
-  status                String   @default("accepted")
-  submittedAt           DateTime @default(now())
-  
-  @@index([jobId])
-  @@index([costingItemId])
-  @@index([submittedAt])
+  @@map("companies")
 }
 
 model Job {
-  id                        Int      @id
-  titleName                 String?
-  firstName                 String?
-  lastName                  String?
-  estimatedDeliveryDetails  String?
-  jobValue                  Float?
-  dateModified              DateTime?
-  brandCode                 String?
-  branchCode                String?
-  companyCode               String?
-  
-  // Measures stored as JSON
-  measuresVolumeGrossF3     Float?
-  measuresVolumeGrossM3     Float?
-  measuresVolumeNetF3       Float?
-  measuresVolumeNetM3       Float?
-  measuresWeightGrossKg     Float?
-  measuresWeightGrossLb     Float?
-  measuresWeightNetKg       Float?
-  measuresWeightNetLb       Float?
-  
-  // Uplift Address
-  upliftLine1               String?
-  upliftLine2               String?
-  upliftCity                String?
-  upliftState               String?
-  upliftPostcode            String?
-  upliftCountry             String?
-  
-  // Delivery Address
-  deliveryLine1             String?
-  deliveryLine2             String?
-  deliveryCity              String?
-  deliveryState             String?
-  deliveryPostcode          String?
-  deliveryCountry           String?
-  
-  // Additional job details (JSON for flexibility)
-  rawData                   Json?
-  
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  
-  // Relations
-  branding                  Branding? @relation("BrandingJobs", fields: [brandCode], references: [brandCode])
-  inventoryItems            InventoryItem[]
-  costingItems              CostingItem[]
-  
-  @@index([brandCode])
-  @@index([branchCode])
-  @@index([companyCode])
-  @@index([dateModified])
-}
-
-model InventoryItem {
-  id                Int      @id
-  jobId             Int
-  description       String?
-  room              String?
-  quantity          Int?
-  destination       String?
-  
-  // Additional fields that might be useful
-  cube              Float?
-  typeCode          String?
-  barcode           String?
-  
-  // Store full raw data for reference
-  rawData           Json?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  // Relations
-  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
-  @@index([jobId])
-  @@index([description])
-}
-
-model CostingItem {
   id                String   @id @default(cuid())
-  jobId             Int
-  
-  // Costing details
-  name              String?
-  category          String?
-  description       String?
-  quantity          Float?
-  rate              Float?
-  netTotal          String?
-  totalPrice        Float?
-  taxIncluded       Boolean  @default(true)
-  
-  // Store full raw data for reference
-  rawData           Json?
-  
+  movewareJobId     String   @unique
+  companyId         String
+  customerId        String?
+  customerName      String?
+  status            String
+  scheduledDate     DateTime?
+  completedDate     DateTime?
+  originAddress     String?
+  destinationAddress String?
+  data              String   @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
-  // Relations
-  job               Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
+
+  @@index([companyId])
+  @@index([movewareJobId])
+  @@map("jobs")
+}
+
+model Quote {
+  id                String   @id @default(cuid())
+  quoteNumber       String   @unique
+  jobId             String?
+  companyId         String
+  customerName      String
+  customerEmail     String?
+  customerPhone     String?
+  status            String   @default("pending")
+  totalAmount       Float
+  validUntil        DateTime?
+  termsAccepted     Boolean  @default(false)
+  acceptedAt        DateTime?
+  acceptedBy        String?
+  signatureData     String?  @db.Text
+  data              String   @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([companyId])
   @@index([jobId])
+  @@index([quoteNumber])
+  @@map("quotes")
+}
+
+model Costing {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  category    String
+  unitPrice   Float
+  unit        String   @default("unit")
+  isActive    Boolean  @default(true)
+  data        String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([category])
+  @@map("costings")
+}
+
+model Activity {
+  id              String   @id @default(cuid())
+  jobId           String
+  companyId       String
+  movewareId      String?
+  activityType    String
+  description     String   @db.Text
+  status          String
+  assignedTo      String?
+  scheduledDate   DateTime?
+  completedDate   DateTime?
+  notes           String?  @db.Text
+  data            String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([jobId])
+  @@index([companyId])
+  @@map("activities")
+}
+
+model Inventory {
+  id              String   @id @default(cuid())
+  jobId           String
+  companyId       String
+  movewareId      String?
+  itemName        String
+  category        String?
+  quantity        Int      @default(1)
+  volume          Float?
+  weight          Float?
+  fragile         Boolean  @default(false)
+  notes           String?  @db.Text
+  room            String?
+  data            String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([jobId])
+  @@index([companyId])
+  @@map("inventory")
+}
+
+model HeroSettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  title           String
+  subtitle        String?
+  backgroundImage String?
+  backgroundColor String   @default("#2563eb")
+  textColor       String   @default("#ffffff")
+  showLogo        Boolean  @default(true)
+  alignment       String   @default("left")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("hero_settings")
+}
+
+model BrandingSettings {
+  id             String   @id @default(cuid())
+  companyId      String   @unique
+  logoUrl        String?
+  primaryColor   String   @default("#2563eb")
+  secondaryColor String   @default("#1e40af")
+  fontFamily     String   @default("Inter")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("branding_settings")
+}
+
+model CopySettings {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  welcomeMessage   String
+  introText        String   @db.Text
+  footerText       String?
+  submitButtonText String   @default("Submit")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("copy_settings")
+}
+
+model ReviewSubmission {
+  id          String   @id @default(cuid())
+  jobId       String
+  token       String
+  brand       String?
+  companyId   String?
+  answers     String   @db.Text
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([jobId])
+  @@index([companyId])
+  @@map("review_submissions")
 }
