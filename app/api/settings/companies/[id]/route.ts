@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function DELETE(
   request: NextRequest,
@@ -10,7 +8,8 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    await prisma.branding.delete({
+    // Delete company
+    await prisma.company.delete({
       where: { id },
     });
 

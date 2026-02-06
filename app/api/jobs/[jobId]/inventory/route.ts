@@ -38,10 +38,8 @@ export async function GET(
       );
     }
 
-    const jobIdInt = parseInt(jobId);
-
     // Try to fetch inventory from database first
-    let inventory = await inventoryService.getInventoryByJob(jobIdInt);
+    let inventory = await inventoryService.getInventoryByJob(jobId);
 
     // If no inventory in database, fetch from Moveware API and save
     if (!inventory || inventory.length === 0) {
@@ -67,14 +65,14 @@ export async function GET(
 
         // Transform and save all inventory items
         const inventoryItems = movewareInventory.inventoryUsage.map((item: any) => 
-          transformInventoryItemForDatabase(item, jobIdInt)
+          transformInventoryItemForDatabase(item, jobId)
         );
 
         // Bulk upsert inventory items
         await inventoryService.upsertInventoryItems(inventoryItems);
         
         // Fetch the saved inventory
-        inventory = await inventoryService.getInventoryByJob(jobIdInt);
+        inventory = await inventoryService.getInventoryByJob(jobId);
         
         console.log(`✓ Saved ${inventoryItems.length} inventory items for job ${jobId}`);
       } catch (apiError) {

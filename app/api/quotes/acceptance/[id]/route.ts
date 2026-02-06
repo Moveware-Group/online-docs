@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -10,20 +8,21 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const acceptance = await prisma.quoteAcceptance.findUnique({
+    // Fetch quote by ID (acceptance details are stored in the Quote model)
+    const quote = await prisma.quote.findUnique({
       where: { id },
     });
 
-    if (!acceptance) {
+    if (!quote) {
       return NextResponse.json(
-        { success: false, error: 'Quote acceptance not found' },
+        { success: false, error: 'Quote not found' },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      data: acceptance,
+      data: quote,
     });
   } catch (error) {
     console.error('Error fetching quote acceptance:', error);

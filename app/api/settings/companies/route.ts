@@ -1,36 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 
-const prisma = new PrismaClient();
-
-// GET all companies with their hero and copy data
+// GET all companies with their settings
 export async function GET() {
   try {
-    const brandings = await prisma.branding.findMany({
-      orderBy: { companyName: 'asc' },
+    const companies = await prisma.company.findMany({
+      orderBy: { name: 'asc' },
     });
 
-    // Fetch hero and copy data for each company
+    // Fetch branding, hero and copy settings for each company
     const companiesWithAllData = await Promise.all(
-      brandings.map(async (branding) => {
-        const hero = await prisma.hero.findUnique({
-          where: { companyId: branding.companyId },
+      companies.map(async (company) => {
+        const branding = await prisma.brandingSettings.findUnique({
+          where: { companyId: company.id },
         });
 
-        const copy = await prisma.copy.findUnique({
-          where: { companyId: branding.companyId },
+        const hero = await prisma.heroSettings.findUnique({
+          where: { companyId: company.id },
+        });
+
+        const copy = await prisma.copySettings.findUnique({
+          where: { companyId: company.id },
         });
 
         return {
-          ...branding,
-          heroHeading: hero?.heading,
-          heroSubheading: hero?.subheading,
-          heroCtaText: hero?.ctaText,
-          heroCtaUrl: hero?.ctaUrl,
-          heroImageUrl: hero?.imageUrl,
-          tagline: copy?.tagline,
-          description: copy?.description,
-          metaDescription: copy?.metaDescription,
+          id: company.id,
+          companyId: company.id,
+          companyName: company.name,
+          logoUrl: branding?.logoUrl,
+          primaryColor: branding?.primaryColor,
+          secondaryColor: branding?.secondaryColor,
+          fontFamily: branding?.fontFamily,
+          heroHeading: hero?.title,
+          heroSubheading: hero?.subtitle,
+          heroBackgroundColor: hero?.backgroundColor,
+          heroTextColor: hero?.textColor,
+          welcomeMessage: copy?.welcomeMessage,
+          introText: copy?.introText,
+          footerText: copy?.footerText,
         };
       })
     );
@@ -45,109 +52,106 @@ export async function GET() {
   }
 }
 
-// POST create or update company (saves to Branding, Hero, and Copy tables)
+// POST create or update company and settings
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
     const {
       id,
-      companyId,
-      brandCode,
       companyName,
       logoUrl,
       primaryColor,
       secondaryColor,
-      tertiaryColor,
       fontFamily,
       heroHeading,
       heroSubheading,
-      heroCtaText,
-      heroCtaUrl,
-      heroImageUrl,
-      tagline,
-      description,
-      metaDescription,
+      heroBackgroundColor,
+      heroTextColor,
+      welcomeMessage,
+      introText,
+      footerText,
     } = body;
 
     // Validate required fields
-    if (!companyId || !brandCode || !companyName) {
+    if (!companyName) {
       return NextResponse.json(
-        { error: 'Company ID, brand code, and company name are required' },
+        { error: 'Company name is required' },
         { status: 400 }
       );
     }
 
-    let branding;
+    let company;
 
     if (id) {
-      // Update existing company branding
-      branding = await prisma.branding.update({
+      // Update existing company
+      company = await prisma.company.update({
         where: { id },
         data: {
-          companyId,
-          brandCode,
-          companyName,
-          logoUrl: logoUrl || null,
-          primaryColor,
-          secondaryColor,
-          tertiaryColor: tertiaryColor || null,
-          fontFamily,
+          name: companyName,
         },
       });
     } else {
-      // Create new company branding
-      branding = await prisma.branding.create({
-        data: {
-          companyId,
-          brandCode,
-          companyName,
-          logoUrl: logoUrl || null,
-          primaryColor,
-          secondaryColor,
-          tertiaryColor: tertiaryColor || null,
-          fontFamily,
-        },
-      });
+      // Create new company (requires apiKey to be generated)
+      return NextResponse.json(
+        { error: 'Creating new companies via this endpoint is not yet supported' },
+        { status: 400 }
+      );
     }
 
-    // Upsert Hero data
-    await prisma.hero.upsert({
-      where: { companyId },
+    // Upsert Branding Settings
+    await prisma.brandingSettings.upsert({
+      where: { companyId: company.id },
       update: {
-        heading: heroHeading || null,
-        subheading: heroSubheading || null,
-        ctaText: heroCtaText || null,
-        ctaUrl: heroCtaUrl || null,
-        imageUrl: heroImageUrl || null,
+        logoUrl: logoUrl || null,
+        primaryColor: primaryColor || '#2563eb',
+        secondaryColor: secondaryColor || '#1e40af',
+        fontFamily: fontFamily || 'Inter',
       },
       create: {
-        companyId,
-        heading: heroHeading || null,
-        subheading: heroSubheading || null,
-        ctaText: heroCtaText || null,
-        ctaUrl: heroCtaUrl || null,
-        imageUrl: heroImageUrl || null,
+        companyId: company.id,
+        logoUrl: logoUrl || null,
+        primaryColor: primaryColor || '#2563eb',
+        secondaryColor: secondaryColor || '#1e40af',
+        fontFamily: fontFamily || 'Inter',
       },
     });
 
-    // Upsert Copy data
-    await prisma.copy.upsert({
-      where: { companyId },
+    // Upsert Hero Settings
+    await prisma.heroSettings.upsert({
+      where: { companyId: company.id },
       update: {
-        tagline: tagline || null,
-        description: description || null,
-        metaDescription: metaDescription || null,
+        title: heroHeading || 'Welcome',
+        subtitle: heroSubheading || null,
+        backgroundColor: heroBackgroundColor || '#2563eb',
+        textColor: heroTextColor || '#ffffff',
       },
       create: {
-        companyId,
-        tagline: tagline || null,
-        description: description || null,
-        metaDescription: metaDescription || null,
+        companyId: company.id,
+        title: heroHeading || 'Welcome',
+        subtitle: heroSubheading || null,
+        backgroundColor: heroBackgroundColor || '#2563eb',
+        textColor: heroTextColor || '#ffffff',
       },
     });
 
-    return NextResponse.json(branding);
+    // Upsert Copy Settings
+    await prisma.copySettings.upsert({
+      where: { companyId: company.id },
+      update: {
+        welcomeMessage: welcomeMessage || 'Welcome',
+        introText: introText || '',
+        footerText: footerText || null,
+      },
+      create: {
+        companyId: company.id,
+        welcomeMessage: welcomeMessage || 'Welcome',
+        introText: introText || '',
+        footerText: footerText || null,
+      },
+    });
+
+    return NextResponse.json(company);
   } catch (error) {
     console.error('Error saving company:', error);
     return NextResponse.json(

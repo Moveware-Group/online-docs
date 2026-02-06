@@ -7,12 +7,12 @@ export async function GET() {
   try {
     const copy = await copyService.getCopy();
     
-    // Map Prisma fields to frontend expected fields
     if (copy) {
       return NextResponse.json({
-        welcomeMessage: copy.tagline || '',
-        ctaText: copy.description || '',
-        footerText: copy.metaDescription || '',
+        welcomeMessage: copy.welcomeMessage || '',
+        introText: copy.introText || '',
+        footerText: copy.footerText || '',
+        submitButtonText: copy.submitButtonText || 'Submit',
       });
     }
     
@@ -29,30 +29,31 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { welcomeMessage, ctaText, footerText } = body;
+    const { welcomeMessage, introText, footerText, submitButtonText } = body;
 
     // Validate at least one field is provided
-    if (!welcomeMessage && !ctaText && !footerText) {
+    if (!welcomeMessage && !introText && !footerText && !submitButtonText) {
       return NextResponse.json(
         { error: 'At least one field is required' },
         { status: 400 }
       );
     }
 
-    // Map frontend fields to Prisma model fields
+    // Build update data
     const updateData: any = {};
-    if (welcomeMessage !== undefined) updateData.tagline = welcomeMessage;
-    if (ctaText !== undefined) updateData.description = ctaText;
-    if (footerText !== undefined) updateData.metaDescription = footerText;
+    if (welcomeMessage !== undefined) updateData.welcomeMessage = welcomeMessage;
+    if (introText !== undefined) updateData.introText = introText;
+    if (footerText !== undefined) updateData.footerText = footerText;
+    if (submitButtonText !== undefined) updateData.submitButtonText = submitButtonText;
 
     // Save copy content using upsert
     const copy = await copyService.upsertCopy(DEFAULT_COMPANY_ID, updateData);
 
-    // Return data in frontend expected format
     return NextResponse.json({
-      welcomeMessage: copy.tagline || '',
-      ctaText: copy.description || '',
-      footerText: copy.metaDescription || '',
+      welcomeMessage: copy.welcomeMessage || '',
+      introText: copy.introText || '',
+      footerText: copy.footerText || '',
+      submitButtonText: copy.submitButtonText || 'Submit',
     });
   } catch (error) {
     console.error('Error saving copy content:', error);

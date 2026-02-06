@@ -3,21 +3,21 @@
  */
 
 import { prisma } from '../db';
-import { Hero } from '@prisma/client';
+import { HeroSettings } from '@prisma/client';
 
-export type HeroContent = Hero;
+export type HeroContent = HeroSettings;
 
 class HeroService {
   /**
    * Get hero for a specific company
    */
-  async getHero(companyId?: string): Promise<Hero | null> {
+  async getHero(companyId?: string): Promise<HeroSettings | null> {
     try {
       if (!companyId) {
         // Get the first hero or from a default company
-        return await prisma.hero.findFirst();
+        return await prisma.heroSettings.findFirst();
       }
-      return await prisma.hero.findUnique({
+      return await prisma.heroSettings.findUnique({
         where: { companyId },
       });
     } catch (error) {
@@ -29,12 +29,18 @@ class HeroService {
   /**
    * Create a new hero
    */
-  async createHero(companyId: string, data: Partial<Hero>): Promise<Hero> {
+  async createHero(companyId: string, data: Partial<HeroSettings>): Promise<HeroSettings> {
     try {
-      return await prisma.hero.create({
+      return await prisma.heroSettings.create({
         data: {
           companyId,
-          ...data,
+          title: data.title || 'Welcome',
+          subtitle: data.subtitle,
+          backgroundImage: data.backgroundImage,
+          backgroundColor: data.backgroundColor || '#2563eb',
+          textColor: data.textColor || '#ffffff',
+          showLogo: data.showLogo ?? true,
+          alignment: data.alignment || 'left',
         },
       });
     } catch (error) {
@@ -46,9 +52,9 @@ class HeroService {
   /**
    * Update hero
    */
-  async updateHero(companyId: string, data: Partial<Hero>): Promise<Hero> {
+  async updateHero(companyId: string, data: Partial<HeroSettings>): Promise<HeroSettings> {
     try {
-      return await prisma.hero.update({
+      return await prisma.heroSettings.update({
         where: { companyId },
         data,
       });
@@ -63,7 +69,7 @@ class HeroService {
    */
   async deleteHero(companyId: string): Promise<void> {
     try {
-      await prisma.hero.delete({
+      await prisma.heroSettings.delete({
         where: { companyId },
       });
     } catch (error) {
@@ -75,13 +81,19 @@ class HeroService {
   /**
    * Upsert hero
    */
-  async upsertHero(companyId: string, data: Partial<Hero>): Promise<Hero> {
+  async upsertHero(companyId: string, data: Partial<HeroSettings>): Promise<HeroSettings> {
     try {
-      return await prisma.hero.upsert({
+      return await prisma.heroSettings.upsert({
         where: { companyId },
         create: {
           companyId,
-          ...data,
+          title: data.title || 'Welcome',
+          subtitle: data.subtitle,
+          backgroundImage: data.backgroundImage,
+          backgroundColor: data.backgroundColor || '#2563eb',
+          textColor: data.textColor || '#ffffff',
+          showLogo: data.showLogo ?? true,
+          alignment: data.alignment || 'left',
         },
         update: data,
       });

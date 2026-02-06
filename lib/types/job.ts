@@ -127,7 +127,7 @@ export interface JobData {
  */
 export interface InventoryItemData {
   id: number;
-  jobId: number;
+  jobId: string;
   description?: string;
   room?: string;
   quantity?: number;
@@ -194,7 +194,7 @@ export function transformJobForDatabase(apiJob: MovewareJob): JobData {
  */
 export function transformInventoryItemForDatabase(
   apiItem: MovewareInventoryItem,
-  jobId: number
+  jobId: string
 ): InventoryItemData {
   return {
     id: apiItem.id,
