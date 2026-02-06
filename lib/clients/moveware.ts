@@ -13,7 +13,7 @@ const baseConfig = {
   baseUrl: process.env.MOVEWARE_API_URL || '',
   username: process.env.MOVEWARE_USERNAME || '',
   password: process.env.MOVEWARE_PASSWORD || '',
-  version: process.env.MOVEWARE_API_VERSION || 'v1',
+  version: process.env.MOVEWARE_API_VERSION || 'api',
 };
 
 /**
@@ -55,7 +55,8 @@ async function request<T>(
 ): Promise<MovewareResponse<T>> {
   validateConfig(companyId);
   
-  const url = `${baseConfig.baseUrl}/${baseConfig.version}${endpoint}`;
+  // Company ID is part of the URL path: https://rest.moveware-test.app/65700/api/jobs/...
+  const url = `${baseConfig.baseUrl}/${companyId}/${baseConfig.version}${endpoint}`;
   
   try {
     const response = await fetch(url, {
