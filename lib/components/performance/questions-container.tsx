@@ -17,51 +17,74 @@ export function QuestionsContainer({ jobId, companyId, initialReadOnly = false }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readOnly, setReadOnly] = useState(initialReadOnly);
+  const [retryTrigger, setRetryTrigger] = useState(0);
 
   useEffect(() => {
-    fetchQuestions();
-  }, [jobId, companyId]);
+    const abortController = new AbortController();
+    
+    const fetchQuestions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const fetchQuestions = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`/api/jobs/${jobId}/questions?coId=${companyId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch questions');
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setReview(data.data);
+        const response = await fetch(`/api/jobs/${jobId}/questions?coId=${companyId}`, {
+          signal: abortController.signal,
+        });
         
-        // Initialize responses from existing data if available
-        if (data.data.responses) {
-          const initialResponses: Record<string, QuestionResponse['value']> = {};
-          data.data.responses.forEach((resp: QuestionResponse) => {
-            initialResponses[resp.questionId] = resp.value;
-          });
-          setResponses(initialResponses);
+        if (!response.ok) {
+          throw new Error('Failed to fetch questions');
         }
-      } else {
-        throw new Error(data.error || 'Failed to load questions');
+
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setReview(data.data);
+          
+          // Initialize responses from existing data if available
+          if (data.data.responses) {
+            const initialResponses: Record<string, QuestionResponse['value']> = {};
+            data.data.responses.forEach((resp: QuestionResponse) => {
+              initialResponses[resp.questionId] = resp.value;
+            });
+            setResponses(initialResponses);
+          }
+        } else {
+          throw new Error(data.error || 'Failed to load questions');
+        }
+      } catch (err) {
+        // Ignore abort errors - these are expected when the effect re-runs
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+        
+        console.error('Error fetching questions:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        // Only update loading state if the request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      console.error('Error fetching questions:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    fetchQuestions();
+
+    // Cleanup function: abort the request if component unmounts or dependencies change
+    return () => {
+      abortController.abort();
+    };
+  }, [jobId, companyId, retryTrigger]);
 
   const handleResponseChange = (questionId: string, value: QuestionResponse['value']) => {
     setResponses((prev) => ({
       ...prev,
       [questionId]: value,
     }));
+  };
+
+  const handleRetry = () => {
+    // Increment retry trigger to force useEffect to re-run
+    setRetryTrigger((prev) => prev + 1);
   };
 
   const toggleReadOnly = () => {
@@ -88,7 +111,7 @@ export function QuestionsContainer({ jobId, companyId, initialReadOnly = false }
             <h3 className="text-lg font-semibold text-red-900 mb-1">Error Loading Questions</h3>
             <p className="text-red-700">{error}</p>
             <button
-              onClick={fetchQuestions}
+              onClick={handleRetry}
               className="mt-4 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
             >
               Try Again
