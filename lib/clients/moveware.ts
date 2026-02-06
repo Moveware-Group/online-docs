@@ -58,6 +58,9 @@ async function request<T>(
   // Company ID is part of the URL path: https://rest.moveware-test.app/65700/api/jobs/...
   const url = `${baseConfig.baseUrl}/${companyId}/${baseConfig.version}${endpoint}`;
   
+  console.log(`[Moveware API] Requesting: ${url}`);
+  console.log(`[Moveware API] Headers:`, getAuthHeaders(companyId));
+  
   try {
     const response = await fetch(url, {
       ...options,
@@ -66,6 +69,8 @@ async function request<T>(
         ...options.headers,
       },
     });
+    
+    console.log(`[Moveware API] Response status: ${response.status}`);
     
     const data = await response.json();
     
