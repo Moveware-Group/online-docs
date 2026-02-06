@@ -3,21 +3,21 @@
  */
 
 import { prisma } from '../db';
-import { Copy } from '@prisma/client';
+import { CopySettings } from '@prisma/client';
 
-export type CopyContent = Copy;
+export type CopyContent = CopySettings;
 
 class CopyService {
   /**
    * Get copy for a specific company
    */
-  async getCopy(companyId?: string): Promise<Copy | null> {
+  async getCopy(companyId?: string): Promise<CopySettings | null> {
     try {
       if (!companyId) {
         // Get the first copy or from a default company
-        return await prisma.copy.findFirst();
+        return await prisma.copySettings.findFirst();
       }
-      return await prisma.copy.findUnique({
+      return await prisma.copySettings.findUnique({
         where: { companyId },
       });
     } catch (error) {
@@ -29,10 +29,10 @@ class CopyService {
   /**
    * Get copy by key (legacy method for backward compatibility)
    */
-  async getCopyByKey(key: string): Promise<Copy | null> {
+  async getCopyByKey(key: string): Promise<CopySettings | null> {
     try {
       // Assuming 'key' is the companyId for now
-      return await prisma.copy.findUnique({
+      return await prisma.copySettings.findUnique({
         where: { companyId: key },
       });
     } catch (error) {
@@ -44,11 +44,11 @@ class CopyService {
   /**
    * Get copy by section (returns the copy object, app can filter by section field)
    */
-  async getCopyBySection(section: string): Promise<Copy | null> {
+  async getCopyBySection(section: string): Promise<CopySettings | null> {
     try {
-      // Since Copy model doesn't have a section field directly,
+      // Since CopySettings model doesn't have a section field directly,
       // this returns the first copy. Apps should handle section filtering.
-      return await prisma.copy.findFirst();
+      return await prisma.copySettings.findFirst();
     } catch (error) {
       console.error(`Error fetching copy for section ${section}:`, error);
       return null;
@@ -58,12 +58,15 @@ class CopyService {
   /**
    * Create new copy
    */
-  async createCopy(companyId: string, data: Partial<Copy>): Promise<Copy> {
+  async createCopy(companyId: string, data: Partial<CopySettings>): Promise<CopySettings> {
     try {
-      return await prisma.copy.create({
+      return await prisma.copySettings.create({
         data: {
           companyId,
-          ...data,
+          welcomeMessage: data.welcomeMessage || 'Welcome',
+          introText: data.introText || '',
+          footerText: data.footerText,
+          submitButtonText: data.submitButtonText || 'Submit',
         },
       });
     } catch (error) {
@@ -75,9 +78,9 @@ class CopyService {
   /**
    * Update copy
    */
-  async updateCopy(companyId: string, data: Partial<Copy>): Promise<Copy> {
+  async updateCopy(companyId: string, data: Partial<CopySettings>): Promise<CopySettings> {
     try {
-      return await prisma.copy.update({
+      return await prisma.copySettings.update({
         where: { companyId },
         data,
       });
@@ -92,7 +95,7 @@ class CopyService {
    */
   async deleteCopy(companyId: string): Promise<void> {
     try {
-      await prisma.copy.delete({
+      await prisma.copySettings.delete({
         where: { companyId },
       });
     } catch (error) {
@@ -104,13 +107,16 @@ class CopyService {
   /**
    * Upsert copy
    */
-  async upsertCopy(companyId: string, data: Partial<Copy>): Promise<Copy> {
+  async upsertCopy(companyId: string, data: Partial<CopySettings>): Promise<CopySettings> {
     try {
-      return await prisma.copy.upsert({
+      return await prisma.copySettings.upsert({
         where: { companyId },
         create: {
           companyId,
-          ...data,
+          welcomeMessage: data.welcomeMessage || 'Welcome',
+          introText: data.introText || '',
+          footerText: data.footerText,
+          submitButtonText: data.submitButtonText || 'Submit',
         },
         update: data,
       });

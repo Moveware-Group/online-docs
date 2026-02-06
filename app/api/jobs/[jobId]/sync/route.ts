@@ -43,7 +43,6 @@ export async function POST(
       );
     }
 
-    const jobIdInt = parseInt(jobId);
     const results = {
       job: false,
       inventory: false,
@@ -77,11 +76,11 @@ export async function POST(
       
       if (movewareInventory && movewareInventory.inventoryUsage) {
         // Delete existing inventory for this job
-        await inventoryService.deleteInventoryByJob(jobIdInt);
+        await inventoryService.deleteInventoryByJob(jobId);
         
         // Transform and save all inventory items
         const inventoryItems = movewareInventory.inventoryUsage.map((item: any) => 
-          transformInventoryItemForDatabase(item, jobIdInt)
+          transformInventoryItemForDatabase(item, jobId)
         );
 
         await inventoryService.upsertInventoryItems(inventoryItems);

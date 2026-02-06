@@ -3,21 +3,21 @@
  */
 
 import { prisma } from '../db';
-import { Branding } from '@prisma/client';
+import { BrandingSettings } from '@prisma/client';
 
-export type BrandingContent = Branding;
+export type BrandingContent = BrandingSettings;
 
 class BrandingService {
   /**
    * Get branding for a specific company
    */
-  async getBranding(companyId?: string): Promise<Branding | null> {
+  async getBranding(companyId?: string): Promise<BrandingSettings | null> {
     try {
       if (!companyId) {
         // Get the first branding or from a default company
-        return await prisma.branding.findFirst();
+        return await prisma.brandingSettings.findFirst();
       }
-      return await prisma.branding.findUnique({
+      return await prisma.brandingSettings.findUnique({
         where: { companyId },
       });
     } catch (error) {
@@ -29,12 +29,15 @@ class BrandingService {
   /**
    * Create new branding
    */
-  async createBranding(companyId: string, data: Partial<Branding>): Promise<Branding> {
+  async createBranding(companyId: string, data: Partial<BrandingSettings>): Promise<BrandingSettings> {
     try {
-      return await prisma.branding.create({
+      return await prisma.brandingSettings.create({
         data: {
           companyId,
-          ...data,
+          logoUrl: data.logoUrl,
+          primaryColor: data.primaryColor || '#2563eb',
+          secondaryColor: data.secondaryColor || '#1e40af',
+          fontFamily: data.fontFamily || 'Inter',
         },
       });
     } catch (error) {
@@ -46,9 +49,9 @@ class BrandingService {
   /**
    * Update branding
    */
-  async updateBranding(companyId: string, data: Partial<Branding>): Promise<Branding> {
+  async updateBranding(companyId: string, data: Partial<BrandingSettings>): Promise<BrandingSettings> {
     try {
-      return await prisma.branding.update({
+      return await prisma.brandingSettings.update({
         where: { companyId },
         data,
       });
@@ -63,7 +66,7 @@ class BrandingService {
    */
   async deleteBranding(companyId: string): Promise<void> {
     try {
-      await prisma.branding.delete({
+      await prisma.brandingSettings.delete({
         where: { companyId },
       });
     } catch (error) {
@@ -75,13 +78,16 @@ class BrandingService {
   /**
    * Upsert branding
    */
-  async upsertBranding(companyId: string, data: Partial<Branding>): Promise<Branding> {
+  async upsertBranding(companyId: string, data: Partial<BrandingSettings>): Promise<BrandingSettings> {
     try {
-      return await prisma.branding.upsert({
+      return await prisma.brandingSettings.upsert({
         where: { companyId },
         create: {
           companyId,
-          ...data,
+          logoUrl: data.logoUrl,
+          primaryColor: data.primaryColor || '#2563eb',
+          secondaryColor: data.secondaryColor || '#1e40af',
+          fontFamily: data.fontFamily || 'Inter',
         },
         update: data,
       });

@@ -3,18 +3,18 @@
  */
 
 import { prisma } from '../db';
-import type { InventoryItem } from '@prisma/client';
+import type { Inventory as InventoryItem } from '@prisma/client';
 import type { InventoryItemData } from '../types/job';
 
 class InventoryService {
   /**
    * Get all inventory items for a job
    */
-  async getInventoryByJob(jobId: number): Promise<InventoryItem[]> {
+  async getInventoryByJob(jobId: string): Promise<InventoryItem[]> {
     try {
-      return await prisma.inventoryItem.findMany({
+      return await prisma.inventory.findMany({
         where: { jobId },
-        orderBy: { description: 'asc' },
+        orderBy: { itemName: 'asc' },
       });
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -27,7 +27,7 @@ class InventoryService {
    */
   async getInventoryItem(id: number): Promise<InventoryItem | null> {
     try {
-      return await prisma.inventoryItem.findUnique({
+      return await prisma.inventory.findUnique({
         where: { id },
         include: {
           job: true,
@@ -44,7 +44,7 @@ class InventoryService {
    */
   async upsertInventoryItem(itemData: InventoryItemData): Promise<InventoryItem> {
     try {
-      return await prisma.inventoryItem.upsert({
+      return await prisma.inventory.upsert({
         where: { id: itemData.id },
         create: itemData,
         update: itemData,
@@ -77,7 +77,7 @@ class InventoryService {
    */
   async deleteInventoryItem(id: number): Promise<void> {
     try {
-      await prisma.inventoryItem.delete({
+      await prisma.inventory.delete({
         where: { id },
       });
     } catch (error) {
@@ -89,9 +89,9 @@ class InventoryService {
   /**
    * Delete all inventory items for a job
    */
-  async deleteInventoryByJob(jobId: number): Promise<number> {
+  async deleteInventoryByJob(jobId: string): Promise<number> {
     try {
-      const result = await prisma.inventoryItem.deleteMany({
+      const result = await prisma.inventory.deleteMany({
         where: { jobId },
       });
       return result.count;

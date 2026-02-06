@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
@@ -18,15 +16,25 @@ export async function GET(
       );
     }
 
-    const jobIdInt = parseInt(jobId);
+    // Get companyId from query params
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get('companyId');
 
-    // Fetch costings from database
-    const costings = await prisma.costingItem.findMany({
+    if (!companyId) {
+      return NextResponse.json(
+        { error: 'Company ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch costings from database (costings are company-level, not job-specific)
+    const costings = await prisma.costing.findMany({
       where: {
-        jobId: jobIdInt,
+        companyId,
+        isActive: true,
       },
       orderBy: {
-        createdAt: 'asc',
+        category: 'asc',
       },
     });
 

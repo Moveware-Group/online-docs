@@ -1,36 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
     console.log('📝 Received quote acceptance request:', {
-      jobId: body.jobId,
-      costingItemId: body.costingItemId,
+      quoteNumber: body.quoteNumber,
       signatureName: body.signatureName,
-      reloFromDate: body.reloFromDate,
     });
     
     const {
-      jobId,
-      costingItemId,
+      quoteNumber,
       signatureName,
-      reloFromDate,
-      insuredValue,
-      purchaseOrderNumber,
-      specialRequirements,
       signatureData,
       agreedToTerms,
     } = body;
 
     // Validate required fields
-    if (!jobId || !costingItemId || !signatureName || !reloFromDate || !insuredValue || !purchaseOrderNumber || !signatureData) {
+    if (!quoteNumber || !signatureName || !signatureData) {
       console.error('❌ Validation failed: Missing required fields');
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: quoteNumber, signatureName, and signatureData' },
         { status: 400 }
       );
     }
@@ -43,32 +34,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save quote acceptance to database
-    console.log('💾 Saving to database...');
-    const quoteAcceptance = await prisma.quoteAcceptance.create({
+    // Update quote with acceptance details
+    console.log('💾 Updating quote in database...');
+    const updatedQuote = await prisma.quote.update({
+      where: {
+        quoteNumber,
+      },
       data: {
-        jobId: parseInt(jobId),
-        costingItemId,
-        signatureName,
-        reloFromDate,
-        insuredValue,
-        purchaseOrderNumber,
-        specialRequirements: specialRequirements || null,
-        signatureData,
-        agreedToTerms,
         status: 'accepted',
+        termsAccepted: true,
+        acceptedAt: new Date(),
+        acceptedBy: signatureName,
+        signatureData,
       },
     });
 
-    console.log('✅ Quote acceptance saved successfully:', quoteAcceptance.id);
+    console.log('✅ Quote acceptance saved successfully:', updatedQuote.id);
 
     return NextResponse.json(
       {
         success: true,
-        data: quoteAcceptance,
+        data: updatedQuote,
         message: 'Quote accepted successfully',
       },
-      { status: 201 }
+      { status: 200 }
     );
   } catch (error) {
     console.error('❌ Error accepting quote:', error);

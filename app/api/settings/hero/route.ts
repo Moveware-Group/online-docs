@@ -19,22 +19,28 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { imageUrl, title, subtitle } = body;
+    const { backgroundImage, title, subtitle, backgroundColor, textColor, showLogo, alignment } = body;
 
     // Validate at least one field is provided
-    if (!imageUrl && !title && !subtitle) {
+    if (!backgroundImage && !title && !subtitle && !backgroundColor && !textColor && showLogo === undefined && !alignment) {
       return NextResponse.json(
         { error: 'At least one field is required' },
         { status: 400 }
       );
     }
 
+    // Build update data
+    const updateData: any = {};
+    if (backgroundImage !== undefined) updateData.backgroundImage = backgroundImage;
+    if (title !== undefined) updateData.title = title;
+    if (subtitle !== undefined) updateData.subtitle = subtitle;
+    if (backgroundColor !== undefined) updateData.backgroundColor = backgroundColor;
+    if (textColor !== undefined) updateData.textColor = textColor;
+    if (showLogo !== undefined) updateData.showLogo = showLogo;
+    if (alignment !== undefined) updateData.alignment = alignment;
+
     // Save hero content using upsert
-    const hero = await heroService.upsertHero(DEFAULT_COMPANY_ID, {
-      imageUrl,
-      heading: title,
-      subheading: subtitle,
-    });
+    const hero = await heroService.upsertHero(DEFAULT_COMPANY_ID, updateData);
 
     return NextResponse.json(hero);
   } catch (error) {

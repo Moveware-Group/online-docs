@@ -19,14 +19,15 @@ export default async function Home() {
   }
 
   // Use data or fallback to defaults
-  const title = heroData?.heading || 'Welcome to Moveware';
-  const subtitle = heroData?.subheading || 'Professional Documentation Platform';
-  const ctaText = heroData?.ctaText || 'Get Started';
-  const ctaUrl = heroData?.ctaUrl || '/getting-started';
-  const backgroundImage = heroData?.imageUrl;
+  const title = heroData?.title || 'Welcome to Moveware';
+  const subtitle = heroData?.subtitle || 'Professional Documentation Platform';
+  const backgroundImage = heroData?.backgroundImage;
 
-  const description = copyData?.description || 
+  const description = copyData?.introText || 
     'Build, manage, and share professional documentation with ease. Moveware provides the tools you need to create beautiful, accessible documentation for your projects.';
+  
+  const ctaText = 'Get Started';
+  const ctaUrl = '/getting-started';
   
   const features = [
     'Easy to use editor',
