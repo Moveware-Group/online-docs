@@ -81,111 +81,71 @@ export interface MovewareInventoryResponse {
  * Database Job model (for Prisma)
  */
 export interface JobData {
-  id: number;
-  titleName?: string;
-  firstName?: string;
-  lastName?: string;
-  estimatedDeliveryDetails?: string;
-  jobValue?: number;
-  dateModified?: Date;
-  brandCode?: string;
-  branchCode?: string;
-  companyCode?: string;
-  
-  // Measures
-  measuresVolumeGrossF3?: number;
-  measuresVolumeGrossM3?: number;
-  measuresVolumeNetF3?: number;
-  measuresVolumeNetM3?: number;
-  measuresWeightGrossKg?: number;
-  measuresWeightGrossLb?: number;
-  measuresWeightNetKg?: number;
-  measuresWeightNetLb?: number;
-  
-  // Uplift Address
-  upliftLine1?: string;
-  upliftLine2?: string;
-  upliftCity?: string;
-  upliftState?: string;
-  upliftPostcode?: string;
-  upliftCountry?: string;
-  
-  // Delivery Address
-  deliveryLine1?: string;
-  deliveryLine2?: string;
-  deliveryCity?: string;
-  deliveryState?: string;
-  deliveryPostcode?: string;
-  deliveryCountry?: string;
-  
-  // Raw data for reference
-  rawData?: any;
+  id: string;
+  movewareJobId: string;
+  companyId: string;
+  customerId?: string;
+  customerName?: string;
+  status: string;
+  scheduledDate?: Date;
+  completedDate?: Date;
+  originAddress?: string;
+  destinationAddress?: string;
+  data: string; // JSON string of full Moveware API response
 }
 
 /**
  * Database Inventory Item model (for Prisma)
  */
 export interface InventoryItemData {
-  id: number;
+  id: string;
   jobId: string;
-  description?: string;
-  room?: string;
+  companyId: string;
+  movewareId?: string;
+  itemName: string;
+  category?: string;
   quantity?: number;
-  destination?: string;
-  cube?: number;
-  typeCode?: string;
-  barcode?: string;
-  rawData?: any;
+  volume?: number;
+  weight?: number;
+  fragile?: boolean;
+  notes?: string;
+  room?: string;
+  data?: string;
 }
 
 /**
  * Transform Moveware API job to database format
  */
 export function transformJobForDatabase(apiJob: MovewareJob): JobData {
-  const measures = apiJob.measures?.[0];
   const uplift = apiJob.addresses?.Uplift;
   const delivery = apiJob.addresses?.Delivery;
   
+  // Build address strings
+  const originAddress = uplift 
+    ? [uplift.line1, uplift.line2, uplift.city, uplift.state, uplift.postcode].filter(Boolean).join(', ')
+    : undefined;
+    
+  const destinationAddress = delivery
+    ? [delivery.line1, delivery.line2, delivery.city, delivery.state, delivery.postcode].filter(Boolean).join(', ')
+    : undefined;
+  
+  // Build customer name from available fields
+  const customerName = [apiJob.titleName, apiJob.firstName, apiJob.lastName]
+    .filter(Boolean)
+    .join(' ') || undefined;
+  
   return {
-    id: apiJob.id,
-    titleName: apiJob.titleName,
-    firstName: apiJob.firstName,
-    lastName: apiJob.lastName,
-    estimatedDeliveryDetails: apiJob.estimatedDeliveryDetails,
-    jobValue: apiJob.jobValue,
-    dateModified: apiJob.dateModified ? new Date(apiJob.dateModified) : undefined,
-    brandCode: apiJob.brandCode,
-    branchCode: apiJob.branchCode,
-    companyCode: apiJob.companyCode,
-    
-    // Measures
-    measuresVolumeGrossF3: measures?.volume?.gross?.f3,
-    measuresVolumeGrossM3: measures?.volume?.gross?.m3,
-    measuresVolumeNetF3: measures?.volume?.net?.f3,
-    measuresVolumeNetM3: measures?.volume?.net?.m3,
-    measuresWeightGrossKg: measures?.weight?.gross?.kg,
-    measuresWeightGrossLb: measures?.weight?.gross?.lb,
-    measuresWeightNetKg: measures?.weight?.net?.kg,
-    measuresWeightNetLb: measures?.weight?.net?.lb,
-    
-    // Uplift Address
-    upliftLine1: uplift?.line1,
-    upliftLine2: uplift?.line2,
-    upliftCity: uplift?.city,
-    upliftState: uplift?.state,
-    upliftPostcode: uplift?.postcode,
-    upliftCountry: uplift?.country,
-    
-    // Delivery Address
-    deliveryLine1: delivery?.line1,
-    deliveryLine2: delivery?.line2,
-    deliveryCity: delivery?.city,
-    deliveryState: delivery?.state,
-    deliveryPostcode: delivery?.postcode,
-    deliveryCountry: delivery?.country,
-    
-    // Store full raw data for reference
-    rawData: apiJob,
+    id: String(apiJob.id),
+    movewareJobId: String(apiJob.id),
+    companyId: apiJob.companyCode || apiJob.brandCode || 'unknown',
+    customerId: apiJob.customerId,
+    customerName,
+    status: apiJob.status || 'active',
+    scheduledDate: apiJob.scheduledDate ? new Date(apiJob.scheduledDate) : undefined,
+    completedDate: apiJob.completedDate ? new Date(apiJob.completedDate) : undefined,
+    originAddress,
+    destinationAddress,
+    data: JSON.stringify(apiJob),
   };
 }
 
@@ -194,18 +154,22 @@ export function transformJobForDatabase(apiJob: MovewareJob): JobData {
  */
 export function transformInventoryItemForDatabase(
   apiItem: MovewareInventoryItem,
-  jobId: string
+  jobId: string,
+  companyId: string
 ): InventoryItemData {
   return {
-    id: apiItem.id,
+    id: String(apiItem.id),
     jobId: jobId,
-    description: apiItem.description,
+    companyId: companyId,
+    movewareId: String(apiItem.id),
+    itemName: apiItem.description || 'Unnamed Item',
+    category: apiItem.typeCode,
+    quantity: apiItem.quantity || 1,
+    volume: apiItem.cube,
+    weight: undefined,
+    fragile: false,
+    notes: apiItem.barcode ? `Barcode: ${apiItem.barcode}` : undefined,
     room: apiItem.room,
-    quantity: apiItem.quantity,
-    destination: apiItem.destination,
-    cube: apiItem.cube,
-    typeCode: apiItem.typeCode,
-    barcode: apiItem.barcode,
-    rawData: apiItem,
+    data: JSON.stringify(apiItem),
   };
 }

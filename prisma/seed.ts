@@ -10,78 +10,58 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // 1. Create/Update Branding for "MWB" brand (Crown Worldwide)
-  console.log('Creating branding for MWB...');
-  const branding = await prisma.branding.upsert({
-    where: { brandCode: 'MWB' },
+  // 1. Create Company and BrandingSettings for Crown Worldwide
+  console.log('Creating company and branding...');
+  const company = await prisma.company.upsert({
+    where: { apiKey: 'crown-worldwide-api-key' },
+    update: {
+      name: 'Crown Worldwide',
+    },
+    create: {
+      name: 'Crown Worldwide',
+      apiKey: 'crown-worldwide-api-key',
+      isActive: true,
+    },
+  });
+
+  const branding = await prisma.brandingSettings.upsert({
+    where: { companyId: company.id },
     update: {
       logoUrl: '/images/crown_logo.svg',
       primaryColor: '#c00',
       secondaryColor: '#fff',
-      tertiaryColor: '#5a5a5a',
     },
     create: {
-      companyId: 'crown-worldwide',
-      brandCode: 'MWB',
-      companyName: 'Crown Worldwide',
+      companyId: company.id,
       logoUrl: '/images/crown_logo.svg',
       primaryColor: '#c00',
       secondaryColor: '#fff',
-      tertiaryColor: '#5a5a5a',
       fontFamily: 'Inter',
     },
   });
-  console.log('✓ Created branding:', branding.brandCode);
+  console.log('✓ Created company and branding:', company.name);
 
   // 2. Create Job #111505
   console.log('Creating job #111505...');
   const job = await prisma.job.upsert({
-    where: { id: 111505 },
+    where: { movewareJobId: '111505' },
     update: {},
     create: {
-      id: 111505,
-      titleName: 'Mr',
-      firstName: 'Leigh',
-      lastName: 'Morrow',
-      estimatedDeliveryDetails: '27/02/26',
-      jobValue: 2675.0,
-      dateModified: new Date('2026-02-05T09:35:48.734Z'),
-      brandCode: 'MWB',
-      branchCode: 'MEL',
-      companyCode: '01',
-      
-      // Measures from API
-      measuresVolumeGrossF3: 22.0,
-      measuresVolumeGrossM3: 0.622965,
-      measuresVolumeNetF3: 22.0,
-      measuresVolumeNetM3: 0.622965,
-      measuresWeightGrossKg: 70.0,
-      measuresWeightGrossLb: 154.0,
-      measuresWeightNetKg: 70.0,
-      measuresWeightNetLb: 154.0,
-      
-      // Uplift Address
-      upliftLine1: '3 Spring Water Crescent',
-      upliftLine2: '',
-      upliftCity: 'Cranbourne',
-      upliftState: 'VIC',
-      upliftPostcode: '3977',
-      upliftCountry: 'Australia',
-      
-      // Delivery Address
-      deliveryLine1: '12 Cato Street',
-      deliveryLine2: '',
-      deliveryCity: 'Hawthorn East',
-      deliveryState: 'VIC',
-      deliveryPostcode: '3123',
-      deliveryCountry: 'Australia',
-      
-      rawData: {
+      movewareJobId: '111505',
+      companyId: company.id,
+      customerId: 'CUST001',
+      customerName: 'Mr Leigh Morrow',
+      status: 'P',
+      scheduledDate: new Date('2026-02-27'),
+      originAddress: '3 Spring Water Crescent, Cranbourne, VIC, 3977, Australia',
+      destinationAddress: '12 Cato Street, Hawthorn East, VIC, 3123, Australia',
+      data: JSON.stringify({
         fullname: 'Mr Leigh Morrow',
         method: 'Road',
         status: 'P',
         type: 'LR',
-      },
+        jobValue: 2675.0,
+      }),
     },
   });
   console.log('✓ Created job:', job.id);
@@ -254,20 +234,22 @@ async function main() {
 
   let inventoryCount = 0;
   for (const item of inventoryItems) {
-    await prisma.inventoryItem.upsert({
-      where: { id: item.id },
+    await prisma.inventory.upsert({
+      where: { id: String(item.id) },
       update: {},
       create: {
-        id: item.id,
-        jobId: 111505,
-        description: item.description,
-        room: '',
+        id: String(item.id),
+        jobId: job.id,
+        companyId: company.id,
+        movewareId: String(item.id),
+        itemName: item.description,
+        category: item.typeCode,
         quantity: item.quantity,
-        destination: '',
-        cube: item.cube,
-        typeCode: item.typeCode,
-        barcode: item.barcode,
-        rawData: item,
+        volume: item.cube,
+        fragile: false,
+        notes: `Barcode: ${item.barcode}`,
+        room: '',
+        data: JSON.stringify(item),
       },
     });
     inventoryCount++;
@@ -275,22 +257,20 @@ async function main() {
   console.log(`✓ Created ${inventoryCount} inventory items`);
 
   // 4. Create Costing Item
-  console.log('Creating costing item for job #111505...');
-  await prisma.costingItem.upsert({
+  console.log('Creating costing item...');
+  await prisma.costing.upsert({
     where: { id: 'costing-111505-local' },
     update: {},
     create: {
       id: 'costing-111505-local',
-      jobId: 111505,
+      companyId: company.id,
       name: 'Local Removal',
       category: 'Moving Service',
       description: 'Local Moving service with collection from 3 Spring Water Crescent, Cranbourne and delivering to Hawthorn East.',
-      quantity: 1,
-      rate: 300.00,
-      netTotal: 'N/A',
-      totalPrice: 300.00,
-      taxIncluded: true,
-      rawData: {
+      unitPrice: 300.00,
+      unit: 'service',
+      isActive: true,
+      data: JSON.stringify({
         inclusions: [
           'Protection of floors, hallways & lifts where applicable',
           'Full packing service, including all boxes and materials',
@@ -306,7 +286,7 @@ async function main() {
           'Reassembly of items not dismantled by us (optional)',
           'Any other additional/optional services',
         ],
-      },
+      }),
     },
   });
   console.log('✓ Created costing item');

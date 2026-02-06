@@ -25,13 +25,10 @@ class InventoryService {
   /**
    * Get a specific inventory item
    */
-  async getInventoryItem(id: number): Promise<InventoryItem | null> {
+  async getInventoryItem(id: string): Promise<InventoryItem | null> {
     try {
       return await prisma.inventory.findUnique({
         where: { id },
-        include: {
-          job: true,
-        },
       });
     } catch (error) {
       console.error('Error fetching inventory item:', error);
@@ -75,7 +72,7 @@ class InventoryService {
   /**
    * Delete an inventory item
    */
-  async deleteInventoryItem(id: number): Promise<void> {
+  async deleteInventoryItem(id: string): Promise<void> {
     try {
       await prisma.inventory.delete({
         where: { id },
@@ -104,10 +101,10 @@ class InventoryService {
   /**
    * Get inventory summary for a job
    */
-  async getInventorySummary(jobId: number): Promise<{
+  async getInventorySummary(jobId: string): Promise<{
     totalItems: number;
     totalQuantity: number;
-    totalCube: number;
+    totalVolume: number;
   }> {
     try {
       const items = await this.getInventoryByJob(jobId);
@@ -115,11 +112,11 @@ class InventoryService {
       return {
         totalItems: items.length,
         totalQuantity: items.reduce((sum, item) => sum + (item.quantity || 0), 0),
-        totalCube: items.reduce((sum, item) => sum + (item.cube || 0), 0),
+        totalVolume: items.reduce((sum, item) => sum + (item.volume || 0), 0),
       };
     } catch (error) {
       console.error('Error calculating inventory summary:', error);
-      return { totalItems: 0, totalQuantity: 0, totalCube: 0 };
+      return { totalItems: 0, totalQuantity: 0, totalVolume: 0 };
     }
   }
 }

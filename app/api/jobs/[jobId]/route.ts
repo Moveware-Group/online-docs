@@ -38,10 +38,8 @@ export async function GET(
       );
     }
 
-    const jobIdInt = parseInt(jobId);
-
     // Try to fetch job from database first
-    let job = await jobService.getJob(jobIdInt);
+    let job = await jobService.getJob(jobId);
 
     // If not in database, fetch from Moveware API and save
     if (!job) {

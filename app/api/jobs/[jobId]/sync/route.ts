@@ -80,7 +80,7 @@ export async function POST(
         
         // Transform and save all inventory items
         const inventoryItems = movewareInventory.inventoryUsage.map((item: any) => 
-          transformInventoryItemForDatabase(item, jobId)
+          transformInventoryItemForDatabase(item, jobId, String(companyId))
         );
 
         await inventoryService.upsertInventoryItems(inventoryItems);

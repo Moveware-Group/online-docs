@@ -10,15 +10,10 @@ class JobService {
   /**
    * Get a job by ID
    */
-  async getJob(jobId: number): Promise<Job | null> {
+  async getJob(jobId: string): Promise<Job | null> {
     try {
       return await prisma.job.findUnique({
         where: { id: jobId },
-        include: {
-          branding: true,
-          inventoryItems: true,
-          costingItems: true,
-        },
       });
     } catch (error) {
       console.error('Error fetching job:', error);
@@ -27,21 +22,16 @@ class JobService {
   }
 
   /**
-   * Get all jobs for a brand
+   * Get all jobs for a company
    */
-  async getJobsByBrand(brandCode: string): Promise<Job[]> {
+  async getJobsByBrand(companyId: string): Promise<Job[]> {
     try {
       return await prisma.job.findMany({
-        where: { brandCode },
-        include: {
-          branding: true,
-          inventoryItems: true,
-          costingItems: true,
-        },
-        orderBy: { dateModified: 'desc' },
+        where: { companyId },
+        orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
-      console.error('Error fetching jobs by brand:', error);
+      console.error('Error fetching jobs by company:', error);
       return [];
     }
   }
@@ -65,7 +55,7 @@ class JobService {
   /**
    * Delete a job
    */
-  async deleteJob(jobId: number): Promise<void> {
+  async deleteJob(jobId: string): Promise<void> {
     try {
       await prisma.job.delete({
         where: { id: jobId },
@@ -84,14 +74,11 @@ class JobService {
       return await prisma.job.findMany({
         where: {
           OR: [
-            { firstName: { contains: searchTerm, mode: 'insensitive' } },
-            { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            { customerName: { contains: searchTerm, mode: 'insensitive' } },
+            { movewareJobId: { contains: searchTerm, mode: 'insensitive' } },
           ],
         },
-        include: {
-          branding: true,
-        },
-        orderBy: { dateModified: 'desc' },
+        orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
       console.error('Error searching jobs:', error);
@@ -100,21 +87,18 @@ class JobService {
   }
 
   /**
-   * Get jobs by date range
+   * Get jobs by date range (based on scheduled date)
    */
   async getJobsByDateRange(startDate: Date, endDate: Date): Promise<Job[]> {
     try {
       return await prisma.job.findMany({
         where: {
-          dateModified: {
+          scheduledDate: {
             gte: startDate,
             lte: endDate,
           },
         },
-        include: {
-          branding: true,
-        },
-        orderBy: { dateModified: 'desc' },
+        orderBy: { scheduledDate: 'desc' },
       });
     } catch (error) {
       console.error('Error fetching jobs by date range:', error);
