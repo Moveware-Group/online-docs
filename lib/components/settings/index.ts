@@ -1,2 +1,2 @@
 export { default as SettingsPageContent } from "./settings-page-content";
-export { default as CompaniesListView } from "./CompaniesListView";
+export { CompaniesListView } from "./CompaniesListView";

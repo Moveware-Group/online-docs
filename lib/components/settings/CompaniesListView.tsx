@@ -1,200 +1,124 @@
 "use client";
 
-import { Edit2, Trash2, Building2 } from "lucide-react";
-
-/**
- * Company interface matching the structure from OD-796
- */
-interface Company {
-  id: string;
-  name: string;
-  logoUrl?: string | null;
-}
+import { Building2, Plus } from "lucide-react";
+import type { Company } from "@prisma/client";
 
 interface CompaniesListViewProps {
   companies: Company[];
-  onEdit?: (company: Company) => void;
-  onDelete?: (company: Company) => void;
 }
 
-/**
- * Responsive companies list component
- * - Desktop: Table layout with logo, name, and actions
- * - Mobile: Card layout for better mobile UX
- */
-export default function CompaniesListView({
-  companies,
-  onEdit,
-  onDelete,
-}: CompaniesListViewProps) {
+export function CompaniesListView({ companies }: CompaniesListViewProps) {
+  // Empty state: no companies exist
+  if (companies.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="bg-white rounded-xl shadow-md p-12 max-w-md mx-auto text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+            <Building2 className="w-8 h-8 text-blue-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-3">
+            No companies yet
+          </h3>
+          <p className="text-base text-gray-600 mb-8">
+            Create your first company to get started.
+          </p>
+          <button
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 inline-flex items-center gap-2"
+            onClick={() => {
+              // TODO: Add company creation handler
+              console.log("Add company clicked");
+            }}
+          >
+            <Plus className="w-5 h-5" />
+            Add Company
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Display companies table when companies exist
   return (
-    <div className="space-y-6">
-      {/* Desktop Table View - Hidden on mobile */}
-      <div className="hidden md:block bg-white rounded-xl shadow-md overflow-hidden">
-        <table
-          className="w-full"
-          role="table"
-          aria-label="Companies list table"
-        >
-          <thead className="bg-gray-50 border-b border-gray-200">
+    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
               <th
                 scope="col"
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-900"
-                aria-label="Company logo"
-              >
-                Logo
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-4 text-left text-sm font-semibold text-gray-900"
-                aria-label="Company name"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 Company Name
               </th>
               <th
                 scope="col"
-                className="px-6 py-4 text-right text-sm font-semibold text-gray-900"
-                aria-label="Actions"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Status
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Created
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {companies.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-6 py-12 text-center">
-                  <div className="flex flex-col items-center justify-center text-gray-500">
-                    <Building2 className="w-12 h-12 mb-4 text-gray-400" />
-                    <p className="text-base font-medium">No companies found</p>
-                    <p className="text-sm mt-1">
-                      Add your first company to get started
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              companies.map((company) => (
-                <tr
-                  key={company.id}
-                  className="hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <td className="px-6 py-4 w-20">
+          <tbody className="bg-white divide-y divide-gray-200">
+            {companies.map((company) => (
+              <tr
+                key={company.id}
+                className="hover:bg-gray-50 transition-colors duration-150"
+              >
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
                     {company.logoUrl ? (
                       <img
                         src={company.logoUrl}
                         alt={`${company.name} logo`}
-                        className="w-12 h-12 rounded-lg object-cover shadow-sm"
+                        className="w-10 h-10 rounded-lg object-cover mr-3"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-blue-600" />
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                        <Building2 className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-base font-medium text-gray-900">
-                      {company.name}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {onEdit && (
-                        <button
-                          onClick={() => onEdit(company)}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-all duration-200"
-                          aria-label={`Edit ${company.name}`}
-                        >
-                          <Edit2 className="w-4 h-4 inline-block mr-1" />
-                          Edit
-                        </button>
-                      )}
-                      {onDelete && (
-                        <button
-                          onClick={() => onDelete(company)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 font-semibold py-2 px-4 rounded-lg transition-all duration-200"
-                          aria-label={`Delete ${company.name}`}
-                        >
-                          <Trash2 className="w-4 h-4 inline-block mr-1" />
-                          Delete
-                        </button>
-                      )}
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {company.name}
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile Card View - Visible only on mobile */}
-      <div
-        className="md:hidden space-y-4"
-        role="list"
-        aria-label="Companies list"
-      >
-        {companies.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-8 text-center">
-            <div className="flex flex-col items-center justify-center text-gray-500">
-              <Building2 className="w-12 h-12 mb-4 text-gray-400" />
-              <p className="text-base font-medium">No companies found</p>
-              <p className="text-sm mt-1">
-                Add your first company to get started
-              </p>
-            </div>
-          </div>
-        ) : (
-          companies.map((company) => (
-            <div
-              key={company.id}
-              className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
-              role="listitem"
-            >
-              <div className="flex items-start gap-4 mb-4">
-                {company.logoUrl ? (
-                  <img
-                    src={company.logoUrl}
-                    alt={`${company.name} logo`}
-                    className="w-16 h-16 rounded-lg object-cover shadow-sm flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-8 h-8 text-blue-600" />
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
-                    {company.name}
-                  </h3>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {onEdit && (
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    Active
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                  {new Date(company.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button
-                    onClick={() => onEdit(company)}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
-                    aria-label={`Edit ${company.name}`}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-all duration-200"
+                    onClick={() => {
+                      // TODO: Add edit handler
+                      console.log("Edit company:", company.id);
+                    }}
                   >
-                    <Edit2 className="w-4 h-4" />
                     Edit
                   </button>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={() => onDelete(company)}
-                    className="flex-1 bg-white hover:bg-gray-50 text-red-600 font-semibold py-3 px-4 rounded-lg border border-red-300 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2"
-                    aria-label={`Delete ${company.name}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -1,63 +1,84 @@
+/**
+ * Test utilities for Next.js API routes and components
+ */
+
 import { NextRequest } from "next/server";
 
 /**
- * Create a NextRequest with normalized headers.
- * Ensures headers are always a valid Headers instance to satisfy RequestInit types.
+ * Creates mock route params for testing
  */
-export function createNextRequest(
-  url: string,
-  init: RequestInit = {},
-): NextRequest {
-  const headers =
-    init.headers instanceof Headers ? init.headers : new Headers(init.headers);
-
-  return new NextRequest(url, {
-    ...init,
-    headers,
-  });
+export function createMockParams(
+  params: Record<string, string>,
+): Promise<Record<string, string>> {
+  return Promise.resolve(params);
 }
 
 /**
- * Create a JSON request with Content-Type set.
+ * Helper to extract JSON from NextResponse
  */
-export function createJsonRequest(
-  url: string,
-  body: unknown,
-  init: RequestInit = {},
-): NextRequest {
-  const headers =
-    init.headers instanceof Headers ? init.headers : new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
-
-  return createNextRequest(url, {
-    ...init,
-    method: init.method ?? "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
+export async function getResponseJson(response: Response): Promise<any> {
+  return response.json();
 }
 
 /**
- * Create a FormData request.
+ * Creates a mock File object for testing uploads
  */
-export function createFormDataRequest(
-  url: string,
-  formData: FormData,
-  init: RequestInit = {},
-): NextRequest {
-  return createNextRequest(url, {
-    ...init,
-    method: init.method ?? "POST",
-    body: formData,
-  });
+export function createMockFile(
+  filename: string,
+  content: string,
+  mimeType: string,
+): File {
+  const blob = new Blob([content], { type: mimeType });
+  return new File([blob], filename, { type: mimeType });
 }
 
 /**
- * Create a route context with params as a resolved Promise
- * to match Next.js App Router handler signatures.
+ * Creates a large file for testing size limits
  */
-export function createRouteContext(params: Record<string, string>) {
+export function createLargeFile(sizeInMB: number): File {
+  const size = sizeInMB * 1024 * 1024;
+  const buffer = new ArrayBuffer(size);
+  const blob = new Blob([buffer], { type: "image/png" });
+  return new File([blob], "large-file.png", { type: "image/png" });
+}
+
+/**
+ * Creates FormData with a file for testing multipart uploads
+ */
+export function createFormDataWithFile(
+  fieldName: string,
+  file: File,
+): FormData {
+  const formData = new FormData();
+  formData.append(fieldName, file);
+  return formData;
+}
+
+/**
+ * Mock admin authorization headers
+ */
+export function mockAdminHeaders(): Record<string, string> {
   return {
-    params: Promise.resolve(params),
+    authorization: "Bearer admin-token",
+    "content-type": "application/json",
+  };
+}
+
+/**
+ * Mock staff authorization headers
+ */
+export function mockStaffHeaders(): Record<string, string> {
+  return {
+    authorization: "Bearer staff-token",
+    "content-type": "application/json",
+  };
+}
+
+/**
+ * Mock unauthenticated headers
+ */
+export function mockUnauthenticatedHeaders(): Record<string, string> {
+  return {
+    "content-type": "application/json",
   };
 }
