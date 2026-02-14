@@ -1,95 +1,80 @@
+import { NextRequest } from "next/server";
+
 /**
- * Test Utilities
- * Helper functions for API route testing
+ * Test helper utilities for API route testing
  */
 
 /**
- * Create mock params object for dynamic routes
- * @param params - The params to mock (e.g., { id: '123' })
- * @returns Promise that resolves to params
+ * Create a mock NextRequest for testing
+ * @param url - Request URL
+ * @param options - Request options (method, headers, body, etc.)
  */
-export function createMockParams(
-  params: Record<string, string>,
-): Promise<Record<string, string>> {
+export function createMockRequest(
+  url: string,
+  options: RequestInit = {},
+): NextRequest {
+  return new NextRequest(url, options);
+}
+
+/**
+ * Create mock params object that matches Next.js route params structure
+ * In Next.js 15+, params is a Promise that resolves to the params object
+ * @param params - Route parameters object
+ * @returns Promise resolving to params object
+ */
+export function createMockParams<T extends Record<string, string>>(
+  params: T,
+): Promise<T> {
   return Promise.resolve(params);
 }
 
 /**
- * Get JSON from NextResponse
- * @param response - The NextResponse object
- * @returns The parsed JSON data
+ * Parse JSON from NextResponse for testing
+ * @param response - Response object from route handler
+ * @returns Parsed JSON data
  */
-export async function getResponseJson(response: any): Promise<any> {
-  // NextResponse has a json() method
-  if (typeof response.json === "function") {
-    return await response.json();
-  }
-  // Fallback if it's already parsed
-  return response;
+export async function getResponseJson(response: Response): Promise<any> {
+  return response.json();
 }
 
 /**
- * Create a mock File object for testing
- * @param sizeInBytes - Size of the file in bytes
- * @param mimeType - MIME type (default: 'image/png')
- * @param filename - Filename (default: 'test-logo.png')
+ * Create a mock File object for upload testing
+ * @param content - File content as string
+ * @param filename - Name of the file
+ * @param mimeType - MIME type (e.g., 'image/png', 'image/jpeg')
  * @returns Mock File object
  */
 export function createMockFile(
-  sizeInBytes: number = 1024 * 100, // 100KB default
-  mimeType: string = "image/png",
-  filename: string = "test-logo.png",
+  content: string,
+  filename: string,
+  mimeType: string,
 ): File {
-  // Create a buffer of the specified size
-  const buffer = Buffer.alloc(sizeInBytes);
-
-  // For PNG files, add a valid PNG header to pass MIME sniffing
-  if (mimeType === "image/png") {
-    // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
-    const pngHeader = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-    ]);
-    pngHeader.copy(buffer, 0);
-  } else if (mimeType === "image/jpeg") {
-    // JPEG magic bytes: FF D8 FF
-    const jpegHeader = Buffer.from([0xff, 0xd8, 0xff]);
-    jpegHeader.copy(buffer, 0);
-  } else if (mimeType === "image/webp") {
-    // WebP magic bytes: RIFF....WEBP
-    const webpHeader = Buffer.from("RIFF", "ascii");
-    webpHeader.copy(buffer, 0);
-    const webpMarker = Buffer.from("WEBP", "ascii");
-    webpMarker.copy(buffer, 8);
-  }
-
-  // Create a Blob from the buffer
-  const blob = new Blob([buffer], { type: mimeType });
-
-  // Create a File from the Blob
-  const file = new File([blob], filename, { type: mimeType });
-
-  return file;
+  const blob = new Blob([content], { type: mimeType });
+  return new File([blob], filename, { type: mimeType });
 }
 
 /**
- * Create a large file (>2MB) for testing file size validation
- * @param mimeType - MIME type (default: 'image/png')
- * @returns Mock File object larger than 2MB
+ * Create a file larger than the specified size for testing size limits
+ * Useful for testing file upload size validation (e.g., 2MB max)
+ * @param sizeMB - Size in megabytes
+ * @returns Large File object
  */
-export function createLargeFile(mimeType: string = "image/png"): File {
-  const twoMBPlus = 2 * 1024 * 1024 + 1024; // 2MB + 1KB
-  return createMockFile(twoMBPlus, mimeType, "large-file.png");
+export function createLargeFile(sizeMB: number): File {
+  const size = sizeMB * 1024 * 1024;
+  const content = "a".repeat(size);
+  return createMockFile(content, "large-file.jpg", "image/jpeg");
 }
 
 /**
- * Create FormData with a file for multipart upload testing
- * @param file - The file to include
- * @param fieldName - Form field name (default: 'logo')
- * @returns FormData object
+ * Create FormData with a file for upload testing
+ * Used for testing multipart/form-data endpoints (e.g., logo upload)
+ * @param fieldName - Form field name (e.g., 'logo')
+ * @param file - File object to include
+ * @returns FormData with file attached
  */
 export function createFormDataWithFile(
+  fieldName: string,
   file: File,
-  fieldName: string = "logo",
 ): FormData {
   const formData = new FormData();
   formData.append(fieldName, file);
@@ -97,9 +82,9 @@ export function createFormDataWithFile(
 }
 
 /**
- * Create mock admin authorization headers
- * Uses placeholder token matching auth middleware
- * @returns Headers object with admin token
+ * Mock admin authentication headers
+ * Uses placeholder token matching auth middleware in lib/middleware/auth.ts
+ * @returns Headers object with admin authorization
  */
 export function mockAdminHeaders(): Record<string, string> {
   return {
@@ -109,9 +94,9 @@ export function mockAdminHeaders(): Record<string, string> {
 }
 
 /**
- * Create mock staff authorization headers
- * Uses placeholder token matching auth middleware
- * @returns Headers object with staff token
+ * Mock staff authentication headers
+ * Uses placeholder token matching auth middleware in lib/middleware/auth.ts
+ * @returns Headers object with staff authorization
  */
 export function mockStaffHeaders(): Record<string, string> {
   return {
@@ -121,11 +106,261 @@ export function mockStaffHeaders(): Record<string, string> {
 }
 
 /**
- * Create mock unauthenticated headers (no token)
+ * Mock unauthenticated headers (no auth token)
+ * Used for testing endpoints that require authentication
  * @returns Headers object without authorization
  */
 export function mockUnauthenticatedHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
   };
+}
+
+/**
+ * Create a real PNG image buffer for testing file uploads
+ * This creates an actual valid PNG file (1x1 pixel) for MIME type validation
+ * @returns Buffer containing a valid 1x1 PNG image
+ */
+export function createRealPngBuffer(): Buffer {
+  // Minimal valid PNG file (1x1 pixel, transparent)
+  return Buffer.from([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a, // PNG signature
+    0x00,
+    0x00,
+    0x00,
+    0x0d,
+    0x49,
+    0x48,
+    0x44,
+    0x52, // IHDR chunk
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01, // Width & height: 1x1
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1f,
+    0x15,
+    0xc4, // Bit depth, color type, etc.
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0a,
+    0x49,
+    0x44,
+    0x41, // IDAT chunk
+    0x54,
+    0x78,
+    0x9c,
+    0x63,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0x0d,
+    0x0a,
+    0x2d,
+    0xb4,
+    0x00, // Data
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4e,
+    0x44,
+    0xae, // IEND chunk
+    0x42,
+    0x60,
+    0x82,
+  ]);
+}
+
+/**
+ * Create a real JPEG image buffer for testing file uploads
+ * This creates an actual valid JPEG file (1x1 pixel) for MIME type validation
+ * @returns Buffer containing a valid 1x1 JPEG image
+ */
+export function createRealJpegBuffer(): Buffer {
+  // Minimal valid JPEG file (1x1 pixel)
+  return Buffer.from([
+    0xff,
+    0xd8,
+    0xff,
+    0xe0,
+    0x00,
+    0x10,
+    0x4a,
+    0x46, // JPEG signature
+    0x49,
+    0x46,
+    0x00,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0xff,
+    0xdb,
+    0x00,
+    0x43,
+    0x00,
+    0x08,
+    0x06,
+    0x06,
+    0x07,
+    0x06,
+    0x05,
+    0x08,
+    0x07,
+    0x07,
+    0x07,
+    0x09,
+    0x09,
+    0x08,
+    0x0a,
+    0x0c,
+    0x14,
+    0x0d,
+    0x0c,
+    0x0b,
+    0x0b,
+    0x0c,
+    0x19,
+    0x12,
+    0x13,
+    0x0f,
+    0x14,
+    0x1d,
+    0x1a,
+    0x1f,
+    0x1e,
+    0x1d,
+    0x1a,
+    0x1c,
+    0x1c,
+    0x20,
+    0x24,
+    0x2e,
+    0x27,
+    0x20,
+    0x22,
+    0x2c,
+    0x23,
+    0x1c,
+    0x1c,
+    0x28,
+    0x37,
+    0x29,
+    0x2c,
+    0x30,
+    0x31,
+    0x34,
+    0x34,
+    0x34,
+    0x1f,
+    0x27,
+    0x39,
+    0x3d,
+    0x38,
+    0x32,
+    0x3c,
+    0x2e,
+    0x33,
+    0x34,
+    0x32,
+    0xff,
+    0xc0,
+    0x00,
+    0x0b,
+    0x08,
+    0x00,
+    0x01,
+    0x00,
+    0x01,
+    0x01,
+    0x01,
+    0x11,
+    0x00,
+    0xff,
+    0xc4,
+    0x00,
+    0x14,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x03,
+    0xff,
+    0xc4,
+    0x00,
+    0x14,
+    0x10,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0xff,
+    0xda,
+    0x00,
+    0x08,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x3f,
+    0x00,
+    0x7f,
+    0x9f,
+    0xff,
+    0xd9,
+  ]);
 }
