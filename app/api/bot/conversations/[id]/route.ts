@@ -42,11 +42,16 @@ export async function GET(
         ? JSON.parse(conversation.metadata)
         : conversation.metadata;
 
+    // Messages field is stored as JSON but may not be in generated Prisma types
+    const conversationData = conversation as unknown as {
+      messages?: unknown;
+    };
+
     // Parse messages if it's a string (stored as JSON)
     const messages =
-      typeof conversation.messages === "string"
-        ? JSON.parse(conversation.messages)
-        : conversation.messages;
+      typeof conversationData.messages === "string"
+        ? JSON.parse(conversationData.messages)
+        : conversationData.messages;
 
     // Ensure messages is an array
     const messageArray = Array.isArray(messages) ? messages : [];
@@ -54,7 +59,7 @@ export async function GET(
     return NextResponse.json({
       id: conversation.id,
       companyId: conversation.companyId,
-      workflowType: conversation.workflowType,
+      workflowType: conversation.workflow,
       status: conversation.status,
       currentStep: 0, // Default since currentStep field doesn't exist in schema
       metadata,
