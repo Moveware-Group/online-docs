@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum WorkflowType {
+  company_setup
+  custom_layout
+}
+
+enum ConversationStatus {
+  active
+  approved
+  abandoned
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
@@ -15,23 +26,25 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  botConversations BotConversation[]
+
   @@map("companies")
 }
 
 model Job {
-  id                String   @id @default(cuid())
-  movewareJobId     String   @unique
-  companyId         String
-  customerId        String?
-  customerName      String?
-  status            String
-  scheduledDate     DateTime?
-  completedDate     DateTime?
-  originAddress     String?
+  id                 String    @id @default(cuid())
+  movewareJobId      String    @unique
+  companyId          String
+  customerId         String?
+  customerName       String?
+  status             String
+  scheduledDate      DateTime?
+  completedDate      DateTime?
+  originAddress      String?
   destinationAddress String?
-  data              String   @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  data               String    @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([companyId])
   @@index([movewareJobId])
@@ -39,23 +52,23 @@ model Job {
 }
 
 model Quote {
-  id                String   @id @default(cuid())
-  quoteNumber       String   @unique
-  jobId             String?
-  companyId         String
-  customerName      String
-  customerEmail     String?
-  customerPhone     String?
-  status            String   @default("pending")
-  totalAmount       Float
-  validUntil        DateTime?
-  termsAccepted     Boolean  @default(false)
-  acceptedAt        DateTime?
-  acceptedBy        String?
-  signatureData     String?  @db.Text
-  data              String   @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String    @id @default(cuid())
+  quoteNumber     String    @unique
+  jobId           String?
+  companyId       String
+  customerName    String
+  customerEmail   String?
+  customerPhone   String?
+  status          String    @default("pending")
+  totalAmount     Float
+  validUntil      DateTime?
+  termsAccepted   Boolean   @default(false)
+  acceptedAt      DateTime?
+  acceptedBy      String?
+  signatureData   String?   @db.Text
+  data            String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([companyId])
   @@index([jobId])
@@ -82,20 +95,20 @@ model Costing {
 }
 
 model Activity {
-  id              String   @id @default(cuid())
-  jobId           String
-  companyId       String
-  movewareId      String?
-  activityType    String
-  description     String   @db.Text
-  status          String
-  assignedTo      String?
-  scheduledDate   DateTime?
-  completedDate   DateTime?
-  notes           String?  @db.Text
-  data            String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String    @id @default(cuid())
+  jobId          String
+  companyId      String
+  movewareId     String?
+  activityType   String
+  description    String    @db.Text
+  status         String
+  assignedTo     String?
+  scheduledDate  DateTime?
+  completedDate  DateTime?
+  notes          String?   @db.Text
+  data           String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([jobId])
   @@index([companyId])
@@ -103,21 +116,21 @@ model Activity {
 }
 
 model Inventory {
-  id              String   @id @default(cuid())
-  jobId           String
-  companyId       String
-  movewareId      String?
-  itemName        String
-  category        String?
-  quantity        Int      @default(1)
-  volume          Float?
-  weight          Float?
-  fragile         Boolean  @default(false)
-  notes           String?  @db.Text
-  room            String?
-  data            String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id          String   @id @default(cuid())
+  jobId       String
+  companyId   String
+  movewareId  String?
+  itemName    String
+  category    String?
+  quantity    Int      @default(1)
+  volume      Float?
+  weight      Float?
+  fragile     Boolean  @default(false)
+  notes       String?  @db.Text
+  room        String?
+  data        String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([jobId])
   @@index([companyId])
@@ -182,4 +195,50 @@ model ReviewSubmission {
   @@index([jobId])
   @@index([companyId])
   @@map("review_submissions")
+}
+
+model Conversation {
+  id              String                @id @default(cuid())
+  sessionId       String                @unique
+  currentWorkflow String?
+  metadata        Json                  @default("{}")
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  messages        ConversationMessage[]
+
+  @@index([sessionId])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String
+  content        String       @db.Text
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_messages")
+}
+
+model BotConversation {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String
+  companyId       String?
+  workflowType    WorkflowType
+  status          ConversationStatus @default(active)
+  messages        Json               @default("[]")
+  metadata        Json               @default("{}")
+  idempotencyKey  String             @unique @db.VarChar(255)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@map("bot_conversations")
 }

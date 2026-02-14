@@ -27,12 +27,13 @@
     "react": "^18",
     "react-datepicker": "^9.1.0",
     "react-dom": "^18",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.0.1",
     "eslint": "^9.0.0",
     "eslint-config-next": "16.1.6",
