@@ -2,6 +2,7 @@
  * Company Detail API Route
  * GET /api/companies/[id] - Fetch single company with tenant filtering
  * PUT /api/companies/[id] - Update company with tenant authorization
+ * DELETE /api/companies/[id] - Delete company with cascade cleanup
  *
  * This endpoint provides tenant-isolated access to a specific company.
  * Users can only access companies belonging to their tenant.
@@ -10,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { azureStorageService } from "@/lib/services/azureStorage";
 
 interface GetCompanyResponse {
   success: boolean;
@@ -225,7 +227,140 @@ export async function PUT(
       );
     }
 
-    // Verify company exists and belongs to current tenant
+    // Parse request body
+    const body = await request.json();
+
+    // Validate required fields
+    if (!body.company_name || typeof body.company_name !== "string") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "company_name is required and must be a string",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!body.brand_code || typeof body.brand_code !== "string") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "brand_code is required and must be a string",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate company_name length
+    if (body.company_name.trim().length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "company_name cannot be empty",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (body.company_name.length > 255) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "company_name must not exceed 255 characters",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate brand_code format and length
+    const brandCodeRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!brandCodeRegex.test(body.brand_code)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "brand_code must contain only alphanumeric characters, underscores, and hyphens",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (body.brand_code.length > 50) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "brand_code must not exceed 50 characters",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate color formats if provided
+    const hexColorRegex = /^#([A-Fa-f0-9]{6})$/;
+
+    if (body.primary_color && !hexColorRegex.test(body.primary_color)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "primary_color must be a valid hex color (e.g., #2563eb)",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (body.secondary_color && !hexColorRegex.test(body.secondary_color)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "secondary_color must be a valid hex color (e.g., #1e40af)",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (body.tertiary_color && !hexColorRegex.test(body.tertiary_color)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "tertiary_color must be a valid hex color (e.g., #60a5fa)",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate logo_url length if provided
+    if (body.logo_url && body.logo_url.length > 500) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "logo_url must not exceed 500 characters",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate content field lengths if provided
+    if (body.hero_content && body.hero_content.length > 5000) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "hero_content must not exceed 5000 characters",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (body.copy_content && body.copy_content.length > 5000) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "copy_content must not exceed 5000 characters",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Verify company exists and belongs to tenant
     const existingCompany = await prisma.company.findFirst({
       where: {
         id: id.trim(),
@@ -237,17 +372,98 @@ export async function PUT(
       return NextResponse.json(
         {
           success: false,
-          error: "Company not found or unauthorized",
+          error: "Company not found",
         },
         { status: 404 },
       );
     }
 
-    // Parse and validate request body
-    let body;
+    // Check for duplicate brand_code within tenant (excluding current company)
+    const duplicateBrandCode = await prisma.company.findFirst({
+      where: {
+        tenantId: tenantId.trim(),
+        brandCode: body.brand_code.trim(),
+        id: {
+          not: id.trim(),
+        },
+      },
+    });
+
+    if (duplicateBrandCode) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `brand_code '${body.brand_code}' is already in use within this tenant`,
+        },
+        { status: 409 },
+      );
+    }
+
+    // Build update data
+    const updateData: any = {
+      name: body.company_name.trim(),
+      brandCode: body.brand_code.trim(),
+      updatedAt: new Date(),
+    };
+
+    // Add optional fields if provided
+    if (body.primary_color !== undefined) {
+      updateData.primaryColor = body.primary_color;
+    }
+    if (body.secondary_color !== undefined) {
+      updateData.secondaryColor = body.secondary_color;
+    }
+    if (body.tertiary_color !== undefined) {
+      updateData.tertiaryColor = body.tertiary_color;
+    }
+    if (body.logo_url !== undefined) {
+      updateData.logoUrl = body.logo_url;
+    }
+    if (body.hero_content !== undefined) {
+      updateData.heroContent = body.hero_content;
+    }
+    if (body.copy_content !== undefined) {
+      updateData.copyContent = body.copy_content;
+    }
+
+    // Update company in database
     try {
-      body = await request.json();
-    } catch (parseError) {
+      const updatedCompany = await prisma.company.update({
+        where: {
+          id: id.trim(),
+        },
+        data: updateData,
+      });
+
+      // Return updated company object
+      return NextResponse.json(
+        {
+          success: true,
+          data: updatedCompany,
+        },
+        { status: 200 },
+      );
+    } catch (updateError) {
+      // Handle unique constraint violations
+      if (
+        updateError instanceof Prisma.PrismaClientKnownRequestError &&
+        updateError.code === "P2002"
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "A company with this brand_code already exists",
+          },
+          { status: 409 },
+        );
+      }
+      throw updateError;
+    }
+  } catch (error) {
+    console.error("Error updating company:", error);
+
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
       return NextResponse.json(
         {
           success: false,
@@ -257,243 +473,7 @@ export async function PUT(
       );
     }
 
-    const {
-      company_name,
-      brand_code,
-      primary_color,
-      secondary_color,
-      tertiary_color,
-      logo_url,
-      hero_content,
-      copy_content,
-    } = body;
-
-    // Validate required fields
-    if (
-      !company_name ||
-      typeof company_name !== "string" ||
-      company_name.trim() === ""
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Company name is required and must be a non-empty string",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (
-      !brand_code ||
-      typeof brand_code !== "string" ||
-      brand_code.trim() === ""
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Brand code is required and must be a non-empty string",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate field lengths
-    if (company_name.trim().length > 255) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Company name must be 255 characters or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (brand_code.trim().length > 50) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Brand code must be 50 characters or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate brand_code format (alphanumeric, underscore, hyphen only)
-    const brandCodeRegex = /^[a-zA-Z0-9_-]+$/;
-    if (!brandCodeRegex.test(brand_code.trim())) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Brand code must contain only alphanumeric characters, underscores, and hyphens",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate hex color formats
-    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-
-    if (primary_color && !hexColorRegex.test(primary_color)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Primary color must be a valid hex color (e.g., #2563eb or #fff)",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (secondary_color && !hexColorRegex.test(secondary_color)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Secondary color must be a valid hex color (e.g., #1e40af or #000)",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (tertiary_color && !hexColorRegex.test(tertiary_color)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Tertiary color must be a valid hex color (e.g., #60a5fa or #aaa)",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Validate optional field lengths
-    if (logo_url && logo_url.length > 500) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Logo URL must be 500 characters or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (hero_content && hero_content.length > 5000) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Hero content must be 5000 characters or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (copy_content && copy_content.length > 5000) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Copy content must be 5000 characters or less",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Check for duplicate brand_code within tenant (excluding current company)
-    const duplicateCheck = await prisma.company.findFirst({
-      where: {
-        tenantId: tenantId.trim(),
-        brandCode: brand_code.trim(),
-        id: {
-          not: id.trim(),
-        },
-      },
-    });
-
-    if (duplicateCheck) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `A company with brand code '${brand_code.trim()}' already exists in this tenant`,
-        },
-        { status: 409 },
-      );
-    }
-
-    // Build update data object
-    const updateData: any = {
-      name: company_name.trim(),
-      brandCode: brand_code.trim(),
-    };
-
-    // Add optional fields if provided
-    if (primary_color !== undefined) {
-      updateData.primaryColor = primary_color || "#2563eb";
-    }
-    if (secondary_color !== undefined) {
-      updateData.secondaryColor = secondary_color || "#1e40af";
-    }
-    if (tertiary_color !== undefined) {
-      updateData.tertiaryColor = tertiary_color || "#60a5fa";
-    }
-    if (logo_url !== undefined) {
-      updateData.logoUrl = logo_url || null;
-      // NOTE: Old logo file cleanup is handled in a separate task (OD-XXX)
-      // When logo_url changes, the old logo file should be marked for deletion
-      // but is not deleted in this endpoint
-    }
-    if (hero_content !== undefined) {
-      updateData.heroContent = hero_content || null;
-    }
-    if (copy_content !== undefined) {
-      updateData.copyContent = copy_content || null;
-    }
-
-    // Update company record
-    const updatedCompany = await prisma.company.update({
-      where: {
-        id: id.trim(),
-      },
-      data: updateData,
-    });
-
-    // Return updated company object
-    return NextResponse.json(
-      {
-        success: true,
-        data: updatedCompany,
-      },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error("Error updating company:", error);
-
     // Handle Prisma-specific errors
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      // P2002: Unique constraint violation (shouldn't happen due to pre-check, but handle anyway)
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "A company with this brand code already exists in this tenant",
-          },
-          { status: 409 },
-        );
-      }
-
-      // P2025: Record not found
-      if (error.code === "P2025") {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Company not found",
-          },
-          { status: 404 },
-        );
-      }
-    }
-
-    // Handle generic errors
     if (error instanceof Error) {
       // Database connection errors
       if (
@@ -508,18 +488,154 @@ export async function PUT(
           { status: 503 },
         );
       }
+    }
 
-      // Query errors
+    // Generic error response
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to update company. Please try again later.",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE /api/companies/[id]
+ * Delete a company with tenant authorization and cascade cleanup
+ *
+ * Headers:
+ * - X-Tenant-Id: Tenant ID for authorization (required)
+ * - Authorization: Bearer token (required)
+ *
+ * Returns:
+ * - 204: Successfully deleted (no content)
+ * - 401: Unauthorized
+ * - 404: Company not found or unauthorized
+ * - 500: Internal server error
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  try {
+    // Extract company ID from path parameter
+    const { id } = await params;
+
+    // Validate company ID parameter
+    if (!id || id.trim() === "") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Company ID is required",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Extract tenant ID from request headers
+    const tenantId = request.headers.get("X-Tenant-Id");
+
+    // Check authentication - require tenant ID
+    if (!tenantId || tenantId.trim() === "") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: Tenant ID is required",
+        },
+        { status: 401 },
+      );
+    }
+
+    // Verify authorization header exists
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Unauthorized: Valid authentication token is required",
+        },
+        { status: 401 },
+      );
+    }
+
+    // Query company by ID AND tenant ID to ensure tenant isolation
+    // Also retrieve logo_url for cleanup
+    const company = await prisma.company.findFirst({
+      where: {
+        id: id.trim(),
+        tenantId: tenantId.trim(),
+      },
+      select: {
+        id: true,
+        logoUrl: true,
+      },
+    });
+
+    // Return 404 if company doesn't exist or belongs to different tenant
+    if (!company) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Company not found",
+        },
+        { status: 404 },
+      );
+    }
+
+    // Delete company logo from Azure Blob Storage if exists
+    if (company.logoUrl) {
+      try {
+        const blobName = azureStorageService.extractBlobNameFromUrl(
+          company.logoUrl,
+        );
+        if (blobName) {
+          const deleteResult = await azureStorageService.deleteFile(blobName);
+          if (deleteResult.success) {
+            console.log(
+              `✓ Deleted logo for company ${company.id}: ${blobName}`,
+            );
+          } else {
+            console.warn(
+              `⚠️ Failed to delete logo for company ${company.id}: ${deleteResult.error}`,
+            );
+          }
+        }
+      } catch (logoError) {
+        // Log error but don't fail the deletion
+        console.error(
+          `Error deleting logo for company ${company.id}:`,
+          logoError,
+        );
+      }
+    }
+
+    // Delete company from database
+    await prisma.company.delete({
+      where: { id: company.id },
+    });
+
+    console.log(`✓ Company ${company.id} deleted successfully`);
+
+    // Return 204 No Content on success
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("Error deleting company:", error);
+
+    // Handle Prisma-specific errors
+    if (error instanceof Error) {
+      // Database connection errors
       if (
-        error.message.includes("query") ||
-        error.message.includes("invalid")
+        error.message.includes("connect") ||
+        error.message.includes("database")
       ) {
         return NextResponse.json(
           {
             success: false,
-            error: "Invalid query parameters",
+            error: "Database connection error. Please try again later.",
           },
-          { status: 400 },
+          { status: 503 },
         );
       }
     }
@@ -528,7 +644,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to update company. Please try again later.",
+        error: "Failed to delete company. Please try again later.",
       },
       { status: 500 },
     );
