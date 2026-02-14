@@ -22,7 +22,7 @@ export function Header() {
           <div className="flex items-center">
             <Link href="/" className="hover:opacity-80 transition-opacity">
               <Image
-                src="/images/moveware-logo.png"
+                src="/images/moveware-logo.svg"
                 alt="Moveware"
                 width={180}
                 height={33}
