@@ -1,182 +1,112 @@
-"use client";
+/**
+ * Conversation Store
+ * Manages bot conversation state using Zustand
+ */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import type {
-  ConversationState,
-  Message,
-  WorkflowType,
-  ConversationMetadata,
-  AsyncJobStatus,
-} from "@/lib/types/conversation";
 
-/**
- * Initial state for the conversation store
- */
-const initialMetadata: ConversationMetadata = {
-  startedAt: Date.now(),
-  status: "idle",
-  lastUpdatedAt: Date.now(),
+export interface Message {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}
+
+export interface ConversationState {
+  conversationId: string | null;
+  companyId: string | null;
+  workflowType: string | null;
+  currentStep: number;
+  messages: Message[];
+  context: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  setConversationId: (id: string) => void;
+  setCompanyId: (id: string) => void;
+  setWorkflowType: (type: string) => void;
+  addMessage: (message: Message) => void;
+  setMessages: (messages: Message[]) => void;
+  updateContext: (context: Record<string, unknown>) => void;
+  updateMetadata: (metadata: Record<string, unknown>) => void;
+  setCurrentStep: (step: number) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  resetConversation: () => void;
+  resumeConversation: (conversationData: {
+    id: string;
+    companyId: string;
+    workflowType: string;
+    currentStep: number;
+    messages: Message[];
+    context: Record<string, unknown>;
+    metadata: Record<string, unknown>;
+  }) => void;
+}
+
+const initialState = {
+  conversationId: null,
+  companyId: null,
+  workflowType: null,
+  currentStep: 0,
+  messages: [],
+  context: {},
+  metadata: {},
+  isLoading: false,
+  error: null,
 };
 
-const initialJobStatus: AsyncJobStatus = {
-  status: "pending",
-};
+export const useConversationStore = create<ConversationState>((set) => ({
+  ...initialState,
 
-/**
- * Zustand store for conversation state management
- * Persisted to sessionStorage for page refresh resilience
- */
-export const useConversationStore = create<ConversationState>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      conversationId: null,
-      messages: [],
-      workflow: "company-setup",
-      metadata: initialMetadata,
-      jobStatus: initialJobStatus,
+  setConversationId: (id) => set({ conversationId: id }),
 
-      // Actions
-      setConversationId: (id) => {
-        set({
-          conversationId: id,
-          metadata: {
-            ...get().metadata,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  setCompanyId: (id) => set({ companyId: id }),
 
-      addMessage: (message) => {
-        const newMessage: Message = {
-          ...message,
-          id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: Date.now(),
-        };
+  setWorkflowType: (type) => set({ workflowType: type }),
 
-        set({
-          messages: [...get().messages, newMessage],
-          metadata: {
-            ...get().metadata,
-            status: "active",
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  addMessage: (message) =>
+    set((state) => ({
+      messages: [...state.messages, message],
+    })),
 
-      updateMessage: (id, updates) => {
-        set({
-          messages: get().messages.map((msg) =>
-            msg.id === id ? { ...msg, ...updates } : msg,
-          ),
-          metadata: {
-            ...get().metadata,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  setMessages: (messages) => set({ messages }),
 
-      clearMessages: () => {
-        set({
-          messages: [],
-          metadata: {
-            ...get().metadata,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  updateContext: (context) =>
+    set((state) => ({
+      context: { ...state.context, ...context },
+    })),
 
-      setWorkflow: (workflow) => {
-        set({
-          workflow,
-          metadata: {
-            ...get().metadata,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  updateMetadata: (metadata) =>
+    set((state) => ({
+      metadata: { ...state.metadata, ...metadata },
+    })),
 
-      updateMetadata: (updates) => {
-        set({
-          metadata: {
-            ...get().metadata,
-            ...updates,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  setCurrentStep: (step) => set({ currentStep: step }),
 
-      updateJobStatus: (updates) => {
-        set({
-          jobStatus: {
-            ...get().jobStatus,
-            ...updates,
-          },
-          metadata: {
-            ...get().metadata,
-            lastUpdatedAt: Date.now(),
-          },
-        });
-      },
+  setLoading: (loading) => set({ isLoading: loading }),
 
-      resetConversation: () => {
-        set({
-          conversationId: null,
-          messages: [],
-          workflow: "company-setup",
-          metadata: {
-            startedAt: Date.now(),
-            status: "idle",
-            lastUpdatedAt: Date.now(),
-          },
-          jobStatus: {
-            status: "pending",
-          },
-        });
-      },
+  setError: (error) => set({ error }),
+
+  resetConversation: () => set(initialState),
+
+  /**
+   * Resume a conversation by loading its full state
+   * @param conversationData - Full conversation data including messages and state
+   */
+  resumeConversation: (conversationData) =>
+    set({
+      conversationId: conversationData.id,
+      companyId: conversationData.companyId,
+      workflowType: conversationData.workflowType,
+      currentStep: conversationData.currentStep,
+      messages: conversationData.messages,
+      context: conversationData.context || {},
+      metadata: conversationData.metadata || {},
+      isLoading: false,
+      error: null,
     }),
-    {
-      name: "conversation-storage",
-      storage: createJSONStorage(() => sessionStorage),
-      // Only persist specific fields
-      partialize: (state) => ({
-        conversationId: state.conversationId,
-        messages: state.messages,
-        workflow: state.workflow,
-        metadata: state.metadata,
-        jobStatus: state.jobStatus,
-      }),
-    },
-  ),
-);
-
-/**
- * Selector hooks for better performance
- */
-export const useConversationId = () =>
-  useConversationStore((state) => state.conversationId);
-
-export const useMessages = () =>
-  useConversationStore((state) => state.messages);
-
-export const useWorkflow = () =>
-  useConversationStore((state) => state.workflow);
-
-export const useConversationMetadata = () =>
-  useConversationStore((state) => state.metadata);
-
-export const useJobStatus = () =>
-  useConversationStore((state) => state.jobStatus);
-
-export const useConversationActions = () =>
-  useConversationStore((state) => ({
-    setConversationId: state.setConversationId,
-    addMessage: state.addMessage,
-    updateMessage: state.updateMessage,
-    clearMessages: state.clearMessages,
-    setWorkflow: state.setWorkflow,
-    updateMetadata: state.updateMetadata,
-    updateJobStatus: state.updateJobStatus,
-    resetConversation: state.resetConversation,
-  }));
+}));

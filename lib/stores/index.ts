@@ -4,10 +4,6 @@
 
 export {
   useConversationStore,
-  useConversationId,
-  useMessages,
-  useWorkflow,
-  useConversationMetadata,
-  useJobStatus,
-  useConversationActions,
+  type Message,
+  type ConversationState,
 } from "./conversation-store";
