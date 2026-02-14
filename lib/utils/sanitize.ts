@@ -1,109 +1,78 @@
-/**
- * Content Sanitization Utility
- *
- * Provides HTML sanitization functions to prevent XSS attacks.
- * Uses isomorphic-dompurify which works in both Node.js (server) and browser (client) environments.
- *
- * Sanitization occurs:
- * - On save: When content is stored in the database via API endpoints
- * - On render: When content is displayed to users (as a defense-in-depth measure)
- *
- * Allowed HTML tags: p, br, strong, em, a (with href attribute only)
- * Allowed attributes: href (on <a> tags only)
- *
- * All other tags, attributes, and potentially dangerous content (scripts, event handlers,
- * javascript: URLs) are stripped out.
- */
-
 import DOMPurify from "isomorphic-dompurify";
 
 /**
- * Configuration for allowed HTML tags and attributes
- */
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: ["p", "br", "strong", "em", "a"],
-  ALLOWED_ATTR: ["href"],
-  // Disallow javascript: and data: URLs in href
-  ALLOWED_URI_REGEXP:
-    /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-};
-
-/**
- * Sanitizes HTML content by removing potentially dangerous tags and attributes
+ * Sanitizes HTML content to prevent XSS attacks.
  *
- * @param html - The HTML string to sanitize (can be null or undefined)
+ * **Usage:** This function should be called:
+ * 1. On save - when persisting content to the database
+ * 2. On render - when displaying content to users (defense in depth)
+ *
+ * **Allowed tags:** p, br, strong, em, a (with href attribute only)
+ * **All other tags and attributes are stripped.**
+ *
+ * @param html - The HTML string to sanitize
  * @returns Sanitized HTML string, or empty string if input is null/undefined
  *
  * @example
- * ```typescript
- * const safe = sanitizeHtml('<p>Hello</p><script>alert("XSS")</script>');
- * // Returns: '<p>Hello</p>'
+ * ```ts
+ * const clean = sanitizeHtml('<p>Safe content</p><script>alert("xss")</script>');
+ * // Returns: '<p>Safe content</p>'
  * ```
  */
 export function sanitizeHtml(html: string | null | undefined): string {
-  // Handle null/undefined gracefully
-  if (html == null) {
+  if (!html) {
     return "";
   }
 
-  // Handle empty strings
-  if (typeof html !== "string" || html.trim() === "") {
-    return "";
-  }
+  const cleanHtml = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["p", "br", "strong", "em", "a"],
+    ALLOWED_ATTR: ["href"],
+    // Additional security settings
+    ALLOW_DATA_ATTR: false,
+    ALLOW_UNKNOWN_PROTOCOLS: false,
+    SAFE_FOR_TEMPLATES: true,
+  });
 
-  // Sanitize with DOMPurify
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  return cleanHtml;
 }
 
 /**
- * Interface for company content that needs sanitization
- */
-export interface CompanyContent {
-  hero_content?: string | null;
-  copy_content?: string | null;
-  [key: string]: any;
-}
-
-/**
- * Sanitizes company content fields (hero_content and copy_content)
+ * Sanitizes company content fields (hero_content and copy_content).
  *
- * @param content - Object containing company content fields
+ * **Usage:** This function should be called:
+ * 1. On save - when persisting company settings to the database
+ * 2. On render - when displaying content to users (defense in depth)
+ *
+ * Both fields are sanitized using the same rules as sanitizeHtml:
+ * - Allowed tags: p, br, strong, em, a (with href only)
+ * - All scripts, event handlers, and dangerous content are stripped
+ *
+ * @param content - Object containing hero_content and/or copy_content fields
  * @returns New object with sanitized content fields
  *
  * @example
- * ```typescript
- * const sanitized = sanitizeCompanyContent({
- *   hero_content: '<p>Welcome</p><script>alert("XSS")</script>',
- *   copy_content: '<strong>About us</strong>',
- *   other_field: 'unchanged',
- * });
- * // Returns: {
- * //   hero_content: '<p>Welcome</p>',
- * //   copy_content: '<strong>About us</strong>',
- * //   other_field: 'unchanged',
- * // }
+ * ```ts
+ * const company = {
+ *   hero_content: '<p>Welcome</p><script>alert("xss")</script>',
+ *   copy_content: '<p>About us</p><img src=x onerror=alert(1)>',
+ * };
+ * const sanitized = sanitizeCompanyContent(company);
+ * // Returns: { hero_content: '<p>Welcome</p>', copy_content: '<p>About us</p>' }
  * ```
  */
-export function sanitizeCompanyContent<T extends CompanyContent>(
-  content: T,
-): T {
-  // Handle null/undefined input
-  if (content == null) {
-    return content;
-  }
-
-  // Create a shallow copy to avoid mutating the original
-  const sanitized = { ...content };
-
-  // Sanitize hero_content if present
-  if ("hero_content" in sanitized) {
-    sanitized.hero_content = sanitizeHtml(sanitized.hero_content);
-  }
-
-  // Sanitize copy_content if present
-  if ("copy_content" in sanitized) {
-    sanitized.copy_content = sanitizeHtml(sanitized.copy_content);
-  }
-
-  return sanitized;
+export function sanitizeCompanyContent<
+  T extends {
+    hero_content?: string | null;
+    copy_content?: string | null;
+  },
+>(content: T): T {
+  return {
+    ...content,
+    hero_content: content.hero_content
+      ? sanitizeHtml(content.hero_content)
+      : content.hero_content,
+    copy_content: content.copy_content
+      ? sanitizeHtml(content.copy_content)
+      : content.copy_content,
+  };
 }
