@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum WorkflowType {
+  company_setup
+  custom_layout
+}
+
+enum ConversationStatus {
+  active
+  approved
+  abandoned
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
@@ -14,6 +25,8 @@ model Company {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  botConversations BotConversation[]
 
   @@map("companies")
 }
@@ -200,25 +213,32 @@ model Conversation {
 model ConversationMessage {
   id             String       @id @default(cuid())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String
-  message        String       @db.Text
-  timestamp      DateTime     @default(now())
+  content        String       @db.Text
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
-  @@index([timestamp])
   @@map("conversation_messages")
 }
 
-model BotMessageLog {
-  id             String   @id @default(cuid())
-  idempotencyKey String   @unique
-  sessionId      String
-  message        String   @db.Text
-  response       String   @db.Text
-  createdAt      DateTime @default(now())
+model BotConversation {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String
+  companyId       String?
+  workflowType    WorkflowType
+  status          ConversationStatus @default(active)
+  messages        Json               @default("[]")
+  metadata        Json               @default("{}")
+  idempotencyKey  String             @unique @db.VarChar(255)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  @@index([sessionId])
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
   @@index([idempotencyKey])
-  @@map("bot_message_logs")
+  @@map("bot_conversations")
 }
