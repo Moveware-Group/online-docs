@@ -9,20 +9,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { azureStorageService } from "@/lib/services/azureStorage";
 
+interface RouteContext {
+  params?: Promise<Record<string, string>> | Record<string, string>;
+}
+
+async function resolveCompanyId(
+  params?: Promise<Record<string, string>> | Record<string, string>,
+): Promise<string | null> {
+  if (!params) return null;
+  const resolved = await params;
+  const id = resolved?.id;
+  if (typeof id !== "string" || id.trim() === "") {
+    return null;
+  }
+  return id;
+}
+
 /**
  * GET /api/companies/[id]/logo
  * Retrieve company logo URL
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, context?: RouteContext) {
   try {
-    const { id } = await params;
+    const companyId = await resolveCompanyId(context?.params);
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Company ID is required" },
+        { status: 400 },
+      );
+    }
 
     // Fetch company from database
     const company = await prisma.company.findUnique({
-      where: { id },
+      where: { id: companyId },
       select: {
         id: true,
         name: true,
@@ -56,16 +75,19 @@ export async function GET(
  * Validates file size (max 2MB) and MIME type (PNG, JPEG, WebP only)
  * Uses MIME sniffing to prevent type spoofing
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, context?: RouteContext) {
   try {
-    const { id } = await params;
+    const companyId = await resolveCompanyId(context?.params);
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Company ID is required" },
+        { status: 400 },
+      );
+    }
 
     // Verify company exists
     const company = await prisma.company.findUnique({
-      where: { id },
+      where: { id: companyId },
       select: {
         id: true,
         logoUrl: true,
@@ -103,7 +125,7 @@ export async function POST(
     // Upload to Azure Blob Storage (includes validation)
     const uploadResult = await azureStorageService.uploadFile(
       buffer,
-      id,
+      companyId,
       file.type,
     );
 
@@ -129,7 +151,7 @@ export async function POST(
 
     // Update company with new logo URL
     const updatedCompany = await prisma.company.update({
-      where: { id },
+      where: { id: companyId },
       data: {
         logoUrl: uploadResult.url,
         updatedAt: new Date(),
@@ -158,16 +180,19 @@ export async function POST(
  * DELETE /api/companies/[id]/logo
  * Delete company logo
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(request: NextRequest, context?: RouteContext) {
   try {
-    const { id } = await params;
+    const companyId = await resolveCompanyId(context?.params);
+    if (!companyId) {
+      return NextResponse.json(
+        { error: "Company ID is required" },
+        { status: 400 },
+      );
+    }
 
     // Fetch company
     const company = await prisma.company.findUnique({
-      where: { id },
+      where: { id: companyId },
       select: {
         id: true,
         logoUrl: true,
@@ -197,21 +222,22 @@ export async function DELETE(
     const deleteResult = await azureStorageService.deleteFile(blobName);
     if (!deleteResult.success) {
       console.error("Failed to delete logo from storage:", deleteResult.error);
-      // Continue anyway to remove from database
+      return NextResponse.json(
+        { error: "Failed to delete logo from storage" },
+        { status: 500 },
+      );
     }
 
-    // Remove logo URL from database
+    // Update company record
     await prisma.company.update({
-      where: { id },
+      where: { id: companyId },
       data: {
         logoUrl: null,
         updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json({
-      message: "Logo deleted successfully",
-    });
+    return NextResponse.json({ message: "Logo deleted successfully" });
   } catch (error) {
     console.error("Error deleting company logo:", error);
     return NextResponse.json(
