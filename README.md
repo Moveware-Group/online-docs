@@ -1,287 +1,141 @@
-# Moveware Online Quote System
+# Moveware Online Documentation Platform
 
-Modern web application for displaying moving quotes, built with Next.js 14, TypeScript, Tailwind CSS, and PostgreSQL. Automatically syncs data from Moveware API.
+A Next.js-based platform for managing company documentation, quotes, and performance reviews.
 
 ## Features
 
-- 🚀 **Auto-Sync**: Automatically fetches job and inventory data from Moveware API on first access
-- 💾 **Local Caching**: Stores data in PostgreSQL for fast subsequent loading
-- 🔄 **Manual Refresh**: Force sync latest data with one click
-- 🎨 **Modern UI**: Beautiful, responsive quote documents with Inter font
-- 🏢 **Multi-Tenant**: Supports multiple brands with custom branding
-- 📊 **Dynamic Data**: All content loaded from database, not hardcoded
+- Company settings management with branding customization
+- Logo upload with Azure Blob Storage integration
+- Quote generation and acceptance
+- Performance review system
+- AI-powered chatbot assistant
+- Multi-company support with authorization
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
-- PostgreSQL database
+- Node.js 18+ and npm
+- PostgreSQL database (or SQLite for development)
+- Azure Blob Storage account (for logo uploads)
 
 ### Installation
 
-1. Clone the repository
-
-2. Install dependencies:
 ```bash
+# Install dependencies
 npm install
-```
 
-3. Set up environment variables:
-```bash
+# Set up environment variables
 cp .env.example .env
-```
+# Edit .env with your configuration
 
-4. Configure your `.env` file:
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/moveware_db
+# Generate Prisma client
+npm run db:generate
 
-# Moveware API
-MOVEWARE_API_URL=https://api.moveware.com
-MOVEWARE_USERNAME=your_username
-MOVEWARE_PASSWORD=your_password
-MOVEWARE_COMPANY_ID=your_company_id
-```
-
-5. Set up the database:
-```bash
+# Run database migrations
 npm run db:migrate
-```
 
-6. (Optional) Seed with sample data:
-```bash
+# Seed the database (optional)
 npm run db:seed
 ```
 
 ### Development
 
-Run the development server:
 ```bash
+# Run development server
 npm run dev
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate test coverage report
+npm run test:coverage
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-### Accessing Quotes
-
-Visit a quote by job ID with company ID parameter:
-```
-http://localhost:3000/quote?jobId=111505&coId=123
-```
-
-**Parameters**:
-- `jobId` (query parameter): The job/quote ID number
-- `coId` (query parameter): The company ID (integer) for multi-tenant support
-
-**Note**: `coId` is the integer company ID (e.g., 123, 456), not the brandCode string (e.g., "MWB")
-
-**First access**: System automatically fetches data from Moveware API and saves to database  
-**Subsequent access**: Data loads instantly from local database
-
-### Build for Production
+### Production Deployment
 
 ```bash
+# Build the application
 npm run build
+
+# Start production server
 npm start
 ```
 
-## How It Works
+The application uses PM2 for process management. Configuration is in `ecosystem.config.js`.
 
-### Data Flow
+## Testing
 
-1. **User visits** `/quote?jobId={jobId}&coId={companyId}`
-2. **System extracts** company ID (integer) from URL parameter
-3. **System checks** PostgreSQL database for job data
-4. **If not found**: Fetches from Moveware API using company ID, transforms, and saves to database
-5. **If found**: Loads directly from database (fast!)
-6. **Displays** beautiful quote document
+The project includes comprehensive test coverage:
 
-**Important**: The `coId` parameter must be an integer (e.g., 123), not a string like "MWB". The brandCode is stored separately in the database.
+- **Authentication Tests**: Verify 401 responses for unauthenticated requests
+- **Authorization Tests**: Verify 403 responses for unauthorized access
+- **Validation Tests**: Test input validation and error messages
+- **File Upload Security**: Test file size limits, MIME types, and SVG rejection
+- **Concurrent Updates**: Test race conditions and conflict detection
 
-See [DATA_SYNC.md](./DATA_SYNC.md) for detailed documentation.
+Run tests with:
 
-### Multi-Tenant Support
+```bash
+npm test
+```
 
-The system supports multiple companies through dynamic company ID:
-- Company ID is passed via URL parameter (`coId`)
-- Each company's data is isolated in Moveware API
-- Local database caches data from all companies
-- No hardcoded company IDs required
+## API Documentation
+
+### Company Settings
+
+- `GET /api/companies/[id]/settings` - Get company branding settings (admin only)
+- `PUT /api/companies/[id]/settings` - Update company colors (admin only)
+
+### Logo Management
+
+- `GET /api/companies/[id]/logo` - Get company logo URL
+- `POST /api/companies/[id]/logo` - Upload company logo (admin only, max 2MB, PNG/JPEG/WebP only)
+- `DELETE /api/companies/[id]/logo` - Delete company logo (admin only)
+
+### Security Features
+
+- Role-based access control (admin/staff)
+- Company-level data isolation
+- File upload validation (size, MIME type, content sniffing)
+- SVG rejection for XSS prevention
+- Input validation with clear error messages
+
+## Environment Variables
+
+See `.env.example` for all required environment variables:
+
+- `DATABASE_URL` - PostgreSQL or SQLite connection string
+- `AZURE_STORAGE_CONNECTION_STRING` - Azure Blob Storage connection
+- `AZURE_STORAGE_CONTAINER_NAME` - Container for logo uploads
+- `MOVEWARE_API_URL` - External API endpoint
+- `MOVEWARE_USERNAME` / `MOVEWARE_PASSWORD` - API credentials
 
 ## Project Structure
 
 ```
-├── app/                              # Next.js app router
-│   ├── api/                         # API routes
-│   │   ├── jobs/[jobId]/           # Job endpoints
-│   │   │   ├── route.ts            # GET job (auto-sync)
-│   │   │   ├── inventory/route.ts  # GET inventory (auto-sync)
-│   │   │   └── sync/route.ts       # POST force sync
-│   │   └── settings/               # Settings endpoints
-│   ├── jobs/[jobId]/               # Dynamic quote pages
-│   │   └── page.tsx                # Quote document UI
-│   ├── layout.tsx                  # Root layout
-│   └── globals.css                 # Global styles
-├── lib/                             # Core library
-│   ├── clients/                    # API clients
-│   │   └── moveware.ts             # Moveware API client
-│   ├── services/                   # Business logic
-│   │   ├── jobService.ts           # Job CRUD operations
-│   │   └── inventoryService.ts     # Inventory operations
-│   ├── types/                      # TypeScript types
-│   │   ├── job.ts                  # Job & inventory types
-│   │   └── moveware.ts             # Moveware API types
-│   └── components/                 # Reusable components
-├── prisma/                          # Database
-│   ├── schema.prisma               # Database schema
-│   └── seed.ts                     # Sample data seeder
-├── DATA_SYNC.md                    # Data sync documentation
-├── DATABASE_SCHEMA.md              # Database documentation
-└── POSTGRES_SETUP.md               # PostgreSQL setup guide
+├── app/                    # Next.js App Router pages and API routes
+│   ├── api/               # API endpoints
+│   │   ├── companies/     # Company management APIs
+│   │   ├── quotes/        # Quote management APIs
+│   │   └── jobs/          # Job management APIs
+├── lib/                   # Shared libraries and utilities
+│   ├── components/        # React components
+│   ├── services/          # Business logic services
+│   ├── middleware/        # Authentication middleware
+│   └── types/             # TypeScript type definitions
+├── __tests__/             # Test files
+│   ├── api/              # API endpoint tests
+│   └── helpers/          # Test utilities
+├── prisma/               # Database schema and migrations
+└── public/               # Static assets
 ```
-
-## Available Scripts
-
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start            # Start production server
-npm run db:migrate   # Run database migrations
-npm run db:seed      # Seed database with sample data
-npm run db:push      # Push schema changes (dev)
-npm run db:studio    # Open Prisma Studio (DB GUI)
-```
-
-## Key Features Explained
-
-### 🔄 Automatic Data Sync
-
-No manual database seeding required! Just visit a quote page:
-
-```
-http://localhost:3000/jobs/111505
-```
-
-The system will:
-- Check if job exists in database
-- Fetch from Moveware API if not found
-- Transform and save the data
-- Display the quote
-
-### 🎨 Dynamic Branding
-
-Each brand can have custom:
-- Company logo
-- Primary/secondary colors
-- Font family
-
-Configured in the `Branding` table, linked to jobs via `brandCode`.
-
-### 📊 Multi-Tenant Support
-
-Multiple moving companies on one platform:
-- Each brand has unique `brandCode`
-- Jobs linked to brands
-- Separate branding per company
-
-### ⚡ Performance
-
-- **First load**: ~2-3 seconds (API fetch + save)
-- **Cached load**: <100ms (database only)
-- Refresh button for manual sync
-
-## API Endpoints
-
-### Jobs
-
-- `GET /api/jobs/[jobId]` - Get job (auto-sync from Moveware if needed)
-- `POST /api/jobs/[jobId]/sync` - Force refresh from Moveware API
-
-### Inventory
-
-- `GET /api/jobs/[jobId]/inventory` - Get inventory (auto-sync if needed)
-
-### Settings
-
-- `GET/PUT /api/settings/branding` - Manage branding
-- `GET/PUT /api/settings/hero` - Hero image settings
-- `GET/PUT /api/settings/copy` - Copy/content settings
-
-## Environment Variables
-
-### Required
-
-```env
-# Database
-DATABASE_URL=postgresql://user:pass@host:5432/db
-
-# Moveware API
-MOVEWARE_API_URL=https://api.moveware.com
-MOVEWARE_USERNAME=your_username
-MOVEWARE_PASSWORD=your_password
-
-# Note: Company ID is now dynamic from URL parameter (coId)
-# MOVEWARE_COMPANY_ID is no longer required
-```
-
-### Optional
-
-```env
-# API Version (if needed)
-MOVEWARE_API_VERSION=v1
-
-# App Configuration
-NEXT_PUBLIC_APP_NAME=Moveware Quotes
-NEXT_PUBLIC_APP_URL=https://quotes.moveware.com
-```
-
-## Tech Stack
-
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Database**: PostgreSQL + Prisma ORM
-- **Styling**: Tailwind CSS
-- **Font**: Inter (Google Fonts)
-- **API**: Moveware REST API
-
-## Documentation
-
-- [DATA_SYNC.md](./DATA_SYNC.md) - How data synchronization works
-- [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) - Database structure and relationships
-- [POSTGRES_SETUP.md](./POSTGRES_SETUP.md) - PostgreSQL installation guide
-
-## Troubleshooting
-
-### "Job not found" error
-
-1. Ensure `coId` parameter is included in URL
-2. Check Moveware API credentials in `.env`
-3. Verify job exists in Moveware for that company
-4. Check server logs for API errors
-5. Try manual sync: `curl -X POST "http://localhost:3000/api/jobs/111505/sync?coId=ABC123"`
-
-### Database connection issues
-
-1. Ensure PostgreSQL is running
-2. Check `DATABASE_URL` in `.env`
-3. Run migrations: `npm run db:migrate`
-4. Test connection: `npm run db:studio`
-
-### Stale data showing
-
-Click the "Refresh" button on the quote page, or call:
-```bash
-curl -X POST "http://localhost:3000/api/jobs/111505/sync?coId=ABC123"
-```
-
-## Learn More
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ## License
 
-Proprietary - All rights reserved
+Private - Moveware Group
