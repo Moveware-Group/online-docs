@@ -19,15 +19,21 @@ enum ConversationStatus {
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  apiKey    String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  apiKey         String   @unique
+  isActive       Boolean  @default(true)
+  primaryColor   String   @default("#2563eb") @db.VarChar(7)
+  secondaryColor String   @default("#1e40af") @db.VarChar(7)
+  tertiaryColor  String   @default("#60a5fa") @db.VarChar(7)
+  logoUrl        String?  @db.VarChar(500)
+  updatedBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   botConversations BotConversation[]
 
+  @@index([id])
   @@map("companies")
 }
 
@@ -202,11 +208,13 @@ model Conversation {
   sessionId       String                @unique
   currentWorkflow String?
   metadata        Json                  @default("{}")
+  status          String                @default("active")
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   messages        ConversationMessage[]
 
   @@index([sessionId])
+  @@index([status])
   @@map("conversations")
 }
 
@@ -224,21 +232,32 @@ model ConversationMessage {
 }
 
 model BotConversation {
-  id              String             @id @default(uuid()) @db.Uuid
-  userId          String
-  companyId       String?
-  workflowType    WorkflowType
-  status          ConversationStatus @default(active)
-  messages        Json               @default("[]")
-  metadata        Json               @default("{}")
-  idempotencyKey  String             @unique @db.VarChar(255)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id         String             @id @default(cuid())
+  companyId  String
+  sessionId  String             @unique
+  workflow   WorkflowType
+  status     ConversationStatus @default(active)
+  metadata   Json               @default("{}")
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  company    Company            @relation(fields: [companyId], references: [id])
+  messages   BotMessage[]
 
-  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
+  @@index([companyId])
+  @@index([sessionId])
   @@index([status])
-  @@index([idempotencyKey])
   @@map("bot_conversations")
+}
+
+model BotMessage {
+  id             String          @id @default(cuid())
+  conversationId String
+  role           String
+  content        String          @db.Text
+  metadata       Json            @default("{}")
+  createdAt      DateTime        @default(now())
+  conversation   BotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("bot_messages")
 }

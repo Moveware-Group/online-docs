@@ -51,3 +51,6 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Auto-added by AI Runner
+dist/

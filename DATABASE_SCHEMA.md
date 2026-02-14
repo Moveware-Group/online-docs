@@ -1,326 +1,218 @@
 # Database Schema Documentation
 
-This document describes the PostgreSQL database schema for the Moveware application.
+## Overview
 
-## Tables
+This document describes the database schema for the Moveware application. The application uses PostgreSQL as the primary database with Prisma as the ORM.
 
-### companies
-Stores company/client information.
+## Companies Table
 
-```sql
-CREATE TABLE companies (
-  id VARCHAR PRIMARY KEY,
-  name VARCHAR NOT NULL,
-  api_key VARCHAR UNIQUE NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+### Table: `companies`
 
-**Indexes:**
-- Primary key on `id`
-- Unique index on `api_key`
+Stores company information and branding settings.
 
-### jobs
-Stores job information synced from Moveware.
+**Columns:**
 
-```sql
-CREATE TABLE jobs (
-  id VARCHAR PRIMARY KEY,
-  moveware_job_id VARCHAR UNIQUE NOT NULL,
-  company_id VARCHAR NOT NULL,
-  customer_id VARCHAR,
-  customer_name VARCHAR,
-  status VARCHAR NOT NULL,
-  scheduled_date TIMESTAMP,
-  completed_date TIMESTAMP,
-  origin_address VARCHAR,
-  destination_address VARCHAR,
-  data TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Column | Type | Constraints | Default | Description |
+|--------|------|-------------|---------|-------------|
+| id | String (CUID) | PRIMARY KEY | cuid() | Unique company identifier |
+| name | String | NOT NULL | - | Company name |
+| apiKey | String | UNIQUE, NOT NULL | - | API key for Moveware integration |
+| isActive | Boolean | NOT NULL | true | Whether company is active |
+| primaryColor | VARCHAR(7) | NOT NULL | '#2563eb' | Primary brand color (hex format) |
+| secondaryColor | VARCHAR(7) | NOT NULL | '#1e40af' | Secondary brand color (hex format) |
+| tertiaryColor | VARCHAR(7) | NOT NULL | '#60a5fa' | Tertiary brand color (hex format) |
+| logoUrl | VARCHAR(500) | NULLABLE | NULL | URL or path to company logo |
+| updatedBy | String | NULLABLE | NULL | User ID who last updated settings |
+| createdAt | Timestamp | NOT NULL | now() | Record creation timestamp |
+| updatedAt | Timestamp | NOT NULL | now() | Record last update timestamp |
 
 **Indexes:**
-- Primary key on `id`
-- Unique index on `moveware_job_id`
-- Index on `company_id`
+- PRIMARY KEY on `id`
+- UNIQUE INDEX on `apiKey`
+- INDEX on `id` (for lookup performance)
 
-### quotes
-Stores quote information and acceptance data.
+**Relationships:**
+- One-to-many with `bot_conversations` (via companyId)
 
-```sql
-CREATE TABLE quotes (
-  id VARCHAR PRIMARY KEY,
-  quote_number VARCHAR UNIQUE NOT NULL,
-  job_id VARCHAR,
-  company_id VARCHAR NOT NULL,
-  customer_name VARCHAR NOT NULL,
-  customer_email VARCHAR,
-  customer_phone VARCHAR,
-  status VARCHAR DEFAULT 'pending',
-  total_amount FLOAT NOT NULL,
-  valid_until TIMESTAMP,
-  terms_accepted BOOLEAN DEFAULT false,
-  accepted_at TIMESTAMP,
-  accepted_by VARCHAR,
-  signature_data TEXT,
-  data TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
+**Default Brand Colors:**
+All new companies receive default colors from the design system:
+- Primary: `#2563eb` (Blue 600)
+- Secondary: `#1e40af` (Blue 800)
+- Tertiary: `#60a5fa` (Blue 400)
+
+### Example Query
+
+```typescript
+// Get company with branding settings
+const company = await prisma.company.findUnique({
+  where: { id: companyId },
+  select: {
+    id: true,
+    name: true,
+    primaryColor: true,
+    secondaryColor: true,
+    tertiaryColor: true,
+    logoUrl: true,
+    updatedBy: true,
+  },
+});
+
+// Update company settings
+await prisma.company.update({
+  where: { id: companyId },
+  data: {
+    primaryColor: '#ff0000',
+    secondaryColor: '#00ff00',
+    logoUrl: 'https://example.com/logo.png',
+    updatedBy: userId,
+  },
+});
 ```
 
-**Indexes:**
-- Primary key on `id`
-- Unique index on `quote_number`
-- Index on `company_id`
-- Index on `job_id`
+## Jobs Table
 
-### costings
-Stores costing items/templates for quotes.
+### Table: `jobs`
 
-```sql
-CREATE TABLE costings (
-  id VARCHAR PRIMARY KEY,
-  company_id VARCHAR NOT NULL,
-  name VARCHAR NOT NULL,
-  description VARCHAR,
-  category VARCHAR NOT NULL,
-  unit_price FLOAT NOT NULL,
-  unit VARCHAR DEFAULT 'unit',
-  is_active BOOLEAN DEFAULT true,
-  data TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+Stores job/move information synced from Moveware.
 
-**Indexes:**
-- Primary key on `id`
-- Index on `company_id`
-- Index on `category`
+**Columns:**
 
-### activities
-Stores activity records for jobs.
-
-```sql
-CREATE TABLE activities (
-  id VARCHAR PRIMARY KEY,
-  job_id VARCHAR NOT NULL,
-  company_id VARCHAR NOT NULL,
-  moveware_id VARCHAR,
-  activity_type VARCHAR NOT NULL,
-  description TEXT NOT NULL,
-  status VARCHAR NOT NULL,
-  assigned_to VARCHAR,
-  scheduled_date TIMESTAMP,
-  completed_date TIMESTAMP,
-  notes TEXT,
-  data TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | String (CUID) | PRIMARY KEY | Unique job identifier |
+| movewareJobId | String | UNIQUE, NOT NULL | External Moveware job ID |
+| companyId | String | NOT NULL | Reference to company |
+| customerId | String | NULLABLE | Customer identifier |
+| customerName | String | NULLABLE | Customer name |
+| status | String | NOT NULL | Job status |
+| scheduledDate | Timestamp | NULLABLE | When job is scheduled |
+| completedDate | Timestamp | NULLABLE | When job was completed |
+| originAddress | String | NULLABLE | Pick-up address |
+| destinationAddress | String | NULLABLE | Drop-off address |
+| data | Text | NOT NULL | JSON data from Moveware |
+| createdAt | Timestamp | NOT NULL | Record creation timestamp |
+| updatedAt | Timestamp | NOT NULL | Record last update timestamp |
 
 **Indexes:**
-- Primary key on `id`
-- Index on `job_id`
-- Index on `company_id`
+- PRIMARY KEY on `id`
+- UNIQUE INDEX on `movewareJobId`
+- INDEX on `companyId`
+- INDEX on `movewareJobId`
 
-### inventory
-Stores inventory items for jobs.
+## Quotes Table
 
-```sql
-CREATE TABLE inventory (
-  id VARCHAR PRIMARY KEY,
-  job_id VARCHAR NOT NULL,
-  company_id VARCHAR NOT NULL,
-  moveware_id VARCHAR,
-  item_name VARCHAR NOT NULL,
-  category VARCHAR,
-  quantity INT DEFAULT 1,
-  volume FLOAT,
-  weight FLOAT,
-  fragile BOOLEAN DEFAULT false,
-  notes TEXT,
-  room VARCHAR,
-  data TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+### Table: `quotes`
 
-**Indexes:**
-- Primary key on `id`
-- Index on `job_id`
-- Index on `company_id`
+Stores customer quotes and acceptance status.
 
-### hero_settings
-Stores hero section configuration per company.
+**Columns:**
 
-```sql
-CREATE TABLE hero_settings (
-  id VARCHAR PRIMARY KEY,
-  company_id VARCHAR UNIQUE NOT NULL,
-  title VARCHAR NOT NULL,
-  subtitle VARCHAR,
-  background_image VARCHAR,
-  background_color VARCHAR DEFAULT '#2563eb',
-  text_color VARCHAR DEFAULT '#ffffff',
-  show_logo BOOLEAN DEFAULT true,
-  alignment VARCHAR DEFAULT 'left',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+| Column | Type | Constraints | Default | Description |
+|--------|------|-------------|---------|-------------|
+| id | String (CUID) | PRIMARY KEY | cuid() | Unique quote identifier |
+| quoteNumber | String | UNIQUE, NOT NULL | - | Quote number |
+| jobId | String | NULLABLE | - | Related job ID |
+| companyId | String | NOT NULL | - | Company that created quote |
+| customerName | String | NOT NULL | - | Customer name |
+| customerEmail | String | NULLABLE | - | Customer email |
+| customerPhone | String | NULLABLE | - | Customer phone |
+| status | String | NOT NULL | 'pending' | Quote status |
+| totalAmount | Float | NOT NULL | - | Total quote amount |
+| validUntil | Timestamp | NULLABLE | - | Quote expiration date |
+| termsAccepted | Boolean | NOT NULL | false | Whether terms were accepted |
+| acceptedAt | Timestamp | NULLABLE | - | When quote was accepted |
+| acceptedBy | String | NULLABLE | - | Who accepted the quote |
+| signatureData | Text | NULLABLE | - | Digital signature data |
+| data | Text | NOT NULL | - | Full quote data as JSON |
+| createdAt | Timestamp | NOT NULL | now() | Record creation timestamp |
+| updatedAt | Timestamp | NOT NULL | now() | Record last update timestamp |
 
 **Indexes:**
-- Primary key on `id`
-- Unique index on `company_id`
+- PRIMARY KEY on `id`
+- UNIQUE INDEX on `quoteNumber`
+- INDEX on `companyId`
+- INDEX on `jobId`
+- INDEX on `quoteNumber`
 
-### branding_settings
-Stores branding configuration per company.
+## Additional Tables
 
-```sql
-CREATE TABLE branding_settings (
-  id VARCHAR PRIMARY KEY,
-  company_id VARCHAR UNIQUE NOT NULL,
-  logo_url VARCHAR,
-  primary_color VARCHAR DEFAULT '#2563eb',
-  secondary_color VARCHAR DEFAULT '#1e40af',
-  font_family VARCHAR DEFAULT 'Inter',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+For brevity, other tables in the schema include:
 
-**Indexes:**
-- Primary key on `id`
-- Unique index on `company_id`
+- **costings**: Product/service pricing items
+- **activities**: Job activities and tasks
+- **inventory**: Items being moved
+- **hero_settings**: Homepage hero section settings per company
+- **branding_settings**: Additional branding settings (legacy, prefer using companies table)
+- **copy_settings**: Customizable text content per company
+- **review_submissions**: Customer feedback submissions
+- **conversations**: Chat conversation threads
+- **conversation_messages**: Individual messages in conversations
+- **bot_conversations**: AI assistant conversation sessions
+- **bot_messages**: AI assistant messages
 
-### copy_settings
-Stores copy/text content configuration per company.
+See `prisma/schema.prisma` for complete details on all tables.
 
-```sql
-CREATE TABLE copy_settings (
-  id VARCHAR PRIMARY KEY,
-  company_id VARCHAR UNIQUE NOT NULL,
-  welcome_message VARCHAR NOT NULL,
-  intro_text TEXT NOT NULL,
-  footer_text VARCHAR,
-  submit_button_text VARCHAR DEFAULT 'Submit',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
+## Migration History
 
-**Indexes:**
-- Primary key on `id`
-- Unique index on `company_id`
+### 2025-01-02: Company Settings Columns
 
-### review_submissions
-Stores customer performance review submissions.
+**Migration:** `20250102000000_add_company_settings_columns`
 
-```sql
-CREATE TABLE review_submissions (
-  id VARCHAR PRIMARY KEY,
-  job_id VARCHAR NOT NULL,
-  token VARCHAR NOT NULL,
-  brand VARCHAR,
-  company_id VARCHAR,
-  answers TEXT NOT NULL,
-  submitted_at TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+**Changes:**
+- Added `primaryColor` column to companies table
+- Added `secondaryColor` column to companies table
+- Added `tertiaryColor` column to companies table
+- Added `logoUrl` column to companies table
+- Added `updatedBy` column to companies table
+- Added index on `id` for performance
 
-**Indexes:**
-- Primary key on `id`
-- Index on `job_id`
-- Index on `company_id`
+**Rollback:** See `prisma/migrations/20250102000000_add_company_settings_columns/rollback.sql`
 
-**Fields:**
-- `id`: Unique identifier
-- `job_id`: Moveware job ID
-- `token`: Authentication token from review URL
-- `brand`: Brand identifier (e.g., 'nzvll')
-- `company_id`: Company identifier
-- `answers`: JSON string containing question IDs and answers
-- `submitted_at`: Timestamp when review was submitted
-- `created_at`: Record creation timestamp
+## Database Maintenance
 
-## Relationships
-
-### Company → Settings (One-to-One)
-- Each company has one set of hero_settings
-- Each company has one set of branding_settings
-- Each company has one set of copy_settings
-
-### Company → Jobs (One-to-Many)
-- Each company can have multiple jobs
-- Jobs reference company via `company_id`
-
-### Company → Quotes (One-to-Many)
-- Each company can have multiple quotes
-- Quotes reference company via `company_id`
-
-### Company → Costings (One-to-Many)
-- Each company can have multiple costing items
-- Costings reference company via `company_id`
-
-### Job → Activities (One-to-Many)
-- Each job can have multiple activities
-- Activities reference job via `job_id`
-
-### Job → Inventory (One-to-Many)
-- Each job can have multiple inventory items
-- Inventory references job via `job_id`
-
-### Job → Review Submissions (One-to-Many)
-- Each job can have multiple review submissions
-- Review submissions reference job via `job_id`
-
-## Data Types
-
-- **VARCHAR**: Variable-length strings (default PostgreSQL)
-- **TEXT**: Long-form text content
-- **FLOAT**: Decimal numbers
-- **INT**: Integers
-- **BOOLEAN**: True/false values
-- **TIMESTAMP**: Date and time values
-
-## Conventions
-
-1. **Primary Keys**: All tables use `id` as the primary key with CUID format
-2. **Timestamps**: All tables include `created_at` and `updated_at` (except review_submissions uses `submitted_at`)
-3. **JSON Storage**: Complex data is stored in `data` or `answers` fields as TEXT (JSON stringified)
-4. **Foreign Keys**: Referenced by `*_id` columns (e.g., `company_id`, `job_id`)
-5. **Soft Deletes**: Not implemented; use `is_active` flag where needed
-
-## Migration Notes
-
-When running migrations:
+### Backup Procedures
 
 ```bash
-# Generate Prisma client
-npm run db:generate
+# Full database backup
+pg_dump -h localhost -U your_user -d moveware_db > backup_$(date +%Y%m%d_%H%M%S).sql
 
-# Push schema changes to database
-npm run db:push
-
-# Or create and run migration
-npm run db:migrate
+# Backup specific table
+pg_dump -h localhost -U your_user -d moveware_db -t companies > companies_backup.sql
 ```
 
-## Seeding
-
-Sample data can be seeded using:
+### Restore Procedures
 
 ```bash
-npm run db:seed
+# Restore full database
+psql -h localhost -U your_user -d moveware_db < backup.sql
+
+# Restore specific table
+psql -h localhost -U your_user -d moveware_db < companies_backup.sql
 ```
 
-See `prisma/seed.ts` for seed data configuration.
+## Best Practices
+
+1. **Always use Prisma Client** - Never write raw SQL queries directly
+2. **Use transactions** - For multi-step operations that must succeed or fail together
+3. **Index foreign keys** - All foreign key columns should have indexes
+4. **Validate data** - Use Prisma validators and TypeScript types
+5. **Handle errors** - Always wrap database operations in try/catch blocks
+6. **Use connection pooling** - Prisma handles this automatically
+7. **Backup before migrations** - Always backup production data before schema changes
+
+## Schema Conventions
+
+- **Table Names**: Lowercase with underscores (mapped via `@@map()`)
+- **Column Names**: camelCase in Prisma, snake_case in database
+- **Primary Keys**: Use CUID strings, not auto-incrementing integers
+- **Timestamps**: Always include `createdAt` and `updatedAt`
+- **Soft Deletes**: Use `isActive` or `deletedAt` columns instead of hard deletes
+- **JSON Data**: Store complex objects in `data` fields as Text with JSON
+
+## Environment Variables
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/moveware_db?schema=public"
+```
+
+See `.env.example` for all required environment variables.
