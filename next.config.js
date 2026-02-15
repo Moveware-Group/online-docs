@@ -25,6 +25,16 @@ const nextConfig = {
       },
     ],
   },
+  // Rewrite old /uploads/* paths to the dynamic API route
+  // This ensures logos saved with the old URL pattern still load correctly
+  async rewrites() {
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "/api/uploads/:path*",
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

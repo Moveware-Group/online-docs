@@ -199,8 +199,9 @@ export async function POST(
     // Write file to disk
     await writeFile(filePath, buffer);
 
-    // Generate public URL (relative to public directory)
-    const publicPath = `/uploads/companies/${tenantId.trim()}/${uniqueFilename}`;
+    // Generate URL using the dynamic API route (not static public/ path)
+    // Next.js doesn't reliably serve files added to public/ after build time
+    const publicPath = `/api/uploads/companies/${tenantId.trim()}/${uniqueFilename}`;
 
     console.log(`✓ File uploaded successfully: ${publicPath}`);
 
