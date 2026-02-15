@@ -24,8 +24,8 @@ interface UploadResponse {
 // Maximum file size: 5MB
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// Allowed MIME types
-const ALLOWED_MIME_TYPES = ["image/png", "image/jpeg"];
+// Allowed MIME types (binary formats detected by magic bytes)
+const ALLOWED_BINARY_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 /**
  * Sanitize filename to prevent directory traversal and other attacks
@@ -59,7 +59,7 @@ function generateUniqueFilename(originalFilename: string): string {
  * - Authorization: Bearer token (required)
  *
  * Form Data:
- * - file: Image file (PNG or JPEG, max 5MB)
+ * - file: Image file (PNG, JPEG, SVG, or WebP, max 5MB)
  *
  * Returns:
  * - 200: Upload successful with file URL
@@ -129,17 +129,51 @@ export async function POST(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Validate MIME type using magic number detection (not just extension)
-    const fileType = await fileTypeFromBuffer(buffer);
+    // Determine if this is an SVG (text-based, no magic bytes)
+    const isSvg = file.type === "image/svg+xml" ||
+      file.name.toLowerCase().endsWith(".svg");
 
-    if (!fileType || !ALLOWED_MIME_TYPES.includes(fileType.mime)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid file type. Only PNG and JPEG images are allowed.",
-        },
-        { status: 400 },
-      );
+    if (isSvg) {
+      // SVG validation: check that content looks like valid SVG markup
+      const text = buffer.toString("utf-8").trim();
+      const looksLikeSvg = text.startsWith("<?xml") ||
+        text.startsWith("<svg") ||
+        text.includes("<svg");
+
+      if (!looksLikeSvg) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid SVG file. The file does not contain valid SVG markup.",
+          },
+          { status: 400 },
+        );
+      }
+
+      // Basic XSS sanitisation: reject SVGs containing script tags or event handlers
+      const dangerous = /<script[\s>]|on\w+\s*=/i;
+      if (dangerous.test(text)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "SVG file contains potentially unsafe content (scripts or event handlers).",
+          },
+          { status: 400 },
+        );
+      }
+    } else {
+      // Binary image validation via magic bytes
+      const fileType = await fileTypeFromBuffer(buffer);
+
+      if (!fileType || !ALLOWED_BINARY_MIME_TYPES.includes(fileType.mime)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid file type. Only PNG, JPEG, SVG, and WebP images are allowed.",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     // Generate unique filename (UUID + sanitized original name)
