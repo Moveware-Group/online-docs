@@ -4,12 +4,12 @@ import { prisma } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { jobId, token, brand, coId, answers } = body;
+    const { quoteId, token, companyId, answers } = body;
 
     // Validate required fields
-    if (!jobId || !token || !answers) {
+    if (!token || !answers) {
       return NextResponse.json(
-        { error: 'Missing required fields: jobId, token, and answers' },
+        { error: 'Missing required fields: token and answers' },
         { status: 400 }
       );
     }
@@ -17,17 +17,16 @@ export async function POST(request: NextRequest) {
     // Save the review submission to the database
     const submission = await prisma.reviewSubmission.create({
       data: {
-        jobId: String(jobId),
+        quoteId: quoteId ? String(quoteId) : null,
         token,
-        brand: brand || null,
-        companyId: coId ? String(coId) : null,
+        companyId: companyId ? String(companyId) : null,
         answers: JSON.stringify(answers),
       },
     });
 
-    console.log('Performance review submitted successfully:', {
+    console.log('Review submitted successfully:', {
       submissionId: submission.id,
-      jobId,
+      quoteId,
       answersCount: Object.keys(answers).length,
       timestamp: submission.submittedAt.toISOString(),
     });
