@@ -1,201 +1,156 @@
-# Database Seed Script
+# Database Seed & Mock Data
 
-This seed script populates your database with sample data from the Moveware API.
+This document describes the seed data (for database tables) and mock API data (for the quote page) used during development.
 
-## What Gets Seeded
+## Database Seed (`prisma/seed.ts`)
 
-### 1. Branding Record
-- **Brand Code**: MWB (Crown Worldwide)
-- **Company Name**: Crown Worldwide
-- **Colors**: Primary (#1E40AF), Secondary (#3B82F6)
-- **Font**: Inter
+Run the seed script to populate the database with sample records.
 
-### 2. Job Record
-- **Job ID**: 111505
-- **Customer**: Mr Leigh Morrow
-- **Brand**: MWB (Crown Worldwide)
-- **Branch**: MEL (Melbourne)
-- **Job Value**: $2,675.00
-- **Delivery Date**: 27/02/26
+### What Gets Seeded
 
-**Addresses:**
-- **Uplift**: 3 Spring Water Crescent, Cranbourne VIC 3977, Australia
-- **Delivery**: 12 Cato Street, Hawthorn East VIC 3123, Australia
+| Table | Record | Key Fields |
+|---|---|---|
+| Company | Crown Worldwide | brandCode: `CROWN`, apiKey: `demo-api-key-crown` |
+| BrandingSettings | Crown branding | primaryColor: `#c00000`, font: Inter |
+| HeroSettings | Crown hero | title: "Professional Moving Services" |
+| CopySettings | Crown copy | welcomeMessage: "Welcome to Crown Worldwide" |
+| Quote | Q-2026-001 | customer: John Doe, $2,500.00 |
+| ReviewSubmission | review-sample-001 | rating: 5, "Excellent service!" |
 
-**Measurements:**
-- **Volume (Gross)**: 22.0 f³ / 0.622965 m³
-- **Weight (Gross)**: 70 kg / 154 lb
+### Running the Seed Script
 
-### 3. Inventory Items (20 items)
-1. Bed, King (2.14 m³)
-2. Bed, Single (0.71 m³)
-3. Bedside Table (0.14 m³)
-4. Bench (0.85 m³)
-5. Bookcase, Large (1.14 m³)
-6. Cabinet (1.0 m³)
-7. Carton Bike (0.3 m³)
-8. Chair, Dining (0.14 m³)
-9. Chair, Kitchen (0.14 m³)
-10. Chest of Drawers (0.71 m³)
-11. Childs Bike (0.2 m³)
-12. Childs Furniture (0.15 m³)
-13. Clothes Horse (0.12 m³)
-14. Cubby House Kids (1.0 m³)
-15. Desk Large (1.0 m³)
-16. Dryer (0.26 m³)
-17. Dresser (0.85 m³)
-18. Dressing Table (0.7 m³)
-19. Fishing Rods (0.02 m³)
-20. Filing Cabinet 2 (0.28 m³)
-
-## Prerequisites
-
-1. **PostgreSQL must be running** and accessible
-2. **DATABASE_URL must be set** in your `.env` file
-3. **Prisma Client must be generated**: `npm run db:generate`
-4. **Database tables must exist**: `npm run db:push` or `npm run db:migrate`
-
-## Running the Seed Script
-
-### Method 1: Using npm script (Recommended)
 ```bash
+# Recommended
 npm run db:seed
-```
 
-### Method 2: Using Prisma CLI
-```bash
+# Or via Prisma CLI
 npx prisma db seed
-```
 
-### Method 3: Direct execution
-```bash
+# Or direct execution
 npx tsx prisma/seed.ts
 ```
 
-## Expected Output
+The seed uses `upsert` operations so it is **safe to run multiple times**.
 
-```
-🌱 Starting database seed...
-Creating branding for MWB...
-✓ Created branding: MWB
-Creating job #111505...
-✓ Created job: 111505
-Creating inventory items...
-✓ Created 20 inventory items
+---
 
-📊 Seed Summary:
-- Branding: 1 (MWB - Crown Worldwide)
-- Jobs: 1 (Job #111505)
-- Inventory Items: 20
+## Mock API Data (Job 111505)
 
-✅ Database seeded successfully!
-```
+The quote page (`/quote?jobId=111505&coId=12`) fetches from internal API routes that currently serve static mock data. This allows the quote UI to function while the Moveware API integration is in progress.
+
+### Mock Job Record
+
+| Field | Value |
+|---|---|
+| **Job ID** | 111505 |
+| **Customer** | Mr Leigh Morrow |
+| **Brand** | MWB (Crown Worldwide) |
+| **Branch** | MEL (Melbourne) |
+| **Job Value** | $2,675.00 |
+| **Delivery Date** | 27/02/2026 |
+
+**Addresses:**
+
+- **Origin**: 3 Spring Water Crescent, Cranbourne VIC 3977, Australia
+- **Destination**: 12 Cato Street, Hawthorn East VIC 3123, Australia
+
+**Measurements:**
+
+- **Volume (Gross)**: 0.623 m³
+- **Weight (Gross)**: 70 kg
+
+### Mock Inventory (20 items)
+
+| # | Item | Room | Qty | Volume (m³) | Type |
+|---|---|---|---|---|---|
+| 1 | Bed, King | Master Bedroom | 1 | 2.14 | FUR |
+| 2 | Bed, Single | Bedroom 2 | 1 | 0.71 | FUR |
+| 3 | Bedside Table | Master Bedroom | 2 | 0.14 | FUR |
+| 4 | Bench | Outdoor | 1 | 0.85 | FUR |
+| 5 | Bookcase, Large | Study | 1 | 1.14 | FUR |
+| 6 | Cabinet | Living Room | 1 | 1.00 | FUR |
+| 7 | Carton Bike | Garage | 1 | 0.30 | CTN |
+| 8 | Chair, Dining | Dining Room | 4 | 0.14 | FUR |
+| 9 | Chair, Kitchen | Kitchen | 2 | 0.14 | FUR |
+| 10 | Chest of Drawers | Master Bedroom | 1 | 0.71 | FUR |
+| 11 | Childs Bike | Garage | 1 | 0.20 | MISC |
+| 12 | Childs Furniture | Bedroom 2 | 1 | 0.15 | FUR |
+| 13 | Clothes Horse | Laundry | 1 | 0.12 | MISC |
+| 14 | Cubby House Kids | Outdoor | 1 | 1.00 | MISC |
+| 15 | Desk Large | Study | 1 | 1.00 | FUR |
+| 16 | Dryer | Laundry | 1 | 0.26 | APPL |
+| 17 | Dresser | Master Bedroom | 1 | 0.85 | FUR |
+| 18 | Dressing Table | Master Bedroom | 1 | 0.70 | FUR |
+| 19 | Fishing Rods | Garage | 3 | 0.02 | MISC |
+| 20 | Filing Cabinet 2 | Study | 1 | 0.28 | FUR |
+
+### Mock Costing
+
+| Field | Value |
+|---|---|
+| **Name** | Standard Domestic Move |
+| **Total Price** | $2,675.00 (AUD, tax included) |
+| **Net Total** | $2,431.82 |
+
+**Inclusions:** Professional packing, packing materials, furniture disassembly/reassembly, loading/unloading, transport, placement, basic transit insurance, floor/doorway protection.
+
+**Exclusions:** Storage, cleaning, appliance disconnection, piano/specialty items, parking permits, additional insurance.
+
+### API Routes (Mock Mode)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/jobs/[jobId]?coId=` | Job details + branding |
+| GET | `/api/jobs/[jobId]/inventory?coId=` | Inventory items |
+| GET | `/api/jobs/[jobId]/costings?coId=` | Pricing options |
+| POST | `/api/jobs/[jobId]/sync?coId=` | Sync placeholder (no-op) |
+
+All routes include `"source": "mock"` in their response so the frontend can distinguish mock data from live API data in the future.
+
+---
+
+## Prerequisites
+
+1. **PostgreSQL** must be running and accessible
+2. **DATABASE_URL** must be set in `.env`
+3. **Prisma Client** must be generated: `npm run db:generate`
+4. **Database tables** must exist: `npm run db:push` or `npm run db:migrate`
 
 ## Verifying the Data
 
 ### Using Prisma Studio
+
 ```bash
 npm run db:studio
 ```
-Then navigate to `http://localhost:5555` to view the data.
 
-### Using SQL Query
-```bash
-# Connect to PostgreSQL
-psql -U moveware_user -d moveware_online_docs -h localhost
+Then navigate to `http://localhost:5555` to browse tables.
 
-# Query the data
-SELECT * FROM "Job" WHERE id = 111505;
-SELECT * FROM "InventoryItem" WHERE "jobId" = 111505;
-SELECT * FROM "Branding" WHERE "brandCode" = 'MWB';
+### Using the Quote Page
+
+Open the mock quote in your browser:
+
 ```
-
-### Using the API
-```bash
-# Get job details
-curl http://localhost:3000/api/jobs/111505
-
-# Get inventory
-curl http://localhost:3000/api/jobs/111505/inventory
+http://localhost:3000/quote?jobId=111505&coId=12
 ```
-
-## Re-running the Seed Script
-
-The seed script uses `upsert` operations, so it's **safe to run multiple times**:
-- If records exist, they will be **updated** (not duplicated)
-- If records don't exist, they will be **created**
-
-This means you can re-run the seed to reset the data to the original sample values.
 
 ## Resetting the Database
 
-To completely reset and re-seed:
-
 ```bash
-# Option 1: Reset with Prisma (WARNING: Deletes all data!)
+# Reset and re-seed (WARNING: deletes all data)
 npx prisma migrate reset
 
-# Option 2: Manual reset
+# Or manual reset
 npm run db:push --force-reset
 npm run db:seed
 ```
-
-## Customizing the Seed Data
-
-To add more sample data, edit `prisma/seed.ts`:
-
-```typescript
-// Add more jobs
-const anotherJob = await prisma.job.create({
-  data: {
-    id: 111506,
-    firstName: 'Jane',
-    lastName: 'Smith',
-    // ... more fields
-  },
-});
-
-// Add more inventory items
-const moreItems = await prisma.inventoryItem.createMany({
-  data: [
-    { id: 22322, jobId: 111506, description: 'Sofa', quantity: 1 },
-    // ... more items
-  ],
-});
-```
-
-## Troubleshooting
-
-### Error: "Can't reach database server"
-- **Solution**: Ensure PostgreSQL is running: `sudo systemctl status postgresql`
-- Check DATABASE_URL in `.env` file
-
-### Error: "Environment variable not found: DATABASE_URL"
-- **Solution**: Create `.env` file with DATABASE_URL:
-  ```
-  DATABASE_URL="postgresql://moveware_user:password@localhost:5432/moveware_online_docs"
-  ```
-
-### Error: "Table does not exist"
-- **Solution**: Run migrations first: `npm run db:push` or `npm run db:migrate`
-
-### Error: "Foreign key constraint failed"
-- **Solution**: The branding record must exist first. The seed script creates it automatically.
-
-### Error: "tsx not found"
-- **Solution**: Install dependencies: `npm install`
-
-## Production Considerations
-
-For production environments:
-1. **Don't run seed on production** unless intentional
-2. Use separate seed files for different environments
-3. Consider using migration scripts instead of seeds for initial data
-4. Store sensitive data separately (not in seed files)
 
 ## Related Files
 
 - **Seed Script**: `prisma/seed.ts`
 - **Schema**: `prisma/schema.prisma`
-- **Services**: `lib/services/jobService.ts`, `lib/services/inventoryService.ts`
-- **Types**: `lib/types/job.ts`
+- **Mock Job API**: `app/api/jobs/[jobId]/route.ts`
+- **Mock Inventory API**: `app/api/jobs/[jobId]/inventory/route.ts`
+- **Mock Costings API**: `app/api/jobs/[jobId]/costings/route.ts`
+- **Mock Sync API**: `app/api/jobs/[jobId]/sync/route.ts`
+- **Quote Page**: `app/quote/page.tsx`
