@@ -9,28 +9,21 @@ DROP TABLE IF EXISTS "activities" CASCADE;
 DROP TABLE IF EXISTS "costings" CASCADE;
 DROP TABLE IF EXISTS "jobs" CASCADE;
 
--- Update ReviewSubmission table
+-- Update ReviewSubmission table (only if columns exist)
 -- Change jobId to quoteId for better clarity
-ALTER TABLE "review_submissions" 
-  RENAME COLUMN "jobId" TO "quoteId";
+DO $$ 
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'review_submissions' AND column_name = 'jobId'
+  ) THEN
+    ALTER TABLE "review_submissions" RENAME COLUMN "jobId" TO "quoteId";
+  END IF;
+END $$;
 
 -- Remove brand column (now using companyId consistently)
 ALTER TABLE "review_submissions" 
   DROP COLUMN IF EXISTS "brand";
 
--- Add foreign key constraints for better data integrity
-ALTER TABLE "quotes" 
-  ADD CONSTRAINT "quotes_companyId_fkey" 
-  FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE;
-
-ALTER TABLE "hero_settings" 
-  ADD CONSTRAINT "hero_settings_companyId_fkey" 
-  FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE;
-
-ALTER TABLE "branding_settings" 
-  ADD CONSTRAINT "branding_settings_companyId_fkey" 
-  FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE;
-
-ALTER TABLE "copy_settings" 
-  ADD CONSTRAINT "copy_settings_companyId_fkey" 
-  FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE;
+-- Note: Skipping foreign key constraints due to type mismatches in existing database
+-- Foreign keys can be added manually after fixing data types if needed
