@@ -1,4 +1,4 @@
-import { CompaniesListView } from "@/lib/components/settings/CompaniesListView";
+import CompaniesListView from "@/lib/components/settings/CompaniesListView";
 import { redirect } from "next/navigation";
 
 interface Company {

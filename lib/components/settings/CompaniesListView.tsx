@@ -1,17 +1,40 @@
+/**
+ * Companies List View Component
+ *
+ * CACHE REVALIDATION INTEGRATION:
+ * --------------------------------
+ * This component uses Server Actions from lib/actions/companies.ts for all mutations.
+ * Server Actions automatically handle cache revalidation via revalidatePath().
+ *
+ * Benefits:
+ * 1. No manual router.refresh() calls needed
+ * 2. Cache invalidation happens server-side for consistency
+ * 3. Works seamlessly with Server Components
+ * 4. Optimistic UI updates possible with useTransition
+ *
+ * If you need to use API routes instead (e.g., for file uploads), remember to:
+ * 1. Import useRouter from 'next/navigation'
+ * 2. Call router.refresh() after successful mutations
+ * 3. Handle loading states manually
+ */
+
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
+import Image from "next/image";
 import {
+  Edit,
+  Trash2,
   Plus,
-  Edit2,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { deleteCompany } from "@/lib/actions/companies";
 import { CompanyLogo } from "@/lib/components/ui/company-logo";
 
-interface Company {
+export interface Company {
   id: string;
   name: string;
   code: string;
@@ -37,55 +60,94 @@ interface CompaniesListViewProps {
   error?: string | null;
 }
 
-export function CompaniesListView({
+export default function CompaniesListView({
   companies,
   pagination,
   error,
 }: CompaniesListViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const coId = searchParams.get("coId");
+  const [isPending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  /**
+   * Handle company deletion
+   *
+   * CACHE REVALIDATION:
+   * Uses Server Action deleteCompany() which automatically calls
+   * revalidatePath('/settings/companies') after successful deletion.
+   * The useTransition hook provides pending state for optimistic UI.
+   */
+  const handleDelete = async (companyId: string, companyName: string) => {
+    if (!confirm(`Are you sure you want to delete ${companyName}?`)) {
+      return;
+    }
+
+    setDeletingId(companyId);
+
+    // Use startTransition for automatic UI updates after server mutation
+    startTransition(async () => {
+      const result = await deleteCompany(companyId);
+
+      if (result.success) {
+        // Success! The Server Action already called revalidatePath()
+        // Next.js will automatically re-render with fresh data
+        console.log("Company deleted successfully");
+      } else {
+        // Show error to user
+        alert(`Failed to delete company: ${result.error}`);
+      }
+
+      setDeletingId(null);
+    });
+  };
+
+  /**
+   * Handle navigation to add company page
+   */
   const handleAddCompany = () => {
-    const url = coId
-      ? `/settings/companies/new?coId=${coId}`
-      : "/settings/companies/new";
-    router.push(url);
+    router.push("/settings/companies/new");
   };
 
-  const handleEditCompany = (companyId: string) => {
-    const url = coId
-      ? `/settings/companies/${companyId}?coId=${coId}`
-      : `/settings/companies/${companyId}`;
-    router.push(url);
+  /**
+   * Handle navigation to edit company page
+   */
+  const handleEdit = (companyId: string) => {
+    router.push(`/settings/companies/${companyId}/edit`);
   };
 
+  /**
+   * Handle pagination navigation
+   */
   const handlePageChange = (newPage: number) => {
-    const url = coId
-      ? `/settings/companies?page=${newPage}&coId=${coId}`
-      : `/settings/companies?page=${newPage}`;
+    const coId = searchParams.get("coId");
+    const url = `/settings/companies?page=${newPage}${coId ? `&coId=${coId}` : ""}`;
     router.push(url);
   };
 
   // Show error state
   if (error) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-8">
-        <div className="flex items-start space-x-3">
-          <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Error Loading Companies
-            </h3>
-            <p className="text-gray-600">{error}</p>
-          </div>
+      <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-8 h-8 text-red-600" />
         </div>
+        <h3 className="text-xl font-bold text-red-900 mb-2">
+          Error Loading Companies
+        </h3>
+        <p className="text-red-700 mb-6">{error}</p>
+        <button
+          onClick={() => router.refresh()}
+          className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
 
-  // Show empty state
-  if (companies.length === 0 && pagination.page === 1) {
+  // Empty state
+  if (companies.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-md p-12 text-center">
         <div className="max-w-md mx-auto">
@@ -96,68 +158,39 @@ export function CompaniesListView({
             No Companies Yet
           </h3>
           <p className="text-gray-600 mb-6">
-            Get started by adding your first company to the system.
+            Get started by adding your first company to manage settings and
+            configurations.
           </p>
           <button
             onClick={handleAddCompany}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <Plus className="w-5 h-5 inline-block mr-2 -mt-1" />
-            Add Company
+            <Plus className="w-5 h-5 inline-block mr-2" />
+            Add First Company
           </button>
         </div>
       </div>
     );
   }
 
-  // Calculate display range
-  const startItem = (pagination.page - 1) * pagination.limit + 1;
-  const endItem = Math.min(
-    pagination.page * pagination.limit,
-    pagination.total,
-  );
-
-  // Show warning if total count is very high
-  const showLimitWarning = pagination.total > 100;
-
   return (
     <div className="space-y-6">
       {/* Header with Add Button */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Companies</h1>
+          <h2 className="text-2xl font-bold text-gray-900">Companies</h2>
           <p className="text-gray-600 mt-1">
-            Showing {startItem}-{endItem} of {pagination.total}{" "}
-            {pagination.total === 1 ? "company" : "companies"}
+            Manage your companies and their settings
           </p>
         </div>
         <button
           onClick={handleAddCompany}
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
         >
-          <Plus className="w-5 h-5 inline-block mr-2 -mt-1" />
+          <Plus className="w-5 h-5 inline-block mr-2" />
           Add Company
         </button>
       </div>
-
-      {/* Warning banner for large datasets */}
-      {showLimitWarning && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-amber-900">
-                Large Company List
-              </h4>
-              <p className="text-sm text-amber-700 mt-1">
-                You have {pagination.total} companies. Use pagination to browse
-                through the list. Search and filter features will be available
-                in a future update.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Companies Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -165,27 +198,41 @@ export function CompaniesListView({
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Company
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Code
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {companies.map((company) => (
-                <tr key={company.id} className="hover:bg-gray-50">
+                <tr
+                  key={company.id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <CompanyLogo
-                        name={company.name}
-                        logoUrl={company.logoUrl}
-                        size={40}
-                      />
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <CompanyLogo
+                          name={company.name}
+                          logoUrl={company.logoUrl}
+                          size={40}
+                        />
+                      </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
                           {company.name}
@@ -197,13 +244,28 @@ export function CompaniesListView({
                     <div className="text-sm text-gray-900">{company.code}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleEditCompany(company.id)}
-                      className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                    >
-                      <Edit2 className="w-4 h-4 mr-1" />
-                      Edit
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEdit(company.id)}
+                        disabled={isPending}
+                        className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        aria-label={`Edit ${company.name}`}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(company.id, company.name)}
+                        disabled={isPending || deletingId === company.id}
+                        className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                        aria-label={`Delete ${company.name}`}
+                      >
+                        {deletingId === company.id ? (
+                          <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -213,47 +275,29 @@ export function CompaniesListView({
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={!pagination.hasPrevious}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={!pagination.hasMore}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Page <span className="font-medium">{pagination.page}</span> of{" "}
-                  <span className="font-medium">{pagination.totalPages}</span>
-                </p>
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing page {pagination.page} of {pagination.totalPages} (
+                {pagination.total} total companies)
               </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                  <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={!pagination.hasPrevious}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={!pagination.hasMore}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </nav>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={!pagination.hasPrevious || isPending}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={!pagination.hasMore || isPending}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
               </div>
             </div>
           </div>
