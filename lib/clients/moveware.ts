@@ -4,16 +4,20 @@
  * Supports dynamic company ID for multi-tenant applications
  */
 
-import { MovewareConfig, MovewareResponse, MovewareError } from '../types/moveware';
+import {
+  MovewareConfig,
+  MovewareResponse,
+  MovewareError,
+} from "../types/moveware";
 
 /**
  * Base configuration for the Moveware API client (without company ID)
  */
 const baseConfig = {
-  baseUrl: process.env.MOVEWARE_API_URL || '',
-  username: process.env.MOVEWARE_USERNAME || '',
-  password: process.env.MOVEWARE_PASSWORD || '',
-  version: process.env.MOVEWARE_API_VERSION || 'api',
+  baseUrl: process.env.MOVEWARE_API_URL || "",
+  username: process.env.MOVEWARE_USERNAME || "",
+  password: process.env.MOVEWARE_PASSWORD || "",
+  version: process.env.MOVEWARE_API_VERSION || "api",
 };
 
 /**
@@ -21,14 +25,16 @@ const baseConfig = {
  */
 function validateConfig(companyId?: number): void {
   const missing: string[] = [];
-  
-  if (!baseConfig.baseUrl) missing.push('MOVEWARE_API_URL');
-  if (!companyId) missing.push('companyId (from URL parameter)');
-  if (!baseConfig.username) missing.push('MOVEWARE_USERNAME');
-  if (!baseConfig.password) missing.push('MOVEWARE_PASSWORD');
-  
+
+  if (!baseConfig.baseUrl) missing.push("MOVEWARE_API_URL");
+  if (!companyId) missing.push("companyId (from URL parameter)");
+  if (!baseConfig.username) missing.push("MOVEWARE_USERNAME");
+  if (!baseConfig.password) missing.push("MOVEWARE_PASSWORD");
+
   if (missing.length > 0) {
-    throw new Error(`Missing required Moveware API configuration: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing required Moveware API configuration: ${missing.join(", ")}`,
+    );
   }
 }
 
@@ -37,11 +43,11 @@ function validateConfig(companyId?: number): void {
  */
 function getAuthHeaders(companyId: number): Record<string, string> {
   return {
-    'mw-company-id': companyId.toString(),
-    'mw-username': baseConfig.username,
-    'mw-password': baseConfig.password,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    "mw-company-id": companyId.toString(),
+    "mw-username": baseConfig.username,
+    "mw-password": baseConfig.password,
+    "Content-Type": "application/json",
+    Accept: "application/json",
   };
 }
 
@@ -51,13 +57,13 @@ function getAuthHeaders(companyId: number): Record<string, string> {
 async function request<T>(
   endpoint: string,
   companyId: number,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<MovewareResponse<T>> {
   validateConfig(companyId);
-  
+
   // Company ID is part of the URL path: https://rest.moveware-test.app/65700/api/jobs/...
   const url = `${baseConfig.baseUrl}/${companyId}/${baseConfig.version}${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -66,19 +72,19 @@ async function request<T>(
         ...options.headers,
       },
     });
-    
+
     const data = await response.json();
-    
+
     if (!response.ok) {
       const error: MovewareError = {
         status: response.status,
-        message: data.message || 'An error occurred',
+        message: data.message || "An error occurred",
         code: data.code,
         details: data.details,
       };
       throw error;
     }
-    
+
     return {
       data,
       status: response.status,
@@ -88,12 +94,13 @@ async function request<T>(
     if ((error as MovewareError).status) {
       throw error;
     }
-    
+
     // Network or other errors
     const networkError: MovewareError = {
       status: 0,
-      message: error instanceof Error ? error.message : 'Network error occurred',
-      code: 'NETWORK_ERROR',
+      message:
+        error instanceof Error ? error.message : "Network error occurred",
+      code: "NETWORK_ERROR",
     };
     throw networkError;
   }
@@ -109,69 +116,72 @@ export function createMovewareClient(companyId: number) {
     /**
      * Makes a GET request
      */
-    async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    async get<T>(
+      endpoint: string,
+      params?: Record<string, string>,
+    ): Promise<T> {
       let url = endpoint;
       if (params) {
         const queryString = new URLSearchParams(params).toString();
         url = `${endpoint}?${queryString}`;
       }
-      
+
       const response = await request<T>(url, companyId, {
-        method: 'GET',
+        method: "GET",
       });
       return response.data;
     },
-    
+
     /**
      * Makes a POST request
      */
     async post<T>(endpoint: string, body: unknown): Promise<T> {
       const response = await request<T>(endpoint, companyId, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(body),
       });
       return response.data;
     },
-    
+
     /**
      * Makes a PUT request
      */
     async put<T>(endpoint: string, body: unknown): Promise<T> {
       const response = await request<T>(endpoint, companyId, {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(body),
       });
       return response.data;
     },
-    
+
     /**
      * Makes a PATCH request
      */
     async patch<T>(endpoint: string, body: unknown): Promise<T> {
       const response = await request<T>(endpoint, companyId, {
-        method: 'PATCH',
+        method: "PATCH",
         body: JSON.stringify(body),
       });
       return response.data;
     },
-    
+
     /**
      * Makes a DELETE request
      */
     async delete<T>(endpoint: string): Promise<T> {
       const response = await request<T>(endpoint, companyId, {
-        method: 'DELETE',
+        method: "DELETE",
       });
       return response.data;
     },
-    
+
     /**
      * Gets the current configuration (without sensitive data)
      */
     getConfig: () => ({
       baseUrl: baseConfig.baseUrl,
       version: baseConfig.version,
-      companyId: companyId ? '***' : '',
+      companyId: companyId ? "***" : "",
     }),
   };
 }
@@ -180,7 +190,34 @@ export function createMovewareClient(companyId: number) {
  * Default client for backward compatibility (uses MOVEWARE_COMPANY_ID from env)
  * @deprecated Use createMovewareClient(companyId) for multi-tenant support
  */
-const envCompanyId = process.env.MOVEWARE_COMPANY_ID ? parseInt(process.env.MOVEWARE_COMPANY_ID) : 0;
-export const movewareClient = createMovewareClient(envCompanyId);
+const envCompanyId = process.env.MOVEWARE_COMPANY_ID
+  ? parseInt(process.env.MOVEWARE_COMPANY_ID, 10)
+  : 1;
+const defaultClient = createMovewareClient(envCompanyId);
+
+/**
+ * Helper method: Get all companies
+ * Note: This is a convenience method for the /companies endpoint
+ */
+async function getCompanies(): Promise<any[]> {
+  return defaultClient.get<any[]>("/companies");
+}
+
+/**
+ * Helper method: Create a new company
+ * Note: This is a convenience method for the /companies endpoint
+ */
+async function createCompany(body: any): Promise<any> {
+  return defaultClient.post<any>("/companies", body);
+}
+
+/**
+ * Default export for backward compatibility
+ */
+export const movewareClient = {
+  ...defaultClient,
+  getCompanies,
+  createCompany,
+};
 
 export default movewareClient;

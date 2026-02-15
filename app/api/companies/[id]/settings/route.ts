@@ -7,18 +7,37 @@ import {
   UpdateCompanyColorsResponse,
 } from "@/lib/types/company";
 
+interface RouteContext {
+  params?: Promise<Record<string, string>> | Record<string, string>;
+}
+
+async function resolveCompanyId(
+  params?: Promise<Record<string, string>> | Record<string, string>,
+): Promise<string | null> {
+  if (!params) return null;
+  const resolved = await params;
+  const id = resolved?.id;
+  if (typeof id !== "string" || id.trim() === "") {
+    return null;
+  }
+  return id;
+}
+
 /**
  * GET /api/companies/[id]/settings
  * Fetch company branding settings
  *
  * Authorization: Requires admin role and company access
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, context?: RouteContext) {
   try {
-    const { id: companyId } = await params;
+    const companyId = await resolveCompanyId(context?.params);
+    if (!companyId) {
+      return NextResponse.json<GetCompanySettingsResponse>(
+        { success: false, error: "Company ID is required" },
+        { status: 400 },
+      );
+    }
 
     // Verify authentication and authorization
     const authError = await requireAdmin(request, companyId);
@@ -80,12 +99,15 @@ export async function GET(
  *
  * Authorization: Requires admin role and company access
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, context?: RouteContext) {
   try {
-    const { id: companyId } = await params;
+    const companyId = await resolveCompanyId(context?.params);
+    if (!companyId) {
+      return NextResponse.json<UpdateCompanyColorsResponse>(
+        { success: false, error: "Company ID is required" },
+        { status: 400 },
+      );
+    }
 
     // Verify authentication and authorization
     const authError = await requireAdmin(request, companyId);

@@ -1,12 +1,30 @@
 import { NextRequest } from "next/server";
 
 /**
+ * Test utilities for Next.js API routes and components
  * Test helper utilities for API route testing
  * Test Utilities
  * Helper functions for API route testing
  */
 
 /**
+ * Creates mock route params for testing
+ */
+export function createMockParams(
+  params: Record<string, string>,
+): Promise<Record<string, string>> {
+  return Promise.resolve(params);
+}
+
+/**
+ * Helper to extract JSON from NextResponse
+ */
+export async function getResponseJson(response: Response): Promise<any> {
+  return response.json();
+}
+
+/**
+ * Creates a mock File object for testing uploads
  * Create a mock NextRequest for testing
  * @param url - Request URL
  * @param options - Request options (method, headers, body, etc.)
@@ -396,6 +414,35 @@ export function createMockFile(
 }
 
 /**
+ * Creates a large file for testing size limits
+ */
+export function createLargeFile(sizeInMB: number): File {
+  const size = sizeInMB * 1024 * 1024;
+  const buffer = new ArrayBuffer(size);
+  const blob = new Blob([buffer], { type: "image/png" });
+  return new File([blob], "large-file.png", { type: "image/png" });
+}
+
+/**
+ * Creates FormData with a file for testing multipart uploads
+ */
+export function createFormDataWithFile(
+  fieldName: string,
+  file: File,
+): FormData {
+  const formData = new FormData();
+  formData.append(fieldName, file);
+  return formData;
+}
+
+/**
+ * Mock admin authorization headers
+ */
+export function mockAdminHeaders(): Record<string, string> {
+  return {
+    authorization: "Bearer admin-token",
+
+/**
  * Create a large file for testing file size limits
  */
 export function createLargeFile(
@@ -431,6 +478,7 @@ export function mockAdminHeaders(): Record<string, string> {
 }
 
 /**
+ * Mock staff authorization headers
  * Mock headers for staff user requests
  */
 export function mockStaffHeaders(): Record<string, string> {
@@ -441,6 +489,7 @@ export function mockStaffHeaders(): Record<string, string> {
 }
 
 /**
+ * Mock unauthenticated headers
  * Mock headers for unauthenticated requests
  */
 export function mockUnauthenticatedHeaders(): Record<string, string> {
