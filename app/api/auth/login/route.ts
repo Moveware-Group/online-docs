@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { LoginCredentials, LoginResponse } from '@/lib/types/auth';
 
 /**
- * Placeholder authentication endpoint
- * TODO: Replace with actual Microsoft SSO integration
+ * Break-glass authentication endpoint
+ *
+ * Provides emergency admin access when Moveware SSO is unavailable.
+ * Credentials are read from ADMIN_USERNAME / ADMIN_PASSWORD env vars.
+ *
+ * TODO: Replace with Microsoft / Moveware SSO integration.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,56 +24,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // PLACEHOLDER: Simple validation for demo purposes
-    // In production, this will be replaced with Microsoft SSO
-    const validUsers = [
-      {
-        username: 'admin',
-        password: 'admin123',
-        user: {
-          id: '1',
-          username: 'admin',
-          email: 'admin@moveware.com',
-          role: 'admin' as const,
-          name: 'Admin User',
-        },
-      },
-      {
-        username: 'staff',
-        password: 'staff123',
-        user: {
-          id: '2',
-          username: 'staff',
-          email: 'staff@moveware.com',
-          role: 'staff' as const,
-          name: 'Staff User',
-        },
-      },
-    ];
+    // Read break-glass credentials from environment variables
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-    const validUser = validUsers.find(
-      (u) => u.username === credentials.username && u.password === credentials.password
-    );
-
-    if (validUser) {
-      // In production, generate a proper JWT token here
+    // Validate credentials
+    if (
+      credentials.username === adminUsername &&
+      credentials.password === adminPassword
+    ) {
       const response: LoginResponse = {
         success: true,
-        user: validUser.user,
+        user: {
+          id: '1',
+          username: adminUsername,
+          email: 'admin@moveware.com',
+          role: 'admin',
+          name: 'Admin User',
+        },
         token: 'placeholder-token',
         message: 'Login successful',
       };
 
       return NextResponse.json(response, { status: 200 });
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Invalid username or password',
-        } as LoginResponse,
-        { status: 401 }
-      );
     }
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Invalid username or password',
+      } as LoginResponse,
+      { status: 401 }
+    );
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
