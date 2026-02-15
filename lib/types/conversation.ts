@@ -2,7 +2,7 @@
  * Conversation state types for Zustand store
  */
 
-export type WorkflowType = "company-setup" | "custom-layout";
+export type ConversationWorkflowType = "company-setup" | "custom-layout";
 
 export type ConversationStatus =
   | "idle"
@@ -41,7 +41,7 @@ export interface ConversationState {
   // Core state
   conversationId: string | null;
   messages: Message[];
-  workflow: WorkflowType;
+  workflow: ConversationWorkflowType;
   metadata: ConversationMetadata;
   jobStatus: AsyncJobStatus;
 
@@ -50,7 +50,7 @@ export interface ConversationState {
   addMessage: (message: Omit<Message, "id" | "timestamp">) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
   clearMessages: () => void;
-  setWorkflow: (workflow: WorkflowType) => void;
+  setWorkflow: (workflow: ConversationWorkflowType) => void;
   updateMetadata: (updates: Partial<ConversationMetadata>) => void;
   updateJobStatus: (updates: Partial<AsyncJobStatus>) => void;
   resetConversation: () => void;
