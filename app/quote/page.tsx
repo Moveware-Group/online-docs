@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageShell } from '@/lib/components/layout';
 import { Loader2, AlertCircle } from 'lucide-react';
 import SignatureCanvas from '@/lib/components/forms/signature-canvas';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { CustomLayoutRenderer } from '@/lib/components/quote/custom-layout-renderer';
+import type { LayoutConfig } from '@/lib/services/llm-service';
 
 interface Job {
   id: number;
@@ -76,6 +78,7 @@ function QuotePageContent() {
   const companyId = searchParams.get('coId');
   const shouldPrint = searchParams.get('print') === 'true';
   const acceptanceId = searchParams.get('acceptanceId');
+  const isPreviewMode = searchParams.get('preview') === 'true';
   
   const [job, setJob] = useState<Job | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -83,6 +86,9 @@ function QuotePageContent() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Custom layout state
+  const [customLayout, setCustomLayout] = useState<LayoutConfig | null>(null);
   
   // Form state for signature section
   const [signatureName, setSignatureName] = useState('');
@@ -206,6 +212,20 @@ function QuotePageContent() {
     setCurrentPage(1);
   }, [inventory.length]);
 
+  // Listen for layout preview updates via postMessage (from layout builder iframe)
+  useEffect(() => {
+    if (!isPreviewMode) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'LAYOUT_PREVIEW_UPDATE' && event.data.config) {
+        setCustomLayout(event.data.config);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isPreviewMode]);
+
   const fetchAcceptanceData = async (acceptanceIdParam: string) => {
     try {
       const response = await fetch(`/api/quotes/acceptance/${acceptanceIdParam}`);
@@ -252,6 +272,21 @@ function QuotePageContent() {
       setJob(jobResult.data);
       setInventory(inventoryResult.data || []);
       setCostings(costingsResult.data || []);
+
+      // Check for a custom layout for this company (unless in preview mode where it comes via postMessage)
+      if (!isPreviewMode) {
+        try {
+          const layoutRes = await fetch(`/api/layouts/${coIdParam}`);
+          if (layoutRes.ok) {
+            const layoutData = await layoutRes.json();
+            if (layoutData.success && layoutData.data?.layoutConfig && layoutData.data?.isActive) {
+              setCustomLayout(layoutData.data.layoutConfig);
+            }
+          }
+        } catch {
+          // No custom layout — use base layout
+        }
+      }
     } catch (err) {
       console.error('Error fetching job data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load job data');
@@ -496,6 +531,34 @@ function QuotePageContent() {
     setCurrentPage(1);
   };
 
+  // ---- Custom Layout Rendering ----
+  if (customLayout) {
+    const pageData = {
+      job,
+      inventory,
+      costings,
+      customerName,
+      companyName,
+      logoUrl,
+      primaryColor,
+      quoteDate,
+      expiryDate,
+      totalCube,
+    };
+
+    return (
+      <PageShell includeHeader={false}>
+        <CustomLayoutRenderer
+          config={customLayout}
+          data={pageData}
+          selectedCostingId={selectedCostingId}
+          onSelectCosting={(id: string) => setSelectedCostingId(id)}
+        />
+      </PageShell>
+    );
+  }
+
+  // ---- Base Layout Rendering ----
   return (
     <PageShell includeHeader={false}>
       <div ref={pdfContentRef} className="min-h-screen bg-gray-50">

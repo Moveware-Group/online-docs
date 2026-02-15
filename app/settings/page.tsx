@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 
@@ -349,6 +349,9 @@ export default function SettingsPage() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyBranding | null>(null);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
+  // Custom layouts state
+  const [customLayouts, setCustomLayouts] = useState<Record<string, { isActive: boolean; version: number }>>({});
+
   // Load companies
   useEffect(() => {
     if (!isAuthenticated) {
@@ -363,6 +366,29 @@ export default function SettingsPage() {
         if (companiesRes.ok) {
           const companiesData = await companiesRes.json();
           setCompanies(companiesData || []);
+
+          // Check for custom layouts for each company
+          const layouts: Record<string, { isActive: boolean; version: number }> = {};
+          const companyList = companiesData || [];
+          for (const c of companyList) {
+            if (c.id) {
+              try {
+                const layoutRes = await fetch(`/api/layouts/${c.id}`);
+                if (layoutRes.ok) {
+                  const layoutData = await layoutRes.json();
+                  if (layoutData.success && layoutData.data) {
+                    layouts[c.id] = {
+                      isActive: layoutData.data.isActive,
+                      version: layoutData.data.version,
+                    };
+                  }
+                }
+              } catch {
+                // No layout for this company — that's fine
+              }
+            }
+          }
+          setCustomLayouts(layouts);
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -513,7 +539,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Content */}
+        {/* Company Branding Section */}
         <div className="bg-white rounded-xl shadow-md p-6 space-y-6">
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -622,6 +648,106 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Custom Layouts Section */}
+        <div className="bg-white rounded-xl shadow-md p-6 space-y-6 mt-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <Layout className="w-5 h-5 text-blue-600" />
+                Custom Quote Layouts
+              </h2>
+              <p className="text-sm text-gray-600">
+                Create AI-generated custom quote page layouts for specific clients.
+              </p>
+            </div>
+          </div>
+
+          {companies.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              Add a company above to create custom layouts.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {companies.map((company) => {
+                const layout = company.id ? customLayouts[company.id] : null;
+                return (
+                  <div
+                    key={`layout-${company.id}`}
+                    className="flex items-center justify-between border border-gray-200 rounded-lg p-4 hover:border-blue-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center"
+                        style={{
+                          backgroundColor: layout
+                            ? layout.isActive
+                              ? '#dcfce7'
+                              : '#fef3c7'
+                            : '#f3f4f6',
+                        }}
+                      >
+                        <Wand2
+                          className="w-4 h-4"
+                          style={{
+                            color: layout
+                              ? layout.isActive
+                                ? '#16a34a'
+                                : '#d97706'
+                              : '#9ca3af',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900">{company.companyName}</h3>
+                        <p className="text-xs text-gray-500">
+                          {layout
+                            ? `Custom layout v${layout.version} — ${layout.isActive ? 'Active' : 'Inactive'}`
+                            : 'Using base layout'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {layout && (
+                        <button
+                          onClick={async () => {
+                            if (!company.id) return;
+                            if (!confirm('Delete this custom layout? The company will revert to the base layout.')) return;
+                            try {
+                              const res = await fetch(`/api/layouts/${company.id}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                setCustomLayouts((prev) => {
+                                  const next = { ...prev };
+                                  delete next[company.id!];
+                                  return next;
+                                });
+                                setSuccess('Custom layout deleted.');
+                              }
+                            } catch {
+                              setError('Failed to delete layout.');
+                            }
+                          }}
+                          className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 inline mr-1" />
+                          Delete
+                        </button>
+                      )}
+                      <a
+                        href={`/settings/layout-builder?companyId=${company.id}`}
+                        className="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                        {layout ? 'Edit Layout' : 'Create Layout'}
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
     </div>

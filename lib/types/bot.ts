@@ -8,6 +8,7 @@ export type WorkflowType =
   | "review_submission"
   | "general_question"
   | "faq"
+  | "custom_layout"
   | "unknown";
 
 export interface BotMessageRequest {
