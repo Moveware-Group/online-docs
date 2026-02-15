@@ -51,17 +51,17 @@ export function CompanySearchDropdown({
     try {
       const res = await fetch('/api/settings/companies');
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setCompanies(
-          data.data.map((c: Record<string, string>) => ({
-            id: c.id,
-            name: c.companyName || c.name,
-            brandCode: c.brandCode,
-            primaryColor: c.primaryColor,
-            logoUrl: c.logoUrl,
-          })),
-        );
-      }
+      // The API returns a bare array (not wrapped in { success, data })
+      const companyList = Array.isArray(data) ? data : (data.data || []);
+      setCompanies(
+        companyList.map((c: Record<string, string>) => ({
+          id: c.id,
+          name: c.companyName || c.name,
+          brandCode: c.brandCode,
+          primaryColor: c.primaryColor,
+          logoUrl: c.logoUrl,
+        })),
+      );
     } catch (err) {
       console.error('Failed to fetch companies:', err);
     } finally {

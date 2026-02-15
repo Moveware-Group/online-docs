@@ -98,8 +98,9 @@ function LayoutBuilderContent() {
     try {
       const res = await fetch('/api/settings/companies');
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        const match = data.data.find((c: Record<string, string>) => c.id === id);
+      const companyList = Array.isArray(data) ? data : (data.data || []);
+      if (companyList.length > 0) {
+        const match = companyList.find((c: Record<string, string>) => c.id === id);
         if (match) {
           setSelectedCompany({
             id: match.id,
