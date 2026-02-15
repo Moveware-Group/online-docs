@@ -31,4 +31,17 @@ export async function GET() {
       { status: 503 },
     );
   }
+import { NextResponse } from "next/server";
+
+/**
+ * Health check endpoint
+ * GET /health
+ */
+export async function GET() {
+  return NextResponse.json(
+    {
+      status: "ok",
+    },
+    { status: 200 },
+  );
 }

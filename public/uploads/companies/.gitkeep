@@ -1,0 +1,2 @@
+# This directory stores uploaded company logos organized by tenant ID
+# Structure: public/uploads/companies/[tenant_id]/[uuid]_[filename]
