@@ -2,11 +2,8 @@
 
 # dependencies
 /node_modules
-# Dependencies
-node_modules/
 /.pnp
 .pnp.js
-logs/
 
 # testing
 /coverage
@@ -29,12 +26,7 @@ yarn-error.log*
 
 # local env files
 .env*.local
-# Local env files
 .env
-.env*.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # vercel
 .vercel
@@ -43,14 +35,26 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# data storage
-/data
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# prisma
+/prisma/*.db
+/prisma/*.db-journal
+
+# PM2
+.pm2
+
+# uploads directory (local file storage)
+/srv/uploads/
+/uploads/
+*.upload
+
+# logs
+/logs/*.log
+!/logs/.gitkeep
+
+# backups
+/backups/
+*.tar.gz
+*.zip
 
 # Auto-added by AI Runner
 dist/

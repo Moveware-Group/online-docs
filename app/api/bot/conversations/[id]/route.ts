@@ -6,6 +6,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+// Type for conversation with dynamic/JSON fields that Prisma might not include in generated types
+interface BotConversationWithFields {
+  id: string;
+  companyId: string | null;
+  workflow: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  metadata?: unknown;
+  messages?: unknown;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -14,9 +26,9 @@ export async function GET(
     const { id } = await params;
 
     // Fetch conversation - messages is stored as JSON field
-    const conversation = await prisma.botConversation.findUnique({
+    const conversation = (await prisma.botConversation.findUnique({
       where: { id },
-    });
+    })) as BotConversationWithFields | null;
 
     if (!conversation) {
       return NextResponse.json(
@@ -42,16 +54,11 @@ export async function GET(
         ? JSON.parse(conversation.metadata)
         : conversation.metadata;
 
-    // Messages field is stored as JSON but may not be in generated Prisma types
-    const conversationData = conversation as unknown as {
-      messages?: unknown;
-    };
-
     // Parse messages if it's a string (stored as JSON)
     const messages =
-      typeof conversationData.messages === "string"
-        ? JSON.parse(conversationData.messages)
-        : conversationData.messages;
+      typeof conversation.messages === "string"
+        ? JSON.parse(conversation.messages)
+        : conversation.messages;
 
     // Ensure messages is an array
     const messageArray = Array.isArray(messages) ? messages : [];
