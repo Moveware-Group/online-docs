@@ -22,27 +22,26 @@ function ThankYouContent() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (jobId && coId) {
-      fetchBranding();
-    } else {
-      setLoading(false);
-    }
-  }, [jobId, coId]);
-
-  const fetchBranding = async () => {
-    try {
-      const response = await fetch(`/api/jobs/${jobId}?coId=${coId}`);
-      const result = await response.json();
-      
-      if (result.success && result.data?.branding) {
-        setBranding(result.data.branding);
+    async function fetchBranding() {
+      try {
+        const response = await fetch('/api/settings/branding');
+        if (response.ok) {
+          const data = await response.json();
+          setBranding({
+            primaryColor: data?.primaryColor,
+            secondaryColor: data?.secondaryColor,
+            logoUrl: data?.logoUrl,
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching branding:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error fetching branding:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    fetchBranding();
+  }, []);
 
   const companyName = branding?.companyName || 'Moveware';
   const logoUrl = branding?.logoUrl;
@@ -98,21 +97,23 @@ function ThankYouContent() {
             </p>
 
             {/* Details */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-8">
-              <div className="space-y-3 text-left">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Reference Number:</span>
-                  <span className="text-lg font-bold" style={{ color: primaryColor }}>#{jobId}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Status:</span>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    <span className="w-2 h-2 rounded-full bg-green-600 mr-2"></span>
-                    Accepted
-                  </span>
+            {jobId && (
+              <div className="bg-gray-50 rounded-lg p-6 mb-8">
+                <div className="space-y-3 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">Reference Number:</span>
+                    <span className="text-lg font-bold" style={{ color: primaryColor }}>#{jobId}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-600">Status:</span>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      <span className="w-2 h-2 rounded-full bg-green-600 mr-2"></span>
+                      Accepted
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* What's Next */}
             <div className="mb-8 text-left">
@@ -125,11 +126,9 @@ function ThankYouContent() {
                   >
                     1
                   </div>
-                  <div>
-                    <p className="text-gray-700">
-                      <span className="font-semibold">Confirmation Email</span> - You'll receive a confirmation email shortly with all the details.
-                    </p>
-                  </div>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">Confirmation Email</span> - You&apos;ll receive a confirmation email shortly with all the details.
+                  </p>
                 </li>
                 <li className="flex items-start">
                   <div 
@@ -138,11 +137,9 @@ function ThankYouContent() {
                   >
                     2
                   </div>
-                  <div>
-                    <p className="text-gray-700">
-                      <span className="font-semibold">We'll Contact You</span> - Our team will reach out within 24 hours to finalize the details.
-                    </p>
-                  </div>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">We&apos;ll Contact You</span> - Our team will reach out within 24 hours to finalize the details.
+                  </p>
                 </li>
                 <li className="flex items-start">
                   <div 
@@ -151,11 +148,9 @@ function ThankYouContent() {
                   >
                     3
                   </div>
-                  <div>
-                    <p className="text-gray-700">
-                      <span className="font-semibold">Move Day Preparation</span> - We'll prepare everything for your scheduled move date.
-                    </p>
-                  </div>
+                  <p className="text-gray-700">
+                    <span className="font-semibold">Move Day Preparation</span> - We&apos;ll prepare everything for your scheduled move date.
+                  </p>
                 </li>
               </ul>
             </div>
@@ -163,7 +158,7 @@ function ThankYouContent() {
             {/* Contact Info */}
             <div className="border-t border-gray-200 pt-6 mb-6">
               <p className="text-sm text-gray-600 mb-4">
-                If you have any questions, please don't hesitate to contact us:
+                If you have any questions, please don&apos;t hesitate to contact us:
               </p>
               <div className="text-sm text-gray-700 space-y-1">
                 <p><span className="font-medium">Email:</span> contact@moveware.com</p>
@@ -179,20 +174,23 @@ function ThankYouContent() {
               >
                 Back to Home
               </Link>
-              <button
-                onClick={() => {
-                  const acceptanceId = sessionStorage.getItem('quoteAcceptanceId');
-                  if (acceptanceId) {
-                    window.open(`/quote?jobId=${jobId}&coId=${coId}&acceptanceId=${acceptanceId}&print=true`, '_blank');
-                  } else {
-                    window.open(`/quote?jobId=${jobId}&coId=${coId}&print=true`, '_blank');
-                  }
-                }}
-                style={{ backgroundColor: primaryColor }}
-                className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Print Confirmation
-              </button>
+              {jobId && (
+                <button
+                  onClick={() => {
+                    const acceptanceId = sessionStorage.getItem('quoteAcceptanceId');
+                    const params = new URLSearchParams();
+                    params.set('jobId', jobId);
+                    if (coId) params.set('coId', coId);
+                    if (acceptanceId) params.set('acceptanceId', acceptanceId);
+                    params.set('print', 'true');
+                    window.open(`/quote?${params.toString()}`, '_blank');
+                  }}
+                  style={{ backgroundColor: primaryColor }}
+                  className="px-6 py-3 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Print Confirmation
+                </button>
+              )}
             </div>
           </div>
 

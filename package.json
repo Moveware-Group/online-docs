@@ -22,12 +22,12 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@azure/storage-blob": "^12.17.0",
+    "@azure/storage-blob": "^12.31.0",
     "@prisma/client": "^5.22.0",
     "@types/html2pdf.js": "^0.10.0",
     "@types/react-datepicker": "^6.2.0",
     "clsx": "^2.0.0",
-    "file-type": "^19.0.0",
+    "file-type": "^19.6.0",
     "html2pdf.js": "^0.14.0",
     "isomorphic-dompurify": "^2.16.0",
     "lucide-react": "^0.294.0",
@@ -36,7 +36,7 @@
     "react-datepicker": "^9.1.0",
     "react-dom": "^18",
     "tailwind-merge": "^2.2.0",
-    "zustand": "^4.4.7"
+    "zustand": "^4.5.7"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

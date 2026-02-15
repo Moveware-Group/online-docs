@@ -1,2 +1,1 @@
-export { default as SettingsPageContent } from "./settings-page-content";
-export { default as CompaniesListView } from "./CompaniesListView";
+// Settings components are rendered directly in app/settings/page.tsx

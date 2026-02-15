@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { useAuth } from '@/lib/contexts/auth-context';
+import { LoginForm } from '@/lib/components/auth/login-form';
 
 interface CompanyBranding {
   id?: string;
@@ -13,14 +15,194 @@ interface CompanyBranding {
   secondaryColor: string;
   tertiaryColor: string;
   fontFamily: string;
-  heroHeading?: string;
-  heroSubheading?: string;
-  heroCtaText?: string;
-  heroCtaUrl?: string;
-  heroImageUrl?: string;
-  tagline?: string;
-  description?: string;
-  metaDescription?: string;
+}
+
+/**
+ * Expand shorthand hex (#RGB) to full form (#RRGGBB) for the color picker.
+ * The HTML color input only accepts 7-char hex values.
+ */
+function expandHex(hex: string): string {
+  const trimmed = hex.trim();
+  // Match #RGB or #RGBA (3 or 4 chars after #)
+  const match = trimmed.match(/^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/);
+  if (match) {
+    return `#${match[1]}${match[1]}${match[2]}${match[2]}${match[3]}${match[3]}`;
+  }
+  // Already 6-char or invalid — return as-is (color picker will handle gracefully)
+  return trimmed;
+}
+
+/**
+ * Check whether a string is a valid hex color (#RGB or #RRGGBB).
+ */
+function isValidHex(hex: string): boolean {
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
+}
+
+function ColorPickerField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  // The text input is the source of truth.
+  // The color picker shows the expanded version.
+  const pickerValue = isValidHex(value) ? expandHex(value) : '#000000';
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex gap-2">
+        <input
+          type="color"
+          value={pickerValue}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+          placeholder="#CC0000"
+        />
+      </div>
+      {value && !isValidHex(value) && (
+        <p className="text-xs text-amber-600 mt-1">Enter a valid hex color, e.g. #C00 or #CC0000</p>
+      )}
+    </div>
+  );
+}
+
+function LogoUploadField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    const validTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('Only PNG, JPEG, SVG, and WebP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File must be less than 5 MB.');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/companies/upload', {
+        method: 'POST',
+        headers: {
+          'X-Tenant-Id': 'default',
+          Authorization: 'Bearer placeholder-token',
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Upload failed');
+      }
+
+      onChange(result.url || result.path);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      // Reset input so the same file can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Company Logo</label>
+
+      {/* Preview */}
+      {value && (
+        <div className="mb-3 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+          <img
+            src={value}
+            alt="Company logo"
+            className="h-12 w-auto max-w-[200px] object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <span className="flex-1 text-sm text-gray-500 truncate">{value}</span>
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+            title="Remove logo"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Upload area */}
+      <div
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+          uploading
+            ? 'border-gray-300 bg-gray-50 cursor-wait'
+            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml,image/webp"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+        {uploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <p className="text-sm text-gray-600">Uploading...</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+              {value ? <ImageIcon className="w-5 h-5 text-gray-500" /> : <Upload className="w-5 h-5 text-gray-400" />}
+            </div>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-blue-600">Click to upload</span> a logo image
+            </p>
+            <p className="text-xs text-gray-400">PNG, JPEG, SVG, or WebP (max 5 MB)</p>
+          </div>
+        )}
+      </div>
+
+      {uploadError && (
+        <p className="text-xs text-red-600 mt-2">{uploadError}</p>
+      )}
+    </div>
+  );
 }
 
 function CompanyForm({
@@ -40,18 +222,10 @@ function CompanyForm({
       brandCode: '',
       companyName: '',
       logoUrl: '',
-      primaryColor: '#c00',
-      secondaryColor: '#fff',
+      primaryColor: '#cc0000',
+      secondaryColor: '#ffffff',
       tertiaryColor: '#5a5a5a',
       fontFamily: 'Inter',
-      heroHeading: '',
-      heroSubheading: '',
-      heroCtaText: '',
-      heroCtaUrl: '',
-      heroImageUrl: '',
-      tagline: '',
-      description: '',
-      metaDescription: '',
     }
   );
 
@@ -104,79 +278,29 @@ function CompanyForm({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Logo URL
-          </label>
-          <input
-            type="text"
-            value={formData.logoUrl}
-            onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="/images/company-logo.svg"
-          />
-        </div>
+        {/* Logo Upload */}
+        <LogoUploadField
+          value={formData.logoUrl}
+          onChange={(url) => setFormData({ ...formData, logoUrl: url })}
+        />
 
+        {/* Colors */}
         <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Primary Color
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={formData.primaryColor}
-                onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={formData.primaryColor}
-                onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Secondary Color
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={formData.secondaryColor}
-                onChange={(e) => setFormData({ ...formData, secondaryColor: e.target.value })}
-                className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={formData.secondaryColor}
-                onChange={(e) => setFormData({ ...formData, secondaryColor: e.target.value })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tertiary Color
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={formData.tertiaryColor}
-                onChange={(e) => setFormData({ ...formData, tertiaryColor: e.target.value })}
-                className="h-10 w-16 border border-gray-300 rounded cursor-pointer"
-              />
-              <input
-                type="text"
-                value={formData.tertiaryColor}
-                onChange={(e) => setFormData({ ...formData, tertiaryColor: e.target.value })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              />
-            </div>
-          </div>
+          <ColorPickerField
+            label="Primary Color"
+            value={formData.primaryColor}
+            onChange={(val) => setFormData({ ...formData, primaryColor: val })}
+          />
+          <ColorPickerField
+            label="Secondary Color"
+            value={formData.secondaryColor}
+            onChange={(val) => setFormData({ ...formData, secondaryColor: val })}
+          />
+          <ColorPickerField
+            label="Tertiary Color"
+            value={formData.tertiaryColor}
+            onChange={(val) => setFormData({ ...formData, tertiaryColor: val })}
+          />
         </div>
 
         <div>
@@ -190,110 +314,6 @@ function CompanyForm({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Inter"
           />
-        </div>
-
-        {/* Hero Section */}
-        <div className="pt-6 border-t border-gray-300">
-          <h4 className="text-md font-semibold text-gray-900 mb-4">Hero Content</h4>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hero Image URL</label>
-              <input
-                type="text"
-                value={formData.heroImageUrl || ''}
-                onChange={(e) => setFormData({ ...formData, heroImageUrl: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://example.com/hero.jpg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hero Heading</label>
-              <input
-                type="text"
-                value={formData.heroHeading || ''}
-                onChange={(e) => setFormData({ ...formData, heroHeading: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Welcome to Our Service"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hero Subheading</label>
-              <textarea
-                value={formData.heroSubheading || ''}
-                onChange={(e) => setFormData({ ...formData, heroSubheading: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Brief description"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CTA Text</label>
-                <input
-                  type="text"
-                  value={formData.heroCtaText || ''}
-                  onChange={(e) => setFormData({ ...formData, heroCtaText: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Get Started"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CTA URL</label>
-                <input
-                  type="text"
-                  value={formData.heroCtaUrl || ''}
-                  onChange={(e) => setFormData({ ...formData, heroCtaUrl: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="/quote"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Copy Section */}
-        <div className="pt-6 border-t border-gray-300">
-          <h4 className="text-md font-semibold text-gray-900 mb-4">Copy Content</h4>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tagline</label>
-              <input
-                type="text"
-                value={formData.tagline || ''}
-                onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Your moving partner"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                value={formData.description || ''}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Company description"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
-              <textarea
-                value={formData.metaDescription || ''}
-                onChange={(e) => setFormData({ ...formData, metaDescription: e.target.value })}
-                rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="SEO meta description"
-              />
-            </div>
-          </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
@@ -318,6 +338,7 @@ function CompanyForm({
 }
 
 export default function SettingsPage() {
+  const { isAuthenticated, isLoading: authLoading, user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState<string | null>(null);
@@ -330,6 +351,11 @@ export default function SettingsPage() {
 
   // Load companies
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLoadingData(false);
+      return;
+    }
+
     const loadSettings = async () => {
       setLoadingData(true);
       try {
@@ -346,7 +372,21 @@ export default function SettingsPage() {
     };
 
     loadSettings();
-  }, []);
+  }, [isAuthenticated]);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
 
   const handleSaveCompany = async (company: CompanyBranding) => {
     setLoading(true);
@@ -368,7 +408,7 @@ export default function SettingsPage() {
       }
 
       const savedCompany = await response.json();
-      
+
       // Update local state
       if (company.id) {
         setCompanies(companies.map(c => c.id === company.id ? savedCompany : c));
@@ -427,13 +467,27 @@ export default function SettingsPage() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Company Settings</h1>
-              <p className="text-base text-gray-600 mt-1">
-                Configure your company branding, colors, and content
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Building2 className="w-8 h-8 text-blue-600" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Company Settings</h1>
+                <p className="text-base text-gray-600 mt-1">
+                  Configure your company branding, colors, and logo
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">
+                Signed in as <span className="font-medium text-gray-900">{user?.name || user?.username}</span>
+              </span>
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
@@ -475,18 +529,10 @@ export default function SettingsPage() {
                       brandCode: '',
                       companyName: '',
                       logoUrl: '',
-                      primaryColor: '#c00',
-                      secondaryColor: '#fff',
+                      primaryColor: '#cc0000',
+                      secondaryColor: '#ffffff',
                       tertiaryColor: '#5a5a5a',
                       fontFamily: 'Inter',
-                      heroHeading: '',
-                      heroSubheading: '',
-                      heroCtaText: '',
-                      heroCtaUrl: '',
-                      heroImageUrl: '',
-                      tagline: '',
-                      description: '',
-                      metaDescription: '',
                     });
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -511,7 +557,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 {companies.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    No companies configured yet. Click "Add Company" to get started.
+                    No companies configured yet. Click &quot;Add Company&quot; to get started.
                   </div>
                 ) : (
                   companies.map((company) => (
@@ -533,6 +579,23 @@ export default function SettingsPage() {
                             <p className="text-sm text-gray-600">
                               Company ID: {company.companyId} | Brand Code: {company.brandCode}
                             </p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-4">
+                            <div
+                              className="w-6 h-6 rounded-full border border-gray-300"
+                              style={{ backgroundColor: isValidHex(company.primaryColor) ? expandHex(company.primaryColor) : company.primaryColor }}
+                              title={`Primary: ${company.primaryColor}`}
+                            />
+                            <div
+                              className="w-6 h-6 rounded-full border border-gray-300"
+                              style={{ backgroundColor: isValidHex(company.secondaryColor) ? expandHex(company.secondaryColor) : company.secondaryColor }}
+                              title={`Secondary: ${company.secondaryColor}`}
+                            />
+                            <div
+                              className="w-6 h-6 rounded-full border border-gray-300"
+                              style={{ backgroundColor: isValidHex(company.tertiaryColor) ? expandHex(company.tertiaryColor) : company.tertiaryColor }}
+                              title={`Tertiary: ${company.tertiaryColor}`}
+                            />
                           </div>
                         </div>
                         <div className="flex gap-2">
