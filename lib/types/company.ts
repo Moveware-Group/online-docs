@@ -29,7 +29,7 @@ export interface Company {
   tertiaryColor?: string;
 
   /** Company logo URL */
-  logo?: string;
+  logoUrl?: string | null;
 
   /** Hero section content/configuration */
   heroContent?: string;
@@ -167,7 +167,7 @@ export interface CreateCompanyRequest {
   tertiaryColor?: string;
 
   /** Logo URL (optional) */
-  logo?: string;
+  logoUrl?: string;
 
   /** Hero content (optional) */
   heroContent?: string;
@@ -194,7 +194,7 @@ export interface UpdateCompanyRequest {
   tertiaryColor?: string;
 
   /** Logo URL (optional) */
-  logo?: string;
+  logoUrl?: string;
 
   /** Hero content (optional) */
   heroContent?: string;
