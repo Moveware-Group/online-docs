@@ -2,27 +2,6 @@
 
 /**
  * Server Actions for Company Mutations
- *
- * CACHE REVALIDATION STRATEGY:
- * --------------------------------
- * All mutation operations (create, update, delete) use Next.js revalidatePath()
- * to invalidate the cache for the companies list page. This ensures that:
- *
- * 1. After any mutation, the /settings/companies page will fetch fresh data
- * 2. No stale data is shown to users after changes
- * 3. Server-side rendering benefits are maintained
- * 4. No manual router.refresh() calls needed in client components
- *
- * Why revalidatePath over revalidateTag?
- * - revalidatePath is simpler and sufficient for single-page invalidation
- * - We invalidate the entire /settings/companies route
- * - If we need more granular control later, we can switch to revalidateTag
- *
- * Usage:
- * - Import actions in client components with 'use client'
- * - Call directly: await createCompany(formData)
- * - Actions return { success: true } or { error: string }
- * - Cache revalidation happens automatically after successful mutations
  */
 
 import { revalidatePath } from "next/cache";
@@ -36,44 +15,52 @@ type ActionResult =
 
 /**
  * Create a new company
- *
- * @param formData - Form data containing company details
- * @returns ActionResult with success status
- *
- * CACHE REVALIDATION:
- * After successful creation, revalidates /settings/companies to show the new company
- * in the list immediately without requiring a page refresh.
  */
 export async function createCompany(formData: FormData): Promise<ActionResult> {
   try {
     const name = formData.get("name") as string;
+    const brandCode = formData.get("brandCode") as string;
+    const tenantId = (formData.get("tenantId") as string) || "default";
+    const primaryColor = (formData.get("primaryColor") as string) || "#2563eb";
+    const secondaryColor = (formData.get("secondaryColor") as string) || "#1e40af";
+    const tertiaryColor = (formData.get("tertiaryColor") as string) || "#60a5fa";
+    const logoUrl = formData.get("logoUrl") as string | null;
 
     // Validate required fields
     if (!name || name.trim() === "") {
       return { success: false, error: "Company name is required" };
     }
 
+    if (!brandCode || brandCode.trim() === "") {
+      return { success: false, error: "Brand code is required" };
+    }
+
     // Create company in database
     const company = await prisma.company.create({
       data: {
         name: name.trim(),
+        brandCode: brandCode.trim(),
+        tenantId: tenantId.trim(),
         apiKey: randomUUID(),
+        primaryColor,
+        secondaryColor,
+        tertiaryColor,
+        logoUrl: logoUrl || null,
       },
     });
 
-    // CRITICAL: Revalidate the companies list page to show the new company
+    revalidatePath("/settings");
     revalidatePath("/settings/companies");
 
     return { success: true, data: company };
   } catch (error) {
     console.error("Error creating company:", error);
 
-    // Handle unique constraint violations (duplicate company name)
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return {
           success: false,
-          error: "A company with this name already exists",
+          error: "A company with this brand code already exists",
         };
       }
     }
@@ -87,14 +74,6 @@ export async function createCompany(formData: FormData): Promise<ActionResult> {
 
 /**
  * Update an existing company
- *
- * @param companyId - ID of the company to update
- * @param formData - Form data containing updated company details
- * @returns ActionResult with success status
- *
- * CACHE REVALIDATION:
- * After successful update, revalidates /settings/companies to reflect the changes
- * immediately in the list view.
  */
 export async function updateCompany(
   companyId: string,
@@ -102,6 +81,11 @@ export async function updateCompany(
 ): Promise<ActionResult> {
   try {
     const name = formData.get("name") as string;
+    const brandCode = formData.get("brandCode") as string;
+    const primaryColor = formData.get("primaryColor") as string | null;
+    const secondaryColor = formData.get("secondaryColor") as string | null;
+    const tertiaryColor = formData.get("tertiaryColor") as string | null;
+    const logoUrl = formData.get("logoUrl") as string | null;
 
     // Validate required fields
     if (!name || name.trim() === "") {
@@ -117,30 +101,36 @@ export async function updateCompany(
       return { success: false, error: "Company not found" };
     }
 
+    // Build update data
+    const updateData: any = {
+      name: name.trim(),
+    };
+
+    if (brandCode) updateData.brandCode = brandCode.trim();
+    if (primaryColor) updateData.primaryColor = primaryColor;
+    if (secondaryColor) updateData.secondaryColor = secondaryColor;
+    if (tertiaryColor) updateData.tertiaryColor = tertiaryColor;
+    if (logoUrl !== undefined) updateData.logoUrl = logoUrl || null;
+
     // Update company in database
     const company = await prisma.company.update({
       where: { id: companyId },
-      data: {
-        name: name.trim(),
-      },
+      data: updateData,
     });
 
-    // CRITICAL: Revalidate the companies list page to show updated data
+    revalidatePath("/settings");
     revalidatePath("/settings/companies");
-
-    // Also revalidate the individual company page if it exists
     revalidatePath(`/settings/companies/${companyId}`);
 
     return { success: true, data: company };
   } catch (error) {
     console.error("Error updating company:", error);
 
-    // Handle unique constraint violations
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return {
           success: false,
-          error: "A company with this name already exists",
+          error: "A company with this brand code already exists",
         };
       }
     }
@@ -154,17 +144,9 @@ export async function updateCompany(
 
 /**
  * Delete a company
- *
- * @param companyId - ID of the company to delete
- * @returns ActionResult with success status
- *
- * CACHE REVALIDATION:
- * After successful deletion, revalidates /settings/companies to remove the deleted
- * company from the list immediately without requiring a page refresh.
  */
 export async function deleteCompany(companyId: string): Promise<ActionResult> {
   try {
-    // Check if company exists
     const existingCompany = await prisma.company.findUnique({
       where: { id: companyId },
     });
@@ -173,12 +155,11 @@ export async function deleteCompany(companyId: string): Promise<ActionResult> {
       return { success: false, error: "Company not found" };
     }
 
-    // Delete company
     await prisma.company.delete({
       where: { id: companyId },
     });
 
-    // CRITICAL: Revalidate the companies list page to remove the deleted company
+    revalidatePath("/settings");
     revalidatePath("/settings/companies");
 
     return { success: true };
