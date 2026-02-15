@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/contexts/auth-context";
+import { FloatingChatWidget } from "@/lib/components/chat/floating-chat-widget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,6 +26,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
+          <FloatingChatWidget />
         </AuthProvider>
       </body>
     </html>

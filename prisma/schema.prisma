@@ -35,7 +35,11 @@ model Company {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  botConversations BotConversation[]
+  botConversations  BotConversation[]
+  brandingSettings  BrandingSettings?
+  heroSettings      HeroSettings?
+  copySettings      CopySettings?
+  quotes            Quote[]
 
   @@unique([tenantId, brandCode])
   @@index([id])
@@ -44,30 +48,9 @@ model Company {
   @@map("companies")
 }
 
-model Job {
-  id                 String    @id @default(cuid())
-  movewareJobId      String    @unique
-  companyId          String
-  customerId         String?
-  customerName       String?
-  status             String
-  scheduledDate      DateTime?
-  completedDate      DateTime?
-  originAddress      String?
-  destinationAddress String?
-  data               String    @db.Text
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  @@index([companyId])
-  @@index([movewareJobId])
-  @@map("jobs")
-}
-
 model Quote {
   id              String    @id @default(cuid())
   quoteNumber     String    @unique
-  jobId           String?
   companyId       String
   customerName    String
   customerEmail   String?
@@ -83,71 +66,11 @@ model Quote {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
-  @@index([jobId])
   @@index([quoteNumber])
   @@map("quotes")
-}
-
-model Costing {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  description String?
-  category    String
-  unitPrice   Float
-  unit        String   @default("unit")
-  isActive    Boolean  @default(true)
-  data        String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([companyId])
-  @@index([category])
-  @@map("costings")
-}
-
-model Activity {
-  id             String    @id @default(cuid())
-  jobId          String
-  companyId      String
-  movewareId     String?
-  activityType   String
-  description    String    @db.Text
-  status         String
-  assignedTo     String?
-  scheduledDate  DateTime?
-  completedDate  DateTime?
-  notes          String?   @db.Text
-  data           String?   @db.Text
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@index([jobId])
-  @@index([companyId])
-  @@map("activities")
-}
-
-model Inventory {
-  id          String   @id @default(cuid())
-  jobId       String
-  companyId   String
-  movewareId  String?
-  itemName    String
-  category    String?
-  quantity    Int      @default(1)
-  volume      Float?
-  weight      Float?
-  fragile     Boolean  @default(false)
-  notes       String?  @db.Text
-  room        String?
-  data        String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([jobId])
-  @@index([companyId])
-  @@map("inventory")
 }
 
 model HeroSettings {
@@ -163,6 +86,8 @@ model HeroSettings {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@map("hero_settings")
 }
@@ -176,6 +101,8 @@ model BrandingSettings {
   fontFamily     String   @default("Inter")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@map("branding_settings")
@@ -191,70 +118,39 @@ model CopySettings {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@map("copy_settings")
 }
 
 model ReviewSubmission {
   id          String   @id @default(cuid())
-  jobId       String
+  quoteId     String?
   token       String
-  brand       String?
   companyId   String?
   answers     String   @db.Text
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([jobId])
+  @@index([quoteId])
+  @@index([companyId])
   @@index([token])
   @@map("review_submissions")
 }
 
-model PerformanceMetric {
-  id         String   @id @default(cuid())
-  jobId      String
-  companyId  String
-  metricType String
-  value      Float
-  unit       String?
-  notes      String?  @db.Text
-  recordedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([jobId])
-  @@index([companyId])
-  @@index([metricType])
-  @@map("performance_metrics")
-}
-
-model PerformanceQuestion {
-  id        String   @id @default(cuid())
-  companyId String
-  question  String   @db.Text
-  category  String?
-  order     Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([companyId])
-  @@index([category])
-  @@map("performance_questions")
-}
-
 model BotConversation {
-  id          String             @id @default(cuid())
-  companyId   String
-  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId      String?
-  status      ConversationStatus @default(active)
+  id           String             @id @default(cuid())
+  companyId    String
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId       String?
+  status       ConversationStatus @default(active)
   workflowType WorkflowType?
-  context     String?            @db.Text
-  messages    String             @db.Text
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  context      String?            @db.Text
+  messages     String             @db.Text
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([companyId])
   @@index([userId])
