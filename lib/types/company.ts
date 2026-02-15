@@ -34,6 +34,9 @@ export interface Company {
   /** Hero section content/configuration */
   heroContent?: string;
 
+  /** Whether the company is active */
+  isActive?: boolean;
+
   /** Timestamp of company creation (ISO 8601) */
   createdAt: string;
 
