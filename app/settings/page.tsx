@@ -404,7 +404,10 @@ export default function SettingsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save company');
+        const msg = errorData.details
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to save company';
+        throw new Error(msg);
       }
 
       const savedCompany = await response.json();
