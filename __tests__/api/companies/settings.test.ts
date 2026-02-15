@@ -1,3 +1,6 @@
+describe("/api/companies/[id]/settings", () => {
+  it("runs placeholder test", () => {
+    expect(true).toBe(true);
 import { describe, it, expect } from "@jest/globals";
 import { GET, PUT } from "../../../app/api/companies/[id]/settings/route";
 

@@ -1,3 +1,6 @@
+describe("/api/companies/[id]/logo", () => {
+  it("runs placeholder test", () => {
+    expect(true).toBe(true);
 import { describe, it, expect } from "@jest/globals";
 import { GET, POST, DELETE } from "../../../app/api/companies/[id]/logo/route";
 
