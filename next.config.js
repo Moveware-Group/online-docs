@@ -3,11 +3,27 @@ const nextConfig = {
   reactStrictMode: true,
   // Environment variables to expose to the client
   env: {
-    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Moveware App',
+    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "Moveware App",
   },
-  // Image domains for Next.js Image component if needed
+  // Image configuration for remote patterns
   images: {
-    domains: [],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.blob.core.windows.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "localhost",
+        pathname: "/**",
+      },
+    ],
   },
 };
 
