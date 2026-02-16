@@ -76,7 +76,26 @@ sudo chmod -R 755 /srv/uploads/
 sudo chmod -R 755 public/uploads/
 ```
 
-## 3. Environment Variables
+## 3. Browser Automation Setup (NEW!)
+
+The AI Layout Builder now uses **Playwright** to capture screenshots of reference URLs for much better accuracy.
+
+### Install Playwright
+
+```bash
+cd /srv/ai/repos/online-docs
+
+# Install dependencies
+sudo -u moveware-ai npm install
+
+# Install browser binaries
+sudo -u moveware-ai npx playwright install chromium
+sudo npx playwright install-deps chromium
+```
+
+See `docs/BROWSER_AUTOMATION_SETUP.md` for full details.
+
+## 4. Environment Variables
 
 No additional environment variables are required for file uploads. However, ensure your `.env` file has:
 

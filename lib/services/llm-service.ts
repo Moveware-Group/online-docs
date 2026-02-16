@@ -358,12 +358,16 @@ function extractJSON(text: string): string {
 export async function generateLayout(
   input: GenerateLayoutInput,
 ): Promise<LayoutConfig> {
-  const userMessage = await buildGeneratePrompt(input);
+  const { prompt: userMessage, screenshotData } = await buildGeneratePrompt(input);
+  
+  // Use screenshot from URL if available, otherwise use uploaded file
+  const referenceData = screenshotData || input.referenceFileData;
+  
   const raw = await callLLM(
     LAYOUT_SYSTEM_PROMPT,
     userMessage,
     input.conversationHistory,
-    input.referenceFileData,
+    referenceData,
   );
   const json = extractJSON(raw);
 
@@ -433,33 +437,53 @@ Keep responses concise and helpful. Focus on web design, branding, and user expe
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch the HTML content from a reference URL
+ * Fetch the HTML content and screenshot from a reference URL using browser automation
  */
-async function fetchReferenceContent(url: string): Promise<{ html: string | null; error?: string }> {
+async function fetchReferenceContent(url: string): Promise<{
+  html: string | null;
+  screenshot: Buffer | null;
+  error?: string;
+}> {
   try {
-    console.log(`[LLM Service] Fetching reference URL: ${url}`);
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-    if (!response.ok) {
-      const error = `Failed to fetch reference URL: HTTP ${response.status} ${response.statusText}`;
-      console.warn(`[LLM Service] ${error}`);
-      return { html: null, error };
+    console.log(`[LLM Service] Capturing reference URL with browser: ${url}`);
+    
+    // Use browser service for better rendering (handles auth, CORS, JS)
+    const { captureUrl } = await import("@/lib/services/browser-service");
+    const result = await captureUrl(url);
+    
+    if (result.error) {
+      console.warn(`[LLM Service] Browser capture failed: ${result.error}`);
+      return {
+        html: null,
+        screenshot: null,
+        error: result.error,
+      };
     }
-    const html = await response.text();
-    console.log(`[LLM Service] Successfully fetched ${html.length} characters from reference URL`);
-    // Limit to first 50KB to avoid token limits
-    return { html: html.substring(0, 50000) };
+    
+    console.log(`[LLM Service] Successfully captured URL - HTML: ${result.html ? (result.html.length / 1024).toFixed(2) : 0}KB, Screenshot: ${result.screenshot ? (result.screenshot.length / 1024).toFixed(2) : 0}KB`);
+    
+    // Limit HTML to 50KB to avoid token limits
+    const html = result.html ? result.html.substring(0, 50000) : null;
+    
+    return {
+      html,
+      screenshot: result.screenshot,
+    };
   } catch (error) {
-    const errorMsg = `Error fetching reference URL: ${error instanceof Error ? error.message : String(error)}`;
+    const errorMsg = `Error capturing reference URL: ${error instanceof Error ? error.message : String(error)}`;
     console.warn(`[LLM Service] ${errorMsg}`);
-    return { html: null, error: errorMsg };
+    return {
+      html: null,
+      screenshot: null,
+      error: errorMsg,
+    };
   }
 }
 
-async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<string> {
+async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
+  prompt: string;
+  screenshotData: ReferenceFileData | null;
+}> {
   let prompt = `Generate a custom quote page layout for the following company:
 
 **Company:** ${input.companyName} (Brand Code: ${input.brandCode})
@@ -489,49 +513,55 @@ I have attached a reference ${input.referenceFileData.mediaType === "application
 Analyze every detail in this reference and match it precisely. The user's description provides additional context, but the visual reference is the PRIMARY source of truth.`;
   }
 
+  let screenshotData: ReferenceFileData | null = null;
+
   if (input.referenceUrl) {
-    // Fetch the actual reference content
-    const { html: referenceContent, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
+    // Fetch the actual reference content with browser automation
+    const { html: referenceContent, screenshot, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
     
-    prompt += `\n\n**IMPORTANT - REFERENCE LAYOUT TO MATCH:**
+    prompt += `\n\n**📸 REFERENCE LAYOUT FROM URL:**
 **Reference URL:** ${input.referenceUrl}
 
 ⚠️ CRITICAL: The user has provided a reference layout that you MUST match as closely as possible. This is not a suggestion or inspiration - you MUST replicate the layout structure, sections, and styling from the reference URL.`;
 
+    // If we got a screenshot, prepare it for the AI
+    if (screenshot) {
+      const base64Screenshot = screenshot.toString("base64");
+      screenshotData = {
+        data: base64Screenshot,
+        mediaType: "image/png",
+        filename: "reference-screenshot.png",
+      };
+      console.log(`[LLM Service] Captured screenshot of reference URL (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
+      
+      prompt += `\n\n**I have captured a SCREENSHOT of the reference URL** which is attached to this message. Study it VERY CAREFULLY and replicate the exact visual design you see.`;
+    }
+
     if (referenceContent) {
       prompt += `\n\n**REFERENCE HTML CONTENT:**
-I have fetched the actual HTML from the reference URL. Study this carefully to understand the exact layout structure:
+I have also fetched the HTML from the reference URL. Use this to understand the structure:
 
 \`\`\`html
 ${referenceContent}
 \`\`\`
 
-Analyze the HTML to determine:
+Analyze both the SCREENSHOT (primary) and HTML to determine:
 - The EXACT order and structure of sections
-- Header design and styling (inline styles, CSS classes, gradients, colors)
+- Header design and styling (colors, gradients, layout)
 - Section arrangement and spacing
 - Typography and text alignment
 - Color scheme (look for color values in styles)
 - Card/box styling (borders, shadows, padding)
-- Use of custom HTML vs. built-in components
+- Use of custom HTML vs. built-in components`;
+    }
 
-The user's description provides additional context. Use BOTH the HTML content and the description to create an exact match.`;
-    } else {
+    if (!screenshot && !referenceContent) {
       console.error(`[LLM Service] Cannot fetch reference URL, relying on description. Error: ${fetchError}`);
-      prompt += `\n\n⚠️ Note: I was unable to fetch the reference URL content automatically (${fetchError || 'unknown error'}). 
+      prompt += `\n\n⚠️ Note: I was unable to capture the reference URL (${fetchError || 'unknown error'}). 
       
 The URL may require authentication or have CORS restrictions. I will rely ENTIRELY on the user's description to match the layout.
 
-IMPORTANT: The user MUST provide a VERY DETAILED description including:
-- The EXACT order and structure of sections
-- Header design and styling (colors, gradients, layout, logo placement)
-- Section arrangement and spacing
-- Typography and text alignment
-- Color scheme with specific hex codes
-- Card/box styling (borders, shadows, padding)
-- Any custom HTML sections vs built-in components used
-
-Without the HTML content, an accurate match depends on the description quality.`;
+IMPORTANT: The user MUST provide a VERY DETAILED description including all visual and structural details.`;
     }
   }
 
@@ -539,7 +569,8 @@ Without the HTML content, an accurate match depends on the description quality.`
     prompt += `\n\n**Reference Document Content (extracted from PDF):**\n${input.referenceFileContent.substring(0, 5000)}\n\nUse this content to understand the exact layout structure and match it precisely.`;
   }
 
-  prompt += `\n\nGenerate a complete layout config JSON that ${input.referenceUrl ? 'MATCHES the reference layout exactly' : 'follows the description'}. Return ONLY the JSON.`;
+  const hasVisualReference = screenshotData || input.referenceFileData;
+  prompt += `\n\nGenerate a complete layout config JSON that ${hasVisualReference ? 'EXACTLY MATCHES the visual reference provided' : 'follows the description'}. Return ONLY the JSON.`;
 
-  return prompt;
+  return { prompt, screenshotData };
 }
