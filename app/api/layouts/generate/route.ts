@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         if (layoutConfig._urlCaptureError) {
           warnings.push(`Reference URL could not be accessed (${layoutConfig._urlCaptureError}). The layout was generated from your description only.`);
           // Remove internal field before sending to client
-          delete (layoutConfig as Record<string, unknown>)._urlCaptureError;
+          delete (layoutConfig as unknown as Record<string, unknown>)._urlCaptureError;
         }
         if (referenceUrl && !referenceFileData && warnings.length > 0) {
           warnings.push("For best results, save the reference page as a PDF and upload it using the Reference File field.");
