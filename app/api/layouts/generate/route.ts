@@ -121,10 +121,27 @@ export async function POST(request: NextRequest) {
         });
 
         console.log("[Generate] Layout generation successful");
+
+        // Build response message with warnings
+        const warnings: string[] = [];
+        if (layoutConfig._urlCaptureError) {
+          warnings.push(`Reference URL could not be accessed (${layoutConfig._urlCaptureError}). The layout was generated from your description only.`);
+          // Remove internal field before sending to client
+          delete (layoutConfig as Record<string, unknown>)._urlCaptureError;
+        }
+        if (referenceUrl && !referenceFileData && warnings.length > 0) {
+          warnings.push("For best results, save the reference page as a PDF and upload it using the Reference File field.");
+        }
+
+        const message = warnings.length > 0
+          ? `Layout generated with warnings:\n${warnings.map(w => `⚠️ ${w}`).join('\n')}\n\nReview the preview and provide feedback to refine it.`
+          : "Layout generated successfully. Review the preview and provide feedback to refine it.";
+
         return NextResponse.json({
           success: true,
           data: layoutConfig,
-          message: "Layout generated successfully. Review the preview and provide feedback to refine it.",
+          message,
+          warnings,
         });
       } catch (generateError) {
         console.error("[Generate] Error in generateLayout:", generateError);

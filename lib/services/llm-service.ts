@@ -415,11 +415,14 @@ function extractJSON(text: string): string {
 
 export async function generateLayout(
   input: GenerateLayoutInput,
-): Promise<LayoutConfig> {
-  const { prompt: userMessage, screenshotData } = await buildGeneratePrompt(input);
+): Promise<LayoutConfig & { _urlCaptureError?: string }> {
+  const { prompt: userMessage, screenshotData, urlCaptureError } = await buildGeneratePrompt(input);
   
   // Use screenshot from URL if available, otherwise use uploaded file
   const referenceData = screenshotData || input.referenceFileData;
+  
+  console.log(`[generateLayout] Has visual reference: ${!!referenceData}`);
+  console.log(`[generateLayout] URL capture error: ${urlCaptureError || 'none'}`);
   
   const raw = await callLLM(
     LAYOUT_SYSTEM_PROMPT,
@@ -430,9 +433,14 @@ export async function generateLayout(
   const json = extractJSON(raw);
 
   try {
-    const config = JSON.parse(json) as LayoutConfig;
-    // Ensure version
+    const config = JSON.parse(json) as LayoutConfig & { _urlCaptureError?: string };
     config.version = config.version || 1;
+    
+    // Attach URL capture error so the API route can warn the user
+    if (urlCaptureError) {
+      config._urlCaptureError = urlCaptureError;
+    }
+    
     return config;
   } catch {
     throw new Error("AI returned invalid JSON. Please try again.");
@@ -556,6 +564,7 @@ async function fetchReferenceContent(url: string): Promise<{
 async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   prompt: string;
   screenshotData: ReferenceFileData | null;
+  urlCaptureError: string | null;
 }> {
   let prompt = `Generate a custom quote page layout for the following company:
 
@@ -603,6 +612,7 @@ I have attached a reference ${input.referenceFileData.mediaType === "application
   }
 
   let screenshotData: ReferenceFileData | null = null;
+  let urlCaptureError: string | null = null;
 
   if (input.referenceUrl) {
     // Fetch the actual reference content with browser automation
@@ -665,12 +675,17 @@ ${referenceContent}
     }
 
     if (!screenshot && !referenceContent) {
-      console.error(`[LLM Service] Cannot fetch reference URL, relying on description. Error: ${fetchError}`);
-      prompt += `\n\n⚠️ Note: I was unable to capture the reference URL (${fetchError || 'unknown error'}). 
+      urlCaptureError = fetchError || "unknown error";
+      console.error(`[LLM Service] Cannot fetch reference URL, relying on description. Error: ${urlCaptureError}`);
+      prompt += `\n\n⚠️ Note: I was unable to capture the reference URL (${urlCaptureError}). 
       
 The URL may require authentication or have CORS restrictions. I will rely ENTIRELY on the user's description to match the layout.
 
-IMPORTANT: The user MUST provide a VERY DETAILED description including all visual and structural details.`;
+IMPORTANT: Follow the user's description PRECISELY. Pay special attention to:
+- Header design (colors, gradient, logo placement)
+- Section order (exact sequence)
+- Styling details (exact hex colors, spacing, fonts)
+- Layout structure (columns, cards, tables)`;
     }
   }
 
@@ -730,5 +745,5 @@ Return ONLY valid JSON. NO explanations, NO markdown fences around the JSON.`;
     prompt += `\n\nGenerate a complete layout config JSON that follows the description. Return ONLY the JSON.`;
   }
 
-  return { prompt, screenshotData };
+  return { prompt, screenshotData, urlCaptureError };
 }

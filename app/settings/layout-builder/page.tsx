@@ -204,8 +204,8 @@ function LayoutBuilderContent() {
       setError('Please select a company first');
       return;
     }
-    if (!description.trim() && !referenceUrl.trim()) {
-      setError('Please enter a description or provide a reference URL');
+    if (!description.trim() && !referenceUrl.trim() && !referenceFilePath) {
+      setError('Please upload a reference file, enter a description, or provide a reference URL');
       return;
     }
 
@@ -250,7 +250,15 @@ function LayoutBuilderContent() {
       }
 
       setLayoutConfig(data.data);
-      addAssistantMessage(data.message || 'Layout generated! Check the preview on the right. Let me know if you want any changes.');
+      setChatOpen(true);
+      
+      // Show warnings in chat if URL capture failed
+      if (data.warnings && data.warnings.length > 0) {
+        addAssistantMessage(data.message);
+      } else {
+        addAssistantMessage(data.message || 'Layout generated successfully. Review the preview and provide feedback to refine it.');
+      }
+      
       updatePreview(data.data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Generation failed';
@@ -549,21 +557,21 @@ function LayoutBuilderContent() {
           <div className="p-4 overflow-y-auto">
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
-            {referenceUrl && (
-              <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-800">
-                    <strong>Reference URL Provided:</strong> The AI will attempt to fetch and analyze the HTML from this URL automatically.
-                    <br /><br />
-                    <strong>⚠️ Important:</strong> If the URL requires authentication or has CORS restrictions, the fetch may fail. 
-                    In that case, <strong>please provide a detailed description</strong> of the layout including header design, section order, colors (with hex codes), and styling details.
-                    <br /><br />
-                    <strong>Recommended:</strong> Always include a description to ensure the best results, even if the URL fetch succeeds.
-                  </div>
+            {/* Best Results Tip */}
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-blue-800">
+                  <strong>Best approach for matching an existing layout:</strong>
+                  <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                    <li>Open the quote page in your browser</li>
+                    <li>Print to PDF (Ctrl+P → Save as PDF)</li>
+                    <li>Upload the PDF below using <strong>Reference File</strong></li>
+                    <li>Add a description with key details (colors, sections)</li>
+                  </ol>
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="space-y-3">
               {/* Company Dropdown */}
@@ -573,25 +581,11 @@ function LayoutBuilderContent() {
                 disabled={generating}
               />
 
-              {/* Reference URL */}
+              {/* Reference File Upload (PRIMARY) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference URL (Optional)</label>
-                <input
-                  type="url"
-                  value={referenceUrl}
-                  onChange={(e) => setReferenceUrl(e.target.value)}
-                  placeholder="https://example.com/quote-sample"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={generating}
-                />
-                <p className="text-xs text-gray-400 mt-0.5">
-                  URL of the existing quote page to match. The AI will fetch and analyze the HTML automatically to replicate the layout exactly.
-                </p>
-              </div>
-
-              {/* Reference File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference File</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reference File <span className="text-blue-600 font-normal">(Recommended)</span>
+                </label>
                 {referenceFile || referenceFilePath ? (
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
                     <FileText className="w-4 h-4 text-blue-500" />
@@ -639,28 +633,48 @@ function LayoutBuilderContent() {
                 )}
               </div>
 
+              {/* Reference URL (Secondary option) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reference URL <span className="text-gray-400 font-normal">(Alternative to file upload)</span>
+                </label>
+                <input
+                  type="url"
+                  value={referenceUrl}
+                  onChange={(e) => setReferenceUrl(e.target.value)}
+                  placeholder="https://example.com/quote-sample"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={generating}
+                />
+                <p className="text-xs text-gray-400 mt-0.5">
+                  The server will try to screenshot this URL. May fail if the URL requires authentication or has expired tokens. PDF upload is more reliable.
+                </p>
+              </div>
+
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
-                  {referenceUrl && <span className="text-amber-600 ml-1">(Recommended)</span>}
-                  {!referenceUrl && <span className="text-red-600 ml-1">*</span>}
+                  {(referenceUrl || referenceFilePath) && <span className="text-amber-600 ml-1">(Recommended)</span>}
+                  {!referenceUrl && !referenceFilePath && <span className="text-red-600 ml-1">*</span>}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
-                    referenceUrl
-                      ? "Describe the reference layout: header design (colors, gradients, logo placement), section order, styling details, typography, color scheme (with hex codes), spacing, etc. Example: 'Red to purple gradient header, white cards with rounded corners, sections: Location Info, Quote Summary, Pricing, Inventory, Acceptance Form.'"
-                      : "Describe the desired layout, style, and any specific requirements..."
+                    referenceFilePath
+                      ? "Describe key details from your uploaded reference: header design, section order, colors (hex codes), styling..."
+                      : referenceUrl
+                        ? "Describe the reference layout in detail (important if URL can't be accessed by server): header design (colors, gradients), section order, styling..."
+                        : "Describe the desired layout, style, and any specific requirements..."
                   }
-                  rows={referenceUrl ? 5 : 3}
+                  rows={(referenceUrl || referenceFilePath) ? 5 : 3}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   disabled={generating}
                 />
-                {referenceUrl && (
+                {(referenceUrl || referenceFilePath) && (
                   <p className="text-xs text-amber-600 mt-1">
-                    ⚠️ <strong>Recommended:</strong> Provide a detailed description as backup in case the URL cannot be fetched automatically (e.g., due to authentication or CORS restrictions).
+                    ⚠️ <strong>Important:</strong> Always include a description with key details (header colors, section order, styling) to get the best results.
                   </p>
                 )}
               </div>
@@ -668,7 +682,7 @@ function LayoutBuilderContent() {
               {/* Generate Button */}
               <button
                 onClick={handleGenerate}
-                disabled={generating || !selectedCompany || (!description.trim() && !referenceUrl.trim())}
+                disabled={generating || !selectedCompany || (!description.trim() && !referenceUrl.trim() && !referenceFilePath)}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? (
