@@ -44,7 +44,32 @@ sudo -u moveware-ai npx playwright --version
 
 ### System Dependencies
 
-Playwright requires certain system libraries. On Ubuntu/Debian:
+Playwright requires certain system libraries. The package names differ between Ubuntu versions.
+
+**For Ubuntu 24.04 (Noble) and newer:**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libcups2t64 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2t64
+```
+
+**For Ubuntu 22.04 (Jammy) and older:**
 
 ```bash
 sudo apt-get update
@@ -65,6 +90,13 @@ sudo apt-get install -y \
     libpango-1.0-0 \
     libcairo2 \
     libasound2
+```
+
+**Or use Playwright's automatic installer (recommended):**
+
+```bash
+# This automatically installs the correct dependencies for your OS
+sudo npx playwright install-deps chromium
 ```
 
 ### Memory Requirements
@@ -180,6 +212,32 @@ sudo npx playwright install-deps chromium
 ```bash
 free -h
 # If low, restart services or increase server RAM
+```
+
+### Error: "Package 'libasound2' has no installation candidate"
+
+This happens on Ubuntu 24.04 (Noble) because package names changed to include `t64` suffix.
+
+**Solution:**
+```bash
+# Use the updated t64 packages for Ubuntu 24.04+
+sudo apt-get install -y \
+    libatk1.0-0t64 \
+    libatk-bridge2.0-0t64 \
+    libcups2t64 \
+    libasound2t64
+```
+
+**Or use the automatic installer (recommended):**
+```bash
+# This detects your Ubuntu version and installs correct packages
+sudo npx playwright install-deps chromium
+```
+
+**Check Ubuntu version:**
+```bash
+lsb_release -a
+# If "24.04" or "Noble", use t64 package names
 ```
 
 ### Error: "Timeout waiting for page"
