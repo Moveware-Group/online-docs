@@ -40,9 +40,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    console.log(`[Upload] Receiving file: ${file.name}, size: ${fileSizeMB}MB`);
+
     if (file.size > MAX_FILE_SIZE) {
+      const errorMsg = `File size (${fileSizeMB}MB) exceeds 10MB limit`;
+      console.error(`[Upload] ${errorMsg}`);
       return NextResponse.json(
-        { success: false, error: "File size exceeds 10MB limit" },
+        { success: false, error: errorMsg },
         { status: 413 },
       );
     }

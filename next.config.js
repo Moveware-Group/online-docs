@@ -5,6 +5,14 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || "Moveware App",
   },
+  // Increase body size limit for file uploads (default is 4MB)
+  // Note: This applies to Server Actions. For API routes, Next.js uses default limits.
+  // If still getting 413 errors, check nginx/proxy server configs.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   // Image configuration for remote patterns
   images: {
     remotePatterns: [
