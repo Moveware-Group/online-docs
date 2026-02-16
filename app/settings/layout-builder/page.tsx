@@ -56,6 +56,7 @@ function LayoutBuilderContent() {
   const [referenceFilePath, setReferenceFilePath] = useState('');
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Layout state
   const [layoutConfig, setLayoutConfig] = useState<LayoutConfig | null>(null);
@@ -136,6 +137,36 @@ function LayoutBuilderContent() {
     }
   };
 
+  // ---- Drag and Drop Handlers ----
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      handleFileUpload(file);
+    }
+  };
+
   // ---- File Upload ----
   const handleFileUpload = async (file: File) => {
     setUploading(true);
@@ -147,14 +178,26 @@ function LayoutBuilderContent() {
         method: 'POST',
         body: formData,
       });
+      
+      // Check if response is JSON
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('Non-JSON response from upload:', text.substring(0, 500));
+        throw new Error(`Upload failed: Server returned ${res.status}. Check console for details.`);
+      }
+      
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Upload failed');
       }
       setReferenceFilePath(data.url);
       setReferenceFile(file);
+      setStatusMessage(`File "${file.name}" uploaded successfully`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+      console.error('Upload error:', err);
+      setError(errorMsg);
     } finally {
       setUploading(false);
     }
@@ -535,21 +578,36 @@ function LayoutBuilderContent() {
                     </button>
                   </div>
                 ) : (
-                  <label className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors ${uploading ? 'opacity-50 cursor-wait' : ''}`}>
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                      isDragging
+                        ? 'border-blue-500 bg-blue-100'
+                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                    } ${uploading ? 'opacity-50 cursor-wait' : ''}`}
+                  >
                     <input
                       type="file"
                       accept=".pdf,image/png,image/jpeg"
                       onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                       className="hidden"
+                      id="file-upload"
                       disabled={uploading || generating}
                     />
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                    ) : (
-                      <Upload className="w-4 h-4 text-gray-400" />
-                    )}
-                    <span className="text-sm text-gray-500">Upload PDF or image</span>
-                  </label>
+                    <label htmlFor="file-upload" className="flex items-center gap-2 cursor-pointer flex-1">
+                      {uploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      ) : (
+                        <Upload className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className="text-sm text-gray-500">
+                        {isDragging ? 'Drop file here' : 'Upload or drag & drop PDF/image'}
+                      </span>
+                    </label>
+                  </div>
                 )}
               </div>
 
