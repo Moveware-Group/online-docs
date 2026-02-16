@@ -99,14 +99,16 @@ async function captureWithPlaywright(
   error?: string;
 }> {
   let page: Page | null = null;
+  let context: any = null;
 
   try {
     const browser = await getBrowser();
-    page = await browser.newPage({
+    
+    // Create a new context with aggressive anti-detection
+    context = await browser.newContext({
       viewport: { width: 1280, height: 1024 },
       userAgent:
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-      // Mimic a real browser - set common headers
       extraHTTPHeaders: {
         "Accept":
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -121,47 +123,64 @@ async function captureWithPlaywright(
       },
     });
 
-    page.setDefaultTimeout(45000);
-
-    // Comprehensive anti-detection: override navigator properties to mimic real Chrome
-    await page.addInitScript(() => {
-      // Hide webdriver property
-      Object.defineProperty(navigator, "webdriver", {
-        get: () => false,
-      });
-
-      // Override user agent (should match the one set in page options)
+    // Use evaluateOnNewDocument - runs BEFORE any page scripts
+    await context.addInitScript(() => {
+      // Override userAgent at the earliest possible moment
       Object.defineProperty(navigator, "userAgent", {
         get: () =>
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        configurable: true,
       });
 
-      // Set Chrome-specific properties
+      Object.defineProperty(navigator, "appVersion", {
+        get: () => "5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        configurable: true,
+      });
+
       Object.defineProperty(navigator, "vendor", {
         get: () => "Google Inc.",
+        configurable: true,
       });
 
       Object.defineProperty(navigator, "platform", {
         get: () => "Win32",
+        configurable: true,
+      });
+
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => false,
+        configurable: true,
       });
 
       Object.defineProperty(navigator, "languages", {
         get: () => ["en-US", "en"],
+        configurable: true,
       });
 
-      // Chrome object (present in real Chrome)
-      (window as any).chrome = {
-        runtime: {},
-      };
-
-      // Plugins (real Chrome has plugins)
       Object.defineProperty(navigator, "plugins", {
         get: () => [1, 2, 3, 4, 5],
+        configurable: true,
       });
 
-      // Remove automation-related properties
+      // Add Chrome object
+      (window as any).chrome = {
+        runtime: {},
+        loadTimes: function () {},
+        csi: function () {},
+        app: {},
+      };
+
+      // Remove automation indicators
       delete (navigator as any).__proto__.webdriver;
+      
+      // Prevent checkIE from running by overriding it
+      (window as any).checkIE = function() {
+        // Do nothing - prevent IE detection
+      };
     });
+
+    page = await context.newPage();
+    page.setDefaultTimeout(45000);
 
     console.log(`[Browser] Navigating to URL (strict=${options.strictStatus})...`);
 
@@ -258,6 +277,9 @@ async function captureWithPlaywright(
   } finally {
     if (page) {
       await page.close().catch(() => {});
+    }
+    if (context) {
+      await context.close().catch(() => {});
     }
   }
 }
