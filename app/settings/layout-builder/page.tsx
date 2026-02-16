@@ -27,6 +27,7 @@ import {
   CompanyOption,
 } from '@/lib/components/forms/company-search-dropdown';
 import type { LayoutConfig } from '@/lib/services/llm-service';
+import { LayoutBuilderChatWidget } from '@/lib/components/chat/layout-builder-chat-widget';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,10 +67,8 @@ function LayoutBuilderContent() {
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Status messages
   const [error, setError] = useState<string | null>(null);
@@ -77,11 +76,6 @@ function LayoutBuilderContent() {
 
   // Preview iframe ref
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
 
   // Pre-select company if companyId in URL
   useEffect(() => {
@@ -347,20 +341,19 @@ function LayoutBuilderContent() {
   };
 
   // ---- Send Chat Message ----
-  const handleSendMessage = async () => {
-    const message = chatInput.trim();
-    if (!message || chatLoading) return;
+  const handleSendMessage = async (message: string) => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || chatLoading) return;
 
-    setChatInput('');
-    addUserMessage(message);
+    addUserMessage(trimmedMessage);
 
     // Determine if this is a layout modification request or general chat
-    const isModification = layoutConfig && /change|update|move|make|add|remove|hide|show|swap|replace|bigger|smaller|different|modify|adjust|set|use/i.test(message);
+    const isModification = layoutConfig && /change|update|move|make|add|remove|hide|show|swap|replace|bigger|smaller|different|modify|adjust|set|use/i.test(trimmedMessage);
 
     if (isModification) {
-      await handleRefine(message);
+      await handleRefine(trimmedMessage);
     } else {
-      await handleChat(message);
+      await handleChat(trimmedMessage);
     }
   };
 
@@ -530,10 +523,10 @@ function LayoutBuilderContent() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT PANEL: Form + Chat */}
+        {/* LEFT PANEL: Form */}
         <div className="w-[420px] flex-shrink-0 border-r border-gray-200 bg-white flex flex-col overflow-hidden">
           {/* Form Section */}
-          <div className="p-4 border-b border-gray-200 overflow-y-auto flex-shrink-0">
+          <div className="p-4 overflow-y-auto">
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
             {referenceUrl && (
@@ -673,84 +666,6 @@ function LayoutBuilderContent() {
             </div>
           </div>
 
-          {/* Chat Section */}
-          <div className="flex flex-col overflow-hidden" style={{ maxHeight: '300px', minHeight: '200px' }}>
-            <div className="px-4 py-2 border-b border-gray-100 flex-shrink-0">
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                <Bot className="w-4 h-4 text-blue-600" />
-                AI Chat
-              </h2>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {chatMessages.length === 0 && (
-                <div className="text-center text-sm text-gray-400 py-8">
-                  <Bot className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                  <p>Select a company and generate a layout to get started.</p>
-                  <p className="mt-1">Then chat with the AI to refine it.</p>
-                </div>
-              )}
-              {chatMessages.map((msg) => (
-                <div key={msg.id} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                  {msg.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Bot className="w-3.5 h-3.5 text-blue-600" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
-                      msg.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                  {msg.role === 'user' && (
-                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <User className="w-3.5 h-3.5 text-gray-600" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="flex gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
-                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Chat Input */}
-            <div className="p-3 border-t border-gray-200 flex-shrink-0">
-              <form
-                onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
-                className="flex gap-2"
-              >
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={layoutConfig ? 'Ask to modify the layout...' : 'Generate a layout first...'}
-                  disabled={chatLoading || !selectedCompany}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim() || chatLoading || !selectedCompany}
-                  className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          </div>
         </div>
 
         {/* RIGHT PANEL: Live Preview */}
@@ -787,6 +702,15 @@ function LayoutBuilderContent() {
           </div>
         </div>
       </div>
+
+      {/* Floating AI Chat Widget */}
+      <LayoutBuilderChatWidget
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        isLoading={chatLoading}
+        isOpen={chatOpen}
+        onOpenChange={setChatOpen}
+      />
     </div>
   );
 }
