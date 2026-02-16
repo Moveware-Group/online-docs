@@ -150,16 +150,19 @@ Use {{#each costings}} ... {{/each}} to iterate:
 
 ## Available Built-in Components
 
-These are pre-built React components. Use them for interactive/complex sections:
+🚨 IMPORTANT: Only use the 3 built-in components listed below. ALL other sections MUST use custom_html.
 
-1. **HeaderSection** — Company logo, quote title, customer details. Config: { showBanner: boolean, bannerImageUrl: string }
-2. **IntroSection** — Welcome letter / introduction text. Config: { template: "letter" | "brief" | "custom", customText: string }
-3. **LocationInfo** — Origin and destination addresses. Config: { layout: "two-column" | "stacked" }
-4. **EstimateCard** — Pricing/costing display with select button. (rendered per costing item)
-5. **InventoryTable** — Paginated inventory table. Config: { defaultPageSize: number, showRoom: boolean, showType: boolean }
-6. **NextStepsForm** — The 3-step animated indicator + form fields (signature name, date, etc.)
-7. **AcceptanceForm** — Signature canvas, terms checkbox, accept/decline buttons.
-8. **TermsSection** — Terms and conditions list.
+**Built-in components you CAN use (only these 3):**
+1. **InventoryTable** — Paginated inventory table. Config: { defaultPageSize: number, showRoom: boolean, showType: boolean }
+2. **AcceptanceForm** — Signature canvas, terms checkbox, accept/decline buttons. (REQUIRED - always include)
+3. **TermsSection** — Terms and conditions list. (REQUIRED - always include)
+
+**DO NOT use these built-in components (use custom_html instead):**
+- ~~HeaderSection~~ → Use custom_html with your own HTML/CSS
+- ~~IntroSection~~ → Use custom_html 
+- ~~LocationInfo~~ → Use custom_html
+- ~~EstimateCard~~ → Use custom_html
+- ~~NextStepsForm~~ → Use custom_html
 
 ## JSON Schema
 
@@ -167,7 +170,7 @@ Return ONLY valid JSON matching this structure:
 {
   "version": 1,
   "globalStyles": {
-    "fontFamily": "Inter",
+    "fontFamily": "Inter, sans-serif",
     "backgroundColor": "#f9fafb",
     "maxWidth": "1152px",
     "customCss": "/* optional global CSS overrides */"
@@ -175,15 +178,93 @@ Return ONLY valid JSON matching this structure:
   "sections": [
     {
       "id": "unique-id",
-      "type": "custom_html" | "built_in",
-      "html": "HTML with {{variables}} (only for custom_html)",
-      "css": "scoped CSS (only for custom_html)",
-      "component": "ComponentName (only for built_in)",
+      "type": "custom_html",
+      "html": "<div>Your HTML here with {{variables}}</div>",
+      "css": "/* optional scoped CSS */",
+      "visible": true
+    },
+    {
+      "id": "inventory",
+      "type": "built_in",
+      "component": "InventoryTable",
       "visible": true,
-      "config": {}
+      "config": { "defaultPageSize": 10, "showRoom": true, "showType": true }
+    },
+    {
+      "id": "acceptance",
+      "type": "built_in",
+      "component": "AcceptanceForm",
+      "visible": true
+    },
+    {
+      "id": "terms",
+      "type": "built_in",
+      "component": "TermsSection",
+      "visible": true
     }
   ]
 }
+
+## EXAMPLE: Custom Layout with Gradient Header
+
+Here is an EXAMPLE of a properly formatted custom layout JSON:
+
+{
+  "version": 1,
+  "globalStyles": {
+    "fontFamily": "Inter, sans-serif",
+    "backgroundColor": "#ffffff",
+    "maxWidth": "1152px"
+  },
+  "sections": [
+    {
+      "id": "header",
+      "type": "custom_html",
+      "html": "<div style=\\"background: linear-gradient(to right, #dc2626, #7c3aed); padding: 2rem 3rem;\\"><div style=\\"display: flex; justify-content: space-between; align-items: center;\\"><div><img src=\\"{{branding.logoUrl}}\\" alt=\\"{{branding.companyName}}\\" style=\\"height: 48px; width: auto;\\" /><h1 style=\\"color: white; font-size: 2rem; font-weight: bold; margin-top: 0.5rem;\\">Moving Quote</h1></div><div style=\\"text-align: right; color: white;\\"><p style=\\"font-size: 0.875rem;\\">Quote #{{job.id}}</p><p style=\\"font-size: 0.875rem;\\">Date: {{quoteDate}}</p><p style=\\"font-size: 0.875rem;\\">Valid until: {{expiryDate}}</p></div></div></div>"
+    },
+    {
+      "id": "intro",
+      "type": "custom_html",
+      "html": "<div style=\\"padding: 2rem 3rem;\\"><p style=\\"font-size: 1rem; color: #374151;\\">Dear {{customerName}},</p><p style=\\"margin-top: 1rem; color: #4b5563;\\">Thank you for your interest in our moving services. We are pleased to provide you with the following quote for your upcoming relocation.</p></div>"
+    },
+    {
+      "id": "location",
+      "type": "custom_html",
+      "html": "<div style=\\"padding: 1.5rem 3rem;\\"><h2 style=\\"font-size: 1.25rem; font-weight: bold; color: #dc2626; margin-bottom: 1rem;\\">Location Information</h2><div style=\\"display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;\\"><div style=\\"background: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb;\\"><h3 style=\\"font-weight: 600; margin-bottom: 0.5rem;\\">Origin Address</h3><p style=\\"color: #6b7280; font-size: 0.875rem;\\">{{job.upliftLine1}}<br/>{{job.upliftCity}}, {{job.upliftState}} {{job.upliftPostcode}}<br/>{{job.upliftCountry}}</p></div><div style=\\"background: #f9fafb; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb;\\"><h3 style=\\"font-weight: 600; margin-bottom: 0.5rem;\\">Destination Address</h3><p style=\\"color: #6b7280; font-size: 0.875rem;\\">{{job.deliveryLine1}}<br/>{{job.deliveryCity}}, {{job.deliveryState}} {{job.deliveryPostcode}}<br/>{{job.deliveryCountry}}</p></div></div></div>"
+    },
+    {
+      "id": "summary",
+      "type": "custom_html",
+      "html": "<div style=\\"padding: 1.5rem 3rem;\\"><h2 style=\\"font-size: 1.25rem; font-weight: bold; color: #dc2626; margin-bottom: 1rem;\\">Quote Summary</h2><div style=\\"display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;\\"><div style=\\"background: white; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; text-align: center;\\"><p style=\\"color: #6b7280; font-size: 0.875rem;\\">Volume</p><p style=\\"font-size: 1.5rem; font-weight: bold;\\">{{totalCube}} m³</p></div><div style=\\"background: white; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; text-align: center;\\"><p style=\\"color: #6b7280; font-size: 0.875rem;\\">Weight</p><p style=\\"font-size: 1.5rem; font-weight: bold;\\">{{job.measuresWeightGrossKg}} kg</p></div><div style=\\"background: white; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; text-align: center;\\"><p style=\\"color: #6b7280; font-size: 0.875rem;\\">Delivery Date</p><p style=\\"font-size: 1.5rem; font-weight: bold;\\">{{job.estimatedDeliveryDetails}}</p></div></div></div>"
+    },
+    {
+      "id": "pricing",
+      "type": "custom_html",
+      "html": "<div style=\\"padding: 1.5rem 3rem;\\"><h2 style=\\"font-size: 1.25rem; font-weight: bold; color: #dc2626; margin-bottom: 1rem;\\">Service Options & Pricing</h2>{{#each costings}}<div style=\\"background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1rem;\\"><div style=\\"display: flex; justify-content: space-between; align-items: center;\\"><div><h3 style=\\"font-weight: 600;\\">{{this.name}}</h3><p style=\\"color: #6b7280; font-size: 0.875rem;\\">{{this.description}}</p></div><div style=\\"text-align: right;\\"><p style=\\"font-size: 1.5rem; font-weight: bold;\\">A${{this.totalPrice}}</p><p style=\\"color: #6b7280; font-size: 0.75rem;\\">Tax included</p></div></div></div>{{/each}}</div>"
+    },
+    {
+      "id": "inventory",
+      "type": "built_in",
+      "component": "InventoryTable",
+      "visible": true,
+      "config": { "defaultPageSize": 10, "showRoom": true, "showType": true }
+    },
+    {
+      "id": "acceptance",
+      "type": "built_in",
+      "component": "AcceptanceForm",
+      "visible": true
+    },
+    {
+      "id": "terms",
+      "type": "built_in",
+      "component": "TermsSection",
+      "visible": true
+    }
+  ]
+}
+
+The above example shows the CORRECT format. When a reference PDF/image/URL is provided, you MUST use custom_html sections for all visible sections except InventoryTable, AcceptanceForm, and TermsSection. Copy the visual design from the reference into your custom HTML.
 
 ## Rules
 1. ALWAYS include AcceptanceForm as the second-to-last section — this is required for quote acceptance.
@@ -279,18 +360,27 @@ async function callAnthropic(
   
   // Add reference file if provided (PDF or image)
   if (referenceFileData) {
-    console.log(`[LLM] Adding reference file to prompt: ${referenceFileData.filename} (${referenceFileData.mediaType})`);
+    const dataSizeKB = (referenceFileData.data.length / 1024).toFixed(2);
+    const dataSizeMB = (referenceFileData.data.length / 1024 / 1024).toFixed(2);
+    console.log(`[Anthropic] Adding reference file: ${referenceFileData.filename} (${referenceFileData.mediaType}, ${dataSizeKB}KB / ${dataSizeMB}MB base64)`);
     
     if (referenceFileData.mediaType === "application/pdf") {
-      messageContent.push({
-        type: "document" as const,
-        source: {
-          type: "base64" as const,
-          media_type: "application/pdf" as const,
-          data: referenceFileData.data,
-        },
-      });
+      // Check if PDF is within Claude's limits (max ~32MB base64)
+      if (referenceFileData.data.length > 30 * 1024 * 1024) {
+        console.warn(`[Anthropic] PDF is too large (${dataSizeMB}MB). Skipping document attachment.`);
+      } else {
+        console.log(`[Anthropic] Attaching PDF document to message`);
+        messageContent.push({
+          type: "document" as const,
+          source: {
+            type: "base64" as const,
+            media_type: "application/pdf" as const,
+            data: referenceFileData.data,
+          },
+        });
+      }
     } else if (referenceFileData.mediaType.startsWith("image/")) {
+      console.log(`[Anthropic] Attaching image to message`);
       messageContent.push({
         type: "image" as const,
         source: {
@@ -299,7 +389,13 @@ async function callAnthropic(
           data: referenceFileData.data,
         },
       });
+    } else {
+      console.warn(`[Anthropic] Unsupported media type: ${referenceFileData.mediaType}. Skipping attachment.`);
     }
+    
+    console.log(`[Anthropic] Message content blocks: ${messageContent.length} (expecting ${referenceFileData ? 2 : 1})`);
+  } else {
+    console.log(`[Anthropic] No reference file attached`);
   }
   
   // Add text message
@@ -311,9 +407,10 @@ async function callAnthropic(
   messages.push({ role: "user", content: messageContent });
 
   console.log("[Anthropic] Sending request to Claude API...");
+  console.log(`[Anthropic] Message content blocks: ${JSON.stringify(messageContent.map(b => b.type))}`);
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: systemPrompt,
     messages,
   });
