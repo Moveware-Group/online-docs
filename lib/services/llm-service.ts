@@ -202,9 +202,11 @@ async function callAnthropic(
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
   referenceFileData?: ReferenceFileData | null,
 ): Promise<string> {
-  const client = getAnthropicClient();
+  try {
+    const client = getAnthropicClient();
+    console.log("[Anthropic] Starting API call...");
 
-  const messages: Anthropic.MessageParam[] = [];
+    const messages: Anthropic.MessageParam[] = [];
 
   // Add conversation history
   if (conversationHistory) {
@@ -249,6 +251,7 @@ async function callAnthropic(
 
   messages.push({ role: "user", content: messageContent });
 
+  console.log("[Anthropic] Sending request to Claude API...");
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 8192,
@@ -256,8 +259,27 @@ async function callAnthropic(
     messages,
   });
 
+  console.log("[Anthropic] Received response from Claude API");
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock ? textBlock.text : "";
+  } catch (error) {
+    console.error("[Anthropic] API call failed:", error);
+    
+    // Provide helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes("401") || error.message.includes("authentication")) {
+        throw new Error("AI API authentication failed. Please check your ANTHROPIC_API_KEY in .env file.");
+      }
+      if (error.message.includes("429") || error.message.includes("rate limit")) {
+        throw new Error("AI API rate limit exceeded. Please try again in a few moments.");
+      }
+      if (error.message.includes("quota") || error.message.includes("insufficient")) {
+        throw new Error("AI API quota exceeded. Please check your Anthropic account credits.");
+      }
+    }
+    
+    throw error;
+  }
 }
 
 async function callOpenAI(
@@ -438,6 +460,7 @@ Keep responses concise and helpful. Focus on web design, branding, and user expe
 
 /**
  * Fetch the HTML content and screenshot from a reference URL using browser automation
+ * Falls back gracefully if browser automation fails
  */
 async function fetchReferenceContent(url: string): Promise<{
   html: string | null;
@@ -447,8 +470,22 @@ async function fetchReferenceContent(url: string): Promise<{
   try {
     console.log(`[LLM Service] Capturing reference URL with browser: ${url}`);
     
+    // Check if Playwright is available
+    let captureUrl;
+    try {
+      const browserService = await import("@/lib/services/browser-service");
+      captureUrl = browserService.captureUrl;
+      console.log(`[LLM Service] Browser service loaded successfully`);
+    } catch (importError) {
+      console.warn(`[LLM Service] Browser service not available (Playwright not installed?):`, importError);
+      return {
+        html: null,
+        screenshot: null,
+        error: "Browser automation not available. Please install Playwright: npm install && npx playwright install chromium",
+      };
+    }
+    
     // Use browser service for better rendering (handles auth, CORS, JS)
-    const { captureUrl } = await import("@/lib/services/browser-service");
     const result = await captureUrl(url);
     
     if (result.error) {
@@ -471,7 +508,7 @@ async function fetchReferenceContent(url: string): Promise<{
     };
   } catch (error) {
     const errorMsg = `Error capturing reference URL: ${error instanceof Error ? error.message : String(error)}`;
-    console.warn(`[LLM Service] ${errorMsg}`);
+    console.error(`[LLM Service] ${errorMsg}`, error);
     return {
       html: null,
       screenshot: null,

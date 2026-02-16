@@ -68,6 +68,7 @@ function LayoutBuilderContent() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Status messages
@@ -243,14 +244,27 @@ function LayoutBuilderContent() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Generation failed');
+        const errorMsg = data.error || 'Generation failed';
+        console.error('[Layout Builder] Generation failed:', data);
+        
+        // Show detailed error if available
+        if (data.details) {
+          console.error('[Layout Builder] Error details:', data.details);
+        }
+        
+        throw new Error(errorMsg);
       }
 
       setLayoutConfig(data.data);
       addAssistantMessage(data.message || 'Layout generated! Check the preview on the right. Let me know if you want any changes.');
       updatePreview(data.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generation failed');
+      const errorMsg = err instanceof Error ? err.message : 'Generation failed';
+      console.error('[Layout Builder] Error:', err);
+      setError(errorMsg);
+      
+      // Add error to chat as well
+      addAssistantMessage(`Sorry, I encountered an error: ${errorMsg}`);
     } finally {
       setGenerating(false);
     }

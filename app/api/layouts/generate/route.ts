@@ -67,6 +67,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      console.log(`[Generate] Starting layout generation for ${companyName}`);
+      console.log(`[Generate] Has referenceUrl: ${!!referenceUrl}`);
+      console.log(`[Generate] Has referenceFilePath: ${!!referenceFilePath}`);
+      console.log(`[Generate] Description length: ${description?.length || 0}`);
+
       // Read and encode reference file if provided
       let referenceFileData = null;
       if (referenceFilePath) {
@@ -95,28 +100,59 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           console.error("[Generate] Error reading reference file:", error);
+          // Don't fail the request, just log and continue without file
         }
       }
 
-      const layoutConfig = await generateLayout({
-        companyName,
-        brandCode: brandCode || "",
-        primaryColor: primaryColor || "#2563eb",
-        secondaryColor: secondaryColor || "#1e40af",
-        tertiaryColor,
-        logoUrl,
-        referenceUrl,
-        referenceFileData,
-        referenceFileContent,
-        description,
-        conversationHistory,
-      });
+      try {
+        console.log("[Generate] Calling generateLayout...");
+        const layoutConfig = await generateLayout({
+          companyName,
+          brandCode: brandCode || "",
+          primaryColor: primaryColor || "#2563eb",
+          secondaryColor: secondaryColor || "#1e40af",
+          tertiaryColor,
+          logoUrl,
+          referenceUrl,
+          referenceFileData,
+          referenceFileContent,
+          description,
+          conversationHistory,
+        });
 
-      return NextResponse.json({
-        success: true,
-        data: layoutConfig,
-        message: "Layout generated successfully. Review the preview and provide feedback to refine it.",
-      });
+        console.log("[Generate] Layout generation successful");
+        return NextResponse.json({
+          success: true,
+          data: layoutConfig,
+          message: "Layout generated successfully. Review the preview and provide feedback to refine it.",
+        });
+      } catch (generateError) {
+        console.error("[Generate] Error in generateLayout:", generateError);
+        
+        // Return detailed error information
+        const errorMessage = generateError instanceof Error 
+          ? generateError.message 
+          : "Unknown error during layout generation";
+        
+        const errorDetails = generateError instanceof Error
+          ? {
+              message: generateError.message,
+              stack: generateError.stack?.substring(0, 500),
+              name: generateError.name,
+            }
+          : { error: String(generateError) };
+
+        console.error("[Generate] Error details:", JSON.stringify(errorDetails, null, 2));
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Layout generation failed: ${errorMessage}`,
+            details: errorDetails,
+          },
+          { status: 500 },
+        );
+      }
     }
 
     // ----- Refine existing layout -----
