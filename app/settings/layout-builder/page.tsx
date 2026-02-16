@@ -468,6 +468,16 @@ function LayoutBuilderContent() {
         </div>
         <div className="flex items-center gap-2">
           <a
+            href="/settings/layout-builder-debug"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-600 hover:text-purple-700 transition-colors"
+            title="Debug URL capture (see what screenshot AI receives)"
+          >
+            <Eye className="w-4 h-4" />
+            Debug
+          </a>
+          <a
             href="/settings/layout-builder-diagnostics"
             target="_blank"
             rel="noopener noreferrer"

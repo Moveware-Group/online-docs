@@ -1,0 +1,4 @@
+# Ignore all debug screenshots
+*
+# But keep this .gitignore
+!.gitignore

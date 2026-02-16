@@ -113,6 +113,28 @@ export async function captureUrl(url: string): Promise<{
 
     console.log(`[Browser] Success - captured ${(screenshot.length / 1024).toFixed(2)}KB screenshot and ${(html.length / 1024).toFixed(2)}KB HTML`);
 
+    // DEBUG: Save screenshot to debug folder (optional)
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_SCREENSHOTS === 'true') {
+      try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const debugDir = path.join(process.cwd(), 'public', 'debug-screenshots');
+        
+        // Create directory if it doesn't exist
+        await fs.mkdir(debugDir, { recursive: true });
+        
+        // Save with timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `screenshot-${timestamp}.png`;
+        const filepath = path.join(debugDir, filename);
+        
+        await fs.writeFile(filepath, screenshot);
+        console.log(`[Browser] DEBUG: Screenshot saved to /debug-screenshots/${filename}`);
+      } catch (debugError) {
+        console.warn('[Browser] Failed to save debug screenshot:', debugError);
+      }
+    }
+
     return {
       screenshot,
       html,
