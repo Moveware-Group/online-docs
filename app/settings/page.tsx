@@ -11,6 +11,8 @@ interface CompanyBranding {
   brandCode: string;
   companyName: string;
   logoUrl: string;
+  heroBannerUrl?: string;
+  footerImageUrl?: string;
   primaryColor: string;
   secondaryColor: string;
   tertiaryColor: string;
@@ -77,12 +79,18 @@ function ColorPickerField({
   );
 }
 
-function LogoUploadField({
+function ImageUploadField({
+  label,
   value,
   onChange,
+  description,
+  previewHeight = 'h-12',
 }: {
+  label: string;
   value: string;
   onChange: (url: string) => void;
+  description?: string;
+  previewHeight?: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -139,15 +147,16 @@ function LogoUploadField({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Company Logo</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {description && <p className="text-xs text-gray-500 mb-2">{description}</p>}
 
       {/* Preview */}
       {value && (
         <div className="mb-3 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
           <img
             src={value}
-            alt="Company logo"
-            className="h-12 w-auto max-w-[200px] object-contain"
+            alt={label}
+            className={`${previewHeight} w-auto max-w-[200px] object-contain`}
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
@@ -157,7 +166,7 @@ function LogoUploadField({
             type="button"
             onClick={() => onChange('')}
             className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-            title="Remove logo"
+            title={`Remove ${label.toLowerCase()}`}
           >
             <X className="w-4 h-4" />
           </button>
@@ -191,7 +200,7 @@ function LogoUploadField({
               {value ? <ImageIcon className="w-5 h-5 text-gray-500" /> : <Upload className="w-5 h-5 text-gray-400" />}
             </div>
             <p className="text-sm text-gray-600">
-              <span className="font-medium text-blue-600">Click to upload</span> a logo image
+              <span className="font-medium text-blue-600">Click to upload</span> {label.toLowerCase()}
             </p>
             <p className="text-xs text-gray-400">PNG, JPEG, SVG, or WebP (max 5 MB)</p>
           </div>
@@ -222,6 +231,8 @@ function CompanyForm({
       brandCode: '',
       companyName: '',
       logoUrl: '',
+      heroBannerUrl: '',
+      footerImageUrl: '',
       primaryColor: '#cc0000',
       secondaryColor: '#ffffff',
       tertiaryColor: '#5a5a5a',
@@ -279,9 +290,28 @@ function CompanyForm({
         </div>
 
         {/* Logo Upload */}
-        <LogoUploadField
+        <ImageUploadField
+          label="Company Logo"
           value={formData.logoUrl}
           onChange={(url) => setFormData({ ...formData, logoUrl: url })}
+        />
+
+        {/* Hero Banner Upload */}
+        <ImageUploadField
+          label="Hero Banner Image"
+          description="Optional banner image for the quote page header (recommended: 1920x400px)"
+          value={formData.heroBannerUrl || ''}
+          onChange={(url) => setFormData({ ...formData, heroBannerUrl: url })}
+          previewHeight="h-20"
+        />
+
+        {/* Footer Image Upload */}
+        <ImageUploadField
+          label="Footer Image"
+          description="Optional image for the quote page footer"
+          value={formData.footerImageUrl || ''}
+          onChange={(url) => setFormData({ ...formData, footerImageUrl: url })}
+          previewHeight="h-16"
         />
 
         {/* Colors */}
@@ -559,6 +589,8 @@ export default function SettingsPage() {
                       brandCode: '',
                       companyName: '',
                       logoUrl: '',
+                      heroBannerUrl: '',
+                      footerImageUrl: '',
                       primaryColor: '#cc0000',
                       secondaryColor: '#ffffff',
                       tertiaryColor: '#5a5a5a',

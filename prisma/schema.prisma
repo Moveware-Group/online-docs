@@ -94,14 +94,16 @@ model HeroSettings {
 }
 
 model BrandingSettings {
-  id             String   @id @default(cuid())
-  companyId      String   @unique @map("company_id")
-  logoUrl        String?  @map("logo_url")
-  primaryColor   String   @default("#2563eb") @map("primary_color")
-  secondaryColor String   @default("#1e40af") @map("secondary_color")
-  fontFamily     String   @default("Inter") @map("font_family")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  companyId       String   @unique @map("company_id")
+  logoUrl         String?  @map("logo_url")
+  heroBannerUrl   String?  @map("hero_banner_url") @db.VarChar(500)
+  footerImageUrl  String?  @map("footer_image_url") @db.VarChar(500)
+  primaryColor    String   @default("#2563eb") @map("primary_color")
+  secondaryColor  String   @default("#1e40af") @map("secondary_color")
+  fontFamily      String   @default("Inter") @map("font_family")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
