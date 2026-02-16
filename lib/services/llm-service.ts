@@ -380,19 +380,27 @@ Keep responses concise and helpful. Focus on web design, branding, and user expe
 /**
  * Fetch the HTML content from a reference URL
  */
-async function fetchReferenceContent(url: string): Promise<string | null> {
+async function fetchReferenceContent(url: string): Promise<{ html: string | null; error?: string }> {
   try {
-    const response = await fetch(url);
+    console.log(`[LLM Service] Fetching reference URL: ${url}`);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
     if (!response.ok) {
-      console.warn(`Failed to fetch reference URL: ${response.status}`);
-      return null;
+      const error = `Failed to fetch reference URL: HTTP ${response.status} ${response.statusText}`;
+      console.warn(`[LLM Service] ${error}`);
+      return { html: null, error };
     }
     const html = await response.text();
+    console.log(`[LLM Service] Successfully fetched ${html.length} characters from reference URL`);
     // Limit to first 50KB to avoid token limits
-    return html.substring(0, 50000);
+    return { html: html.substring(0, 50000) };
   } catch (error) {
-    console.warn('Error fetching reference URL:', error);
-    return null;
+    const errorMsg = `Error fetching reference URL: ${error instanceof Error ? error.message : String(error)}`;
+    console.warn(`[LLM Service] ${errorMsg}`);
+    return { html: null, error: errorMsg };
   }
 }
 
@@ -414,7 +422,7 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<string> 
 
   if (input.referenceUrl) {
     // Fetch the actual reference content
-    const referenceContent = await fetchReferenceContent(input.referenceUrl);
+    const { html: referenceContent, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
     
     prompt += `\n\n**IMPORTANT - REFERENCE LAYOUT TO MATCH:**
 **Reference URL:** ${input.referenceUrl}
@@ -440,15 +448,21 @@ Analyze the HTML to determine:
 
 The user's description provides additional context. Use BOTH the HTML content and the description to create an exact match.`;
     } else {
-      prompt += `\n\nNote: I was unable to fetch the reference URL content automatically. Please rely on the user's description to match the layout as closely as possible.
+      console.error(`[LLM Service] Cannot fetch reference URL, relying on description. Error: ${fetchError}`);
+      prompt += `\n\n⚠️ Note: I was unable to fetch the reference URL content automatically (${fetchError || 'unknown error'}). 
+      
+The URL may require authentication or have CORS restrictions. I will rely ENTIRELY on the user's description to match the layout.
 
-Pay careful attention to:
+IMPORTANT: The user MUST provide a VERY DETAILED description including:
 - The EXACT order and structure of sections
-- Header design and styling (colors, gradients, layout)
+- Header design and styling (colors, gradients, layout, logo placement)
 - Section arrangement and spacing
 - Typography and text alignment
-- Color scheme and branding placement
-- Any custom HTML sections vs built-in components used`;
+- Color scheme with specific hex codes
+- Card/box styling (borders, shadows, padding)
+- Any custom HTML sections vs built-in components used
+
+Without the HTML content, an accurate match depends on the description quality.`;
     }
   }
 

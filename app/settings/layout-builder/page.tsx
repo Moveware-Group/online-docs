@@ -479,12 +479,16 @@ function LayoutBuilderContent() {
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
             {referenceUrl && (
-              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-blue-800">
-                    <strong>Reference URL Active:</strong> The AI will fetch and analyze the HTML from this URL to match the layout exactly. 
-                    Still provide a description to help the AI understand any specific requirements or context about what you want to match.
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-800">
+                    <strong>Reference URL Provided:</strong> The AI will attempt to fetch and analyze the HTML from this URL automatically.
+                    <br /><br />
+                    <strong>⚠️ Important:</strong> If the URL requires authentication or has CORS restrictions, the fetch may fail. 
+                    In that case, <strong>please provide a detailed description</strong> of the layout including header design, section order, colors (with hex codes), and styling details.
+                    <br /><br />
+                    <strong>Recommended:</strong> Always include a description to ensure the best results, even if the URL fetch succeeds.
                   </div>
                 </div>
               </div>
@@ -553,6 +557,7 @@ function LayoutBuilderContent() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
+                  {referenceUrl && <span className="text-amber-600 ml-1">(Recommended)</span>}
                   {!referenceUrl && <span className="text-red-600 ml-1">*</span>}
                 </label>
                 <textarea
@@ -560,16 +565,16 @@ function LayoutBuilderContent() {
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     referenceUrl
-                      ? "The AI will analyze the reference URL automatically. Optionally describe any specific aspects you want to emphasize or context about the layout (e.g., 'This is the Grace New Zealand format with the new header banner style')."
+                      ? "Describe the reference layout: header design (colors, gradients, logo placement), section order, styling details, typography, color scheme (with hex codes), spacing, etc. Example: 'Red to purple gradient header, white cards with rounded corners, sections: Location Info, Quote Summary, Pricing, Inventory, Acceptance Form.'"
                       : "Describe the desired layout, style, and any specific requirements..."
                   }
-                  rows={3}
+                  rows={referenceUrl ? 5 : 3}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   disabled={generating}
                 />
                 {referenceUrl && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    💡 The AI can now view the reference URL directly. Your description provides helpful context but is optional when a reference URL is provided.
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ <strong>Recommended:</strong> Provide a detailed description as backup in case the URL cannot be fetched automatically (e.g., due to authentication or CORS restrictions).
                   </p>
                 )}
               </div>

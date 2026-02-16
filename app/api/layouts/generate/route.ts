@@ -42,11 +42,22 @@ export async function POST(request: NextRequest) {
         conversationHistory,
       } = body;
 
-      if (!companyName || !description) {
+      if (!companyName) {
         return NextResponse.json(
           {
             success: false,
-            error: "companyName and description are required",
+            error: "companyName is required",
+          },
+          { status: 400 },
+        );
+      }
+
+      // Description is required only if no reference URL is provided
+      if (!description && !referenceUrl) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Either description or referenceUrl must be provided",
           },
           { status: 400 },
         );
