@@ -218,11 +218,18 @@ function QuotePageContent() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'LAYOUT_PREVIEW_UPDATE' && event.data.config) {
+        console.log('[Quote Preview] Received layout config via postMessage');
         setCustomLayout(event.data.config);
       }
     };
 
     window.addEventListener('message', handleMessage);
+
+    // Signal to parent that we are ready to receive layout configs
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'LAYOUT_PREVIEW_READY' }, '*');
+    }
+
     return () => window.removeEventListener('message', handleMessage);
   }, [isPreviewMode]);
 

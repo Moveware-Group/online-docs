@@ -411,6 +411,48 @@ function LayoutBuilderContent() {
     }
   };
 
+  // Whenever layoutConfig changes, ensure the iframe receives it.
+  // This is critical because on initial generation the iframe is conditionally
+  // rendered and doesn't exist yet when updatePreview() is first called.
+  useEffect(() => {
+    if (!layoutConfig) return;
+
+    const sendToIframe = () => {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          { type: 'LAYOUT_PREVIEW_UPDATE', config: layoutConfig },
+          '*',
+        );
+      }
+    };
+
+    // Immediate attempt (works for refinement when iframe is already loaded)
+    sendToIframe();
+
+    // Delayed attempts for initial generation: the iframe was just created
+    // and needs time to load the page and set up its message listener
+    const t1 = setTimeout(sendToIframe, 500);
+    const t2 = setTimeout(sendToIframe, 1500);
+    const t3 = setTimeout(sendToIframe, 3000);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [layoutConfig]);
+
+  // Listen for "ready" signal from the iframe (most reliable mechanism)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'LAYOUT_PREVIEW_READY' && layoutConfig) {
+        updatePreview(layoutConfig);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [layoutConfig]);
+
   // ---- Helpers ----
   const addUserMessage = (content: string) => {
     setChatMessages((prev) => [
@@ -731,6 +773,13 @@ function LayoutBuilderContent() {
                 src={`/quote?jobId=111505&coId=12&preview=true`}
                 className="w-full h-full bg-white rounded-lg shadow-lg border border-gray-300"
                 title="Quote Layout Preview"
+                onLoad={() => {
+                  // When the iframe finishes loading, send the layout config
+                  // Small delay to ensure React in the iframe has mounted
+                  if (layoutConfig) {
+                    setTimeout(() => updatePreview(layoutConfig), 300);
+                  }
+                }}
               />
             )}
           </div>

@@ -240,7 +240,7 @@ Here is an EXAMPLE of a properly formatted custom layout JSON:
     {
       "id": "pricing",
       "type": "custom_html",
-      "html": "<div style=\\"padding: 1.5rem 3rem;\\"><h2 style=\\"font-size: 1.25rem; font-weight: bold; color: #dc2626; margin-bottom: 1rem;\\">Service Options & Pricing</h2>{{#each costings}}<div style=\\"background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1rem;\\"><div style=\\"display: flex; justify-content: space-between; align-items: center;\\"><div><h3 style=\\"font-weight: 600;\\">{{this.name}}</h3><p style=\\"color: #6b7280; font-size: 0.875rem;\\">{{this.description}}</p></div><div style=\\"text-align: right;\\"><p style=\\"font-size: 1.5rem; font-weight: bold;\\">A${{this.totalPrice}}</p><p style=\\"color: #6b7280; font-size: 0.75rem;\\">Tax included</p></div></div></div>{{/each}}</div>"
+      "html": "<div style=\\"padding: 1.5rem 3rem;\\"><h2 style=\\"font-size: 1.25rem; font-weight: bold; color: #dc2626; margin-bottom: 1rem;\\">Service Options & Pricing</h2>{{#each costings}}<div style=\\"background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1rem;\\"><div style=\\"display: flex; justify-content: space-between; align-items: center;\\"><div><h3 style=\\"font-weight: 600;\\">{{this.name}}</h3><p style=\\"color: #6b7280; font-size: 0.875rem;\\">{{this.description}}</p></div><div style=\\"text-align: right;\\"><p style=\\"font-size: 1.5rem; font-weight: bold;\\">A\${{this.totalPrice}}</p><p style=\\"color: #6b7280; font-size: 0.75rem;\\">Tax included</p></div></div></div>{{/each}}</div>"
     },
     {
       "id": "inventory",
