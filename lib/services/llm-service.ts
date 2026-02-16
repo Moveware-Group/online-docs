@@ -518,11 +518,22 @@ async function callLLM(
 // ---------------------------------------------------------------------------
 
 function extractJSON(text: string): string {
+  // Log the full response for debugging
+  console.log('[LLM Service] Full AI response length:', text.length);
+  
+  // Check if response contains pre-generation analysis
+  if (text.includes('VISUAL ANALYSIS OF REFERENCE:')) {
+    const analysisMatch = text.match(/VISUAL ANALYSIS OF REFERENCE:([\s\S]*?)(?=\{|```)/);
+    if (analysisMatch) {
+      console.log('[LLM Service] AI\'s visual analysis:', analysisMatch[1].trim().substring(0, 500) + '...');
+    }
+  }
+  
   // Strip markdown code fences if present
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
   if (fenceMatch) return fenceMatch[1].trim();
 
-  // Try to find a JSON object directly
+  // Try to find a JSON object directly (look for the last { to avoid capturing analysis text)
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (jsonMatch) return jsonMatch[0];
 
@@ -717,24 +728,64 @@ I have attached a reference ${input.referenceFileData.mediaType === "application
 
 ⚠️ **THIS IS A REPLICATION TASK, NOT A DESIGN TASK.**
 
-**STEP-BY-STEP ANALYSIS REQUIRED:**
+YOU MUST FIRST ANALYZE THE REFERENCE, THEN REPLICATE IT.
 
-1. **Examine the document/image from TOP TO BOTTOM**
-2. **Identify and describe each section:**
-   - What does the header look like? (colors, gradient direction, logo position)
-   - What sections appear below the header? (in exact order)
-   - How is each section styled? (colors, borders, spacing, layout)
+**MANDATORY PRE-GENERATION ANALYSIS:**
 
-3. **Extract specific details:**
-   - Header colors and gradient (e.g., "red #dc2626 on LEFT to purple #7c3aed on RIGHT")
-   - Section order (e.g., "1. Intro paragraph, 2. Location info cards, 3. Quote summary...")
-   - Typography (font sizes, weights, alignment)
-   - Card/box styling (rounded corners, shadows, borders)
-   - Color scheme (exact hex values if visible)
+Before you write ANY JSON, you MUST complete this analysis by writing it out:
 
-4. **BEFORE generating JSON:** Write a brief description of what you see, section by section. Then recreate it EXACTLY in your JSON output.
+\`\`\`
+VISUAL ANALYSIS OF REFERENCE:
 
-**CRITICAL:** The user's text description provides context, but the VISUAL REFERENCE is your PRIMARY source of truth. If there's any conflict, follow the visual reference.`;
+1. HEADER SECTION:
+   - Background: [describe: solid color? gradient? if gradient: direction and colors]
+   - Logo: [position: left/center/right? size: small/medium/large?]
+   - Title text: [what does it say? color? size? position?]
+   - Other header content: [quote number? date? customer name? where positioned?]
+
+2. SECTIONS BELOW HEADER (list in exact order from top to bottom):
+   - Section 1: [type? heading? content?]
+   - Section 2: [type? heading? content?]
+   - Section 3: [type? heading? content?]
+   - [continue for ALL visible sections...]
+
+3. STYLING DETAILS:
+   - Page background color: [what color?]
+   - Section headings color: [what color? size?]
+   - Card/box styling: [rounded? borders? shadows? background colors?]
+   - Text colors: [heading colors? body text colors?]
+   - Spacing: [tight? generous? specific patterns?]
+
+4. LAYOUT STRUCTURE:
+   - Overall: [single column? multi-column? cards? continuous?]
+   - Location section: [how displayed? two columns? cards?]
+   - Pricing section: [how displayed? cards? table? list?]
+   - Quote summary: [how displayed? cards in a row? list?]
+\`\`\`
+
+AFTER writing this analysis, generate the JSON that EXACTLY matches what you described.
+
+**OUTPUT FORMAT:**
+First, write your visual analysis in plain text.
+Then, write the complete JSON layout config.
+
+**EXAMPLE OUTPUT:**
+\`\`\`
+VISUAL ANALYSIS OF REFERENCE:
+[your analysis here...]
+
+{
+  "version": 1,
+  "globalStyles": { ... },
+  "sections": [ ... ]
+}
+\`\`\`
+
+**CRITICAL RULES:**
+- The VISUAL REFERENCE is your PRIMARY source of truth - replicate what you SEE, not what you imagine
+- If the user's text description conflicts with what you see visually, follow the VISUAL
+- Every section in your JSON must correspond to a section you identified in your analysis
+- Colors, spacing, layout structure must match the visual reference EXACTLY`;
   }
 
   let screenshotData: ReferenceFileData | null = null;
