@@ -81,6 +81,14 @@ export async function POST(request: NextRequest) {
           
           if (existsSync(filePath)) {
             const fileBuffer = await readFile(filePath);
+            const fileSizeMB = (fileBuffer.length / 1024 / 1024).toFixed(2);
+            console.log(`[Generate] File size: ${fileSizeMB}MB`);
+            
+            // Warn if file is very large (>5MB) as it may cause issues with Claude API
+            if (fileBuffer.length > 5 * 1024 * 1024) {
+              console.warn(`[Generate] WARNING: File is ${fileSizeMB}MB - large files may cause issues. Consider using a smaller file or screenshot.`);
+            }
+            
             const base64 = fileBuffer.toString("base64");
             const ext = path.extname(filePath).toLowerCase();
             
@@ -94,7 +102,7 @@ export async function POST(request: NextRequest) {
               mediaType,
               filename: path.basename(filePath),
             };
-            console.log(`[Generate] Successfully encoded reference file (${mediaType}, ${(base64.length / 1024).toFixed(2)}KB)`);
+            console.log(`[Generate] Successfully encoded reference file (${mediaType}, ${(base64.length / 1024).toFixed(2)}KB base64)`);
           } else {
             console.warn(`[Generate] Reference file not found: ${filePath}`);
           }

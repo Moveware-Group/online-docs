@@ -10,8 +10,13 @@ export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // Hide on layout builder page since it has its own AI chat interface
-  if (pathname === "/settings/layout-builder") {
+  // Hide on layout builder page (has its own AI chat) and quote pages (customer-facing)
+  if (
+    pathname === "/settings/layout-builder" ||
+    pathname === "/quote" ||
+    pathname === "/thank-you" ||
+    pathname?.startsWith("/quote/")
+  ) {
     return null;
   }
 

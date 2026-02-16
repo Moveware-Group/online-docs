@@ -197,10 +197,33 @@ Return ONLY valid JSON matching this structure:
 ## Important: Custom HTML vs Built-in Components
 
 When replicating a reference layout:
-- **Use custom_html sections liberally** to match exact custom designs
-- Built-in components have specific styling that may not match the reference
-- For headers, summaries, and unique sections → use custom_html with exact HTML/CSS from reference
-- Only use built-in components when they're a perfect match (e.g., InventoryTable, AcceptanceForm, TermsSection)
+- **Use custom_html sections for EVERYTHING except the few built-in components below**
+- Built-in components have their own styling that usually WON'T match the reference
+- For headers → ALWAYS use custom_html (built-in HeaderSection won't match custom designs)
+- For intro/welcome text → ALWAYS use custom_html
+- For location info → ALWAYS use custom_html (built-in LocationInfo may not match)
+- For pricing/estimates → ALWAYS use custom_html  
+- For summary cards → ALWAYS use custom_html
+- **Only use these built-in components:**
+  - **InventoryTable** — for the inventory/items list (it has pagination built in)
+  - **AcceptanceForm** — REQUIRED for quote acceptance (signature, form fields)
+  - **TermsSection** — for terms and conditions
+
+## Critical HTML Guidelines for custom_html sections:
+
+1. **Header sections**: Use inline styles or Tailwind classes for gradients. Example:
+   \`<div style="background: linear-gradient(to right, #dc2626, #7c3aed);" class="p-8">\`
+
+2. **Logo images**: Use the {{branding.logoUrl}} variable. Keep logos appropriately sized:
+   \`<img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" class="h-12 w-auto" />\`
+   NEVER make the logo fill the entire width. Logos should be max 200px wide.
+
+3. **Card layouts**: Use Tailwind grid/flex classes:
+   \`<div class="grid grid-cols-2 gap-6">\`
+
+4. **Colors**: Use the exact colors from the reference, specified with inline styles when Tailwind classes aren't precise enough.
+
+5. **All HTML must be complete**: Include opening AND closing tags. No fragments.
 `;
 
 // ---------------------------------------------------------------------------
@@ -570,7 +593,13 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
 
 **Company:** ${input.companyName} (Brand Code: ${input.brandCode})
 **Primary Color:** ${input.primaryColor}
-**Secondary Color:** ${input.secondaryColor}`;
+**Secondary Color:** ${input.secondaryColor}
+
+⚠️ IMPORTANT REMINDERS:
+- For the HEADER: use custom_html with inline styles for gradients. Do NOT use the built-in HeaderSection.
+- Keep logos appropriately sized (max h-12 or h-16, w-auto). NEVER make logos fill the entire page width.
+- Use custom_html for most sections. Only use built-in InventoryTable, AcceptanceForm, and TermsSection.
+- All custom_html sections must have complete, valid HTML with proper styling.`;
 
   if (input.tertiaryColor) {
     prompt += `\n**Tertiary Color:** ${input.tertiaryColor}`;
