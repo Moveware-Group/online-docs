@@ -77,8 +77,28 @@ export async function captureUrl(url: string): Promise<{
 
     console.log("[Browser] Page loaded, waiting for content...");
 
-    // Wait a bit for dynamic content to load
-    await page.waitForTimeout(2000);
+    // Wait for dynamic content and images to load
+    try {
+      // Wait for images to load
+      await page.waitForLoadState("domcontentloaded", { timeout: 5000 });
+      await page.waitForTimeout(3000); // Give extra time for fonts, images, etc.
+      
+      // Scroll to load lazy-loaded content
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      await page.waitForTimeout(1000);
+      
+      // Scroll back to top for screenshot
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(500);
+      
+      console.log("[Browser] Content fully loaded and rendered");
+    } catch (waitError) {
+      console.warn("[Browser] Timeout waiting for content, proceeding anyway:", waitError);
+    }
 
     // Capture screenshot (full page)
     console.log("[Browser] Capturing screenshot...");

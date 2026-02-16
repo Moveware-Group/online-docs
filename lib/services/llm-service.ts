@@ -78,13 +78,41 @@ export interface RefineLayoutInput {
 
 const LAYOUT_SYSTEM_PROMPT = `You are an expert web designer specialising in creating custom quote page layouts for moving companies. You generate layout configurations as JSON that a renderer will use to build the page.
 
-⚠️ CRITICAL INSTRUCTION: When a user provides a REFERENCE FILE (PDF/image), REFERENCE URL, or REFERENCE HTML, your PRIMARY GOAL is to MATCH that layout EXACTLY. 
+🚨 CRITICAL INSTRUCTION - EXACT REPLICATION REQUIRED 🚨
 
-**If a reference file/image is attached:** Study it carefully and replicate EVERY visual detail - header design, section order, colors, spacing, typography, card styles, etc. This is your PRIMARY source of truth.
+When a user provides a REFERENCE FILE (PDF/image), REFERENCE URL screenshot, or REFERENCE HTML, you are NOT designing - you are REPLICATING.
 
-**If reference HTML is provided:** Analyze the structure and styling precisely.
+**YOUR ONLY JOB IS TO COPY THE REFERENCE LAYOUT EXACTLY. ANY DEVIATION IS WRONG.**
 
-Do NOT be creative or add your own design touches. Your job is to REPLICATE, not to design.
+## How to Analyze a Reference Layout (Screenshot/PDF/Image):
+
+1. **HEADER (Top of page):**
+   - Note EXACT colors, gradients (direction and colors)
+   - Logo position (left/center/right) and size
+   - Text layout, font sizes, alignment
+   - Quote number, date, customer name positions
+
+2. **SECTIONS (In exact order from top to bottom):**
+   - Count and list all sections
+   - Note the EXACT order
+   - Identify section types (text, table, form, cards, etc.)
+   
+3. **STYLING (Colors, spacing, typography):**
+   - Exact color values from the design
+   - Font sizes and weights
+   - Spacing between sections
+   - Card/box styling (borders, shadows, padding)
+   - Background colors
+
+4. **LAYOUT STRUCTURE:**
+   - Single column or multi-column
+   - Card-based or continuous
+   - Table layouts
+   - Form arrangements
+
+**If reference HTML is provided:** Extract the EXACT structure, classes, and inline styles. Copy them.
+
+**NEVER** add creative touches, modern improvements, or "better" designs. REPLICATE EXACTLY.
 
 ## Available Data Variables (use in HTML with {{variable}} syntax)
 
@@ -165,6 +193,14 @@ Return ONLY valid JSON matching this structure:
 5. Make layouts professional, clean, and modern.
 6. All HTML must be safe — no <script> tags or event handlers.
 7. Return ONLY the JSON object — no markdown fences, no explanation.
+
+## Important: Custom HTML vs Built-in Components
+
+When replicating a reference layout:
+- **Use custom_html sections liberally** to match exact custom designs
+- Built-in components have specific styling that may not match the reference
+- For headers, summaries, and unique sections → use custom_html with exact HTML/CSS from reference
+- Only use built-in components when they're a perfect match (e.g., InventoryTable, AcceptanceForm, TermsSection)
 `;
 
 // ---------------------------------------------------------------------------
@@ -538,16 +574,32 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
 
   // Reference file (PDF or image)
   if (input.referenceFileData) {
-    prompt += `\n\n**📄 REFERENCE FILE PROVIDED:**
-I have attached a reference ${input.referenceFileData.mediaType === "application/pdf" ? "PDF document" : "image"} (${input.referenceFileData.filename}) that shows the exact layout you need to match.
+    prompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 REFERENCE FILE ATTACHED - EXACT REPLICATION REQUIRED 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ **CRITICAL**: Study this document/image VERY CAREFULLY. This is the exact layout the user wants. You MUST replicate:
-- The EXACT header design (colors, gradients, logo placement, text layout)
-- The PRECISE section order and structure
-- The EXACT styling (fonts, colors, spacing, borders, shadows)
-- The SPECIFIC layout of each section (columns, cards, grids)
+I have attached a reference ${input.referenceFileData.mediaType === "application/pdf" ? "PDF document" : "image"} (${input.referenceFileData.filename}) that shows the EXACT layout you need to match.
 
-Analyze every detail in this reference and match it precisely. The user's description provides additional context, but the visual reference is the PRIMARY source of truth.`;
+⚠️ **THIS IS A REPLICATION TASK, NOT A DESIGN TASK.**
+
+**STEP-BY-STEP ANALYSIS REQUIRED:**
+
+1. **Examine the document/image from TOP TO BOTTOM**
+2. **Identify and describe each section:**
+   - What does the header look like? (colors, gradient direction, logo position)
+   - What sections appear below the header? (in exact order)
+   - How is each section styled? (colors, borders, spacing, layout)
+
+3. **Extract specific details:**
+   - Header colors and gradient (e.g., "red #dc2626 on LEFT to purple #7c3aed on RIGHT")
+   - Section order (e.g., "1. Intro paragraph, 2. Location info cards, 3. Quote summary...")
+   - Typography (font sizes, weights, alignment)
+   - Card/box styling (rounded corners, shadows, borders)
+   - Color scheme (exact hex values if visible)
+
+4. **BEFORE generating JSON:** Write a brief description of what you see, section by section. Then recreate it EXACTLY in your JSON output.
+
+**CRITICAL:** The user's text description provides context, but the VISUAL REFERENCE is your PRIMARY source of truth. If there's any conflict, follow the visual reference.`;
   }
 
   let screenshotData: ReferenceFileData | null = null;
@@ -556,10 +608,14 @@ Analyze every detail in this reference and match it precisely. The user's descri
     // Fetch the actual reference content with browser automation
     const { html: referenceContent, screenshot, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
     
-    prompt += `\n\n**📸 REFERENCE LAYOUT FROM URL:**
+    prompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 REFERENCE LAYOUT PROVIDED - EXACT REPLICATION REQUIRED 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 **Reference URL:** ${input.referenceUrl}
 
-⚠️ CRITICAL: The user has provided a reference layout that you MUST match as closely as possible. This is not a suggestion or inspiration - you MUST replicate the layout structure, sections, and styling from the reference URL.`;
+⚠️ CRITICAL: This is a REPLICATION task, NOT a design task.
+You MUST copy this layout EXACTLY. Any deviation is WRONG.`;
 
     // If we got a screenshot, prepare it for the AI
     if (screenshot) {
@@ -571,25 +627,41 @@ Analyze every detail in this reference and match it precisely. The user's descri
       };
       console.log(`[LLM Service] Captured screenshot of reference URL (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
       
-      prompt += `\n\n**I have captured a SCREENSHOT of the reference URL** which is attached to this message. Study it VERY CAREFULLY and replicate the exact visual design you see.`;
+      prompt += `\n\n📸 **SCREENSHOT ATTACHED** - I have captured a full screenshot of the reference layout.
+
+**YOUR TASK:**
+1. Look at the screenshot from TOP TO BOTTOM
+2. Identify EVERY section and its exact appearance
+3. Note EXACT colors (especially header gradients)
+4. Replicate the EXACT section order
+5. Match EXACT styling (spacing, fonts, borders, shadows)
+6. Copy the EXACT layout structure (columns, cards, tables)
+
+**ANALYSIS CHECKLIST:**
+□ Header: What colors? Gradient direction? Logo position? Text layout?
+□ Sections: List them in order from top to bottom
+□ Styling: What colors, fonts, spacing do you see?
+□ Layout: Single/multi-column? Cards? Tables?
+□ Details: Borders? Shadows? Background colors?
+
+**BEFORE YOU GENERATE:** Describe what you see in the screenshot, section by section, to ensure you understand it correctly. Then replicate EXACTLY what you described.`;
     }
 
     if (referenceContent) {
-      prompt += `\n\n**REFERENCE HTML CONTENT:**
-I have also fetched the HTML from the reference URL. Use this to understand the structure:
+      prompt += `\n\n📄 **REFERENCE HTML PROVIDED:**
+I have fetched the HTML source code from the reference URL. Use this with the screenshot to understand the EXACT structure:
 
 \`\`\`html
 ${referenceContent}
 \`\`\`
 
-Analyze both the SCREENSHOT (primary) and HTML to determine:
-- The EXACT order and structure of sections
-- Header design and styling (colors, gradients, layout)
-- Section arrangement and spacing
-- Typography and text alignment
-- Color scheme (look for color values in styles)
-- Card/box styling (borders, shadows, padding)
-- Use of custom HTML vs. built-in components`;
+**Extract from this HTML:**
+- EXACT color values (hex codes, rgb values)
+- EXACT class names and styles
+- EXACT section structure and order
+- EXACT element hierarchy
+
+**Your goal:** Recreate this EXACTLY in your JSON output. Use custom_html sections to match the custom styling you see.`;
     }
 
     if (!screenshot && !referenceContent) {
@@ -607,7 +679,56 @@ IMPORTANT: The user MUST provide a VERY DETAILED description including all visua
   }
 
   const hasVisualReference = screenshotData || input.referenceFileData;
-  prompt += `\n\nGenerate a complete layout config JSON that ${hasVisualReference ? 'EXACTLY MATCHES the visual reference provided' : 'follows the description'}. Return ONLY the JSON.`;
+  
+  if (hasVisualReference) {
+    prompt += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 FINAL INSTRUCTION - READ CAREFULLY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**BEFORE GENERATING JSON, ANALYZE THE REFERENCE:**
+
+Look at the reference screenshot/image/PDF and mentally answer these questions:
+
+1. **Header Analysis:**
+   - What color is the header background? (solid color or gradient?)
+   - If gradient: what direction? What colors? (e.g., "red #dc2626 LEFT to purple #7c3aed RIGHT")
+   - Where is the logo positioned? (left, center, right?)
+   - What text appears in the header? What is the layout?
+   - Are there any specific design elements? (crown icon, banner, rounded corners?)
+
+2. **Section Inventory (list in order from top to bottom):**
+   - Section 1: [what type? heading? paragraph? cards?]
+   - Section 2: [what type?]
+   - Section 3: [what type?]
+   - ... continue for ALL visible sections
+
+3. **Styling Details:**
+   - What is the page background color?
+   - Are sections in cards/boxes or continuous?
+   - What colors are used for section headings?
+   - What spacing/padding do you observe?
+   - Are there borders, shadows, or other decorative elements?
+
+4. **Specific Features:**
+   - How is location information displayed? (two columns? cards?)
+   - How is pricing/quote summary shown? (table? cards? list?)
+   - What's the overall layout structure? (single column? multi-column?)
+
+**NOW GENERATE JSON BASED ON YOUR ANALYSIS:**
+
+Your JSON MUST recreate what you just analyzed. Every section in your JSON should correspond to a section you saw in the reference. Every color should match. Every layout choice should replicate the reference.
+
+**CRITICAL CHECKLIST BEFORE SUBMITTING:**
+□ Header matches reference header EXACTLY
+□ Sections are in the SAME ORDER as reference
+□ Colors match reference (especially header gradient)
+□ Layout structure matches (columns, cards, spacing)
+□ Section styling matches (borders, shadows, backgrounds)
+
+Return ONLY valid JSON. NO explanations, NO markdown fences around the JSON.`;
+  } else {
+    prompt += `\n\nGenerate a complete layout config JSON that follows the description. Return ONLY the JSON.`;
+  }
 
   return { prompt, screenshotData };
 }

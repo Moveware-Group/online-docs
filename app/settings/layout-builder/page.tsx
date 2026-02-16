@@ -468,6 +468,16 @@ function LayoutBuilderContent() {
         </div>
         <div className="flex items-center gap-2">
           <a
+            href="/settings/layout-builder-diagnostics"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-amber-600 hover:text-amber-700 transition-colors"
+            title="Check system dependencies"
+          >
+            <AlertCircle className="w-4 h-4" />
+            Diagnostics
+          </a>
+          <a
             href="/docs/ai-layout-guide"
             target="_blank"
             rel="noopener noreferrer"
