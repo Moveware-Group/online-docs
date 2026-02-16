@@ -519,7 +519,7 @@ function LayoutBuilderContent() {
         {/* LEFT PANEL: Form + Chat */}
         <div className="w-[420px] flex-shrink-0 border-r border-gray-200 bg-white flex flex-col overflow-hidden">
           {/* Form Section */}
-          <div className="p-4 border-b border-gray-200 overflow-y-auto flex-shrink-0" style={{ maxHeight: '50%' }}>
+          <div className="p-4 border-b border-gray-200 overflow-y-auto flex-shrink-0">
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
             {referenceUrl && (
@@ -660,7 +660,7 @@ function LayoutBuilderContent() {
           </div>
 
           {/* Chat Section */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex flex-col overflow-hidden" style={{ maxHeight: '300px', minHeight: '200px' }}>
             <div className="px-4 py-2 border-b border-gray-100 flex-shrink-0">
               <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
                 <Bot className="w-4 h-4 text-blue-600" />
