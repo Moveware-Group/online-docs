@@ -10,10 +10,10 @@ import path from "path";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { filename: string } },
+  { params }: { params: Promise<{ filename: string }> },
 ) {
   try {
-    const filename = params.filename;
+    const { filename } = await params;
 
     // Security: Only allow alphanumeric, dash, underscore, and dot
     if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
