@@ -14,6 +14,9 @@ import {
   refineLayout,
   chatAboutLayout,
 } from "@/lib/services/llm-service";
+import { readFile } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
         tertiaryColor,
         logoUrl,
         referenceUrl,
+        referenceFilePath,
         referenceFileContent,
         description,
         conversationHistory,
@@ -52,15 +56,46 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Description is required only if no reference URL is provided
-      if (!description && !referenceUrl) {
+      // Description is required only if no reference URL/file is provided
+      if (!description && !referenceUrl && !referenceFilePath) {
         return NextResponse.json(
           {
             success: false,
-            error: "Either description or referenceUrl must be provided",
+            error: "Either description, referenceUrl, or referenceFile must be provided",
           },
           { status: 400 },
         );
+      }
+
+      // Read and encode reference file if provided
+      let referenceFileData = null;
+      if (referenceFilePath) {
+        try {
+          const filePath = path.join(process.cwd(), "public", referenceFilePath.replace(/^\//, ""));
+          console.log(`[Generate] Attempting to read reference file: ${filePath}`);
+          
+          if (existsSync(filePath)) {
+            const fileBuffer = await readFile(filePath);
+            const base64 = fileBuffer.toString("base64");
+            const ext = path.extname(filePath).toLowerCase();
+            
+            let mediaType = "application/pdf";
+            if (ext === ".png") mediaType = "image/png";
+            else if (ext === ".jpg" || ext === ".jpeg") mediaType = "image/jpeg";
+            else if (ext === ".webp") mediaType = "image/webp";
+            
+            referenceFileData = {
+              data: base64,
+              mediaType,
+              filename: path.basename(filePath),
+            };
+            console.log(`[Generate] Successfully encoded reference file (${mediaType}, ${(base64.length / 1024).toFixed(2)}KB)`);
+          } else {
+            console.warn(`[Generate] Reference file not found: ${filePath}`);
+          }
+        } catch (error) {
+          console.error("[Generate] Error reading reference file:", error);
+        }
       }
 
       const layoutConfig = await generateLayout({
@@ -71,6 +106,7 @@ export async function POST(request: NextRequest) {
         tertiaryColor,
         logoUrl,
         referenceUrl,
+        referenceFileData,
         referenceFileContent,
         description,
         conversationHistory,

@@ -235,6 +235,7 @@ function LayoutBuilderContent() {
           secondaryColor: '#1e40af',
           logoUrl: selectedCompany.logoUrl,
           referenceUrl: referenceUrl || undefined,
+          referenceFilePath: referenceFilePath || undefined,
           description,
           conversationHistory,
         }),

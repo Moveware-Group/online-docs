@@ -43,6 +43,12 @@ export interface LayoutConfig {
   sections: LayoutSection[];
 }
 
+export interface ReferenceFileData {
+  data: string; // base64 encoded
+  mediaType: string; // e.g., "application/pdf", "image/png"
+  filename: string;
+}
+
 export interface GenerateLayoutInput {
   companyName: string;
   brandCode: string;
@@ -51,7 +57,8 @@ export interface GenerateLayoutInput {
   tertiaryColor?: string;
   logoUrl?: string;
   referenceUrl?: string;
-  referenceFileContent?: string; // extracted text from PDF
+  referenceFileData?: ReferenceFileData | null; // PDF or image as base64
+  referenceFileContent?: string; // deprecated: extracted text from PDF
   description: string;
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
 }
@@ -71,7 +78,13 @@ export interface RefineLayoutInput {
 
 const LAYOUT_SYSTEM_PROMPT = `You are an expert web designer specialising in creating custom quote page layouts for moving companies. You generate layout configurations as JSON that a renderer will use to build the page.
 
-⚠️ CRITICAL INSTRUCTION: When a user provides a REFERENCE URL or REFERENCE FILE, your PRIMARY GOAL is to MATCH that layout EXACTLY. Do not be creative or add your own design touches. Replicate the structure, colors, sections, and styling as precisely as possible based on the user's description of the reference.
+⚠️ CRITICAL INSTRUCTION: When a user provides a REFERENCE FILE (PDF/image), REFERENCE URL, or REFERENCE HTML, your PRIMARY GOAL is to MATCH that layout EXACTLY. 
+
+**If a reference file/image is attached:** Study it carefully and replicate EVERY visual detail - header design, section order, colors, spacing, typography, card styles, etc. This is your PRIMARY source of truth.
+
+**If reference HTML is provided:** Analyze the structure and styling precisely.
+
+Do NOT be creative or add your own design touches. Your job is to REPLICATE, not to design.
 
 ## Available Data Variables (use in HTML with {{variable}} syntax)
 
@@ -187,6 +200,7 @@ async function callAnthropic(
   systemPrompt: string,
   userMessage: string,
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  referenceFileData?: ReferenceFileData | null,
 ): Promise<string> {
   const client = getAnthropicClient();
 
@@ -199,8 +213,41 @@ async function callAnthropic(
     }
   }
 
-  // Add current user message
-  messages.push({ role: "user", content: userMessage });
+  // Build current message content with optional document/image
+  const messageContent: Anthropic.MessageParam["content"] = [];
+  
+  // Add reference file if provided (PDF or image)
+  if (referenceFileData) {
+    console.log(`[LLM] Adding reference file to prompt: ${referenceFileData.filename} (${referenceFileData.mediaType})`);
+    
+    if (referenceFileData.mediaType === "application/pdf") {
+      messageContent.push({
+        type: "document" as const,
+        source: {
+          type: "base64" as const,
+          media_type: "application/pdf" as const,
+          data: referenceFileData.data,
+        },
+      });
+    } else if (referenceFileData.mediaType.startsWith("image/")) {
+      messageContent.push({
+        type: "image" as const,
+        source: {
+          type: "base64" as const,
+          media_type: referenceFileData.mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+          data: referenceFileData.data,
+        },
+      });
+    }
+  }
+  
+  // Add text message
+  messageContent.push({
+    type: "text" as const,
+    text: userMessage,
+  });
+
+  messages.push({ role: "user", content: messageContent });
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -249,6 +296,7 @@ async function callLLM(
   systemPrompt: string,
   userMessage: string,
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  referenceFileData?: ReferenceFileData | null,
 ): Promise<string> {
   const provider = (
     process.env.LLM_PRIMARY_PROVIDER || "anthropic"
@@ -256,9 +304,14 @@ async function callLLM(
 
   try {
     if (provider === "openai") {
+      // OpenAI doesn't support PDF documents, only images
+      if (referenceFileData && !referenceFileData.mediaType.startsWith("image/")) {
+        console.warn("[LLM] OpenAI does not support PDF documents, falling back to Anthropic");
+        return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
+      }
       return await callOpenAI(systemPrompt, userMessage, conversationHistory);
     }
-    return await callAnthropic(systemPrompt, userMessage, conversationHistory);
+    return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
   } catch (primaryError) {
     console.warn(`Primary LLM (${provider}) failed, trying fallback:`, primaryError);
 
@@ -269,6 +322,7 @@ async function callLLM(
           systemPrompt,
           userMessage,
           conversationHistory,
+          referenceFileData,
         );
       }
       return await callOpenAI(systemPrompt, userMessage, conversationHistory);
@@ -309,6 +363,7 @@ export async function generateLayout(
     LAYOUT_SYSTEM_PROMPT,
     userMessage,
     input.conversationHistory,
+    input.referenceFileData,
   );
   const json = extractJSON(raw);
 
@@ -419,6 +474,20 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<string> 
   }
 
   prompt += `\n\n**User's Description:**\n${input.description}`;
+
+  // Reference file (PDF or image)
+  if (input.referenceFileData) {
+    prompt += `\n\n**📄 REFERENCE FILE PROVIDED:**
+I have attached a reference ${input.referenceFileData.mediaType === "application/pdf" ? "PDF document" : "image"} (${input.referenceFileData.filename}) that shows the exact layout you need to match.
+
+⚠️ **CRITICAL**: Study this document/image VERY CAREFULLY. This is the exact layout the user wants. You MUST replicate:
+- The EXACT header design (colors, gradients, logo placement, text layout)
+- The PRECISE section order and structure
+- The EXACT styling (fonts, colors, spacing, borders, shadows)
+- The SPECIFIC layout of each section (columns, cards, grids)
+
+Analyze every detail in this reference and match it precisely. The user's description provides additional context, but the visual reference is the PRIMARY source of truth.`;
+  }
 
   if (input.referenceUrl) {
     // Fetch the actual reference content
