@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bot, X, Minimize2 } from "lucide-react";
 import { ChatInterface } from "@/lib/components/bot/chat-interface";
 
 export function FloatingChatWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // Hide on layout builder page since it has its own AI chat interface
+  if (pathname === "/settings/layout-builder") {
+    return null;
+  }
 
   const toggleChat = () => {
     if (isOpen && isMinimized) {
