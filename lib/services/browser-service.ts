@@ -123,9 +123,44 @@ async function captureWithPlaywright(
 
     page.setDefaultTimeout(45000);
 
-    // Hide automation indicators
+    // Comprehensive anti-detection: override navigator properties to mimic real Chrome
     await page.addInitScript(() => {
-      Object.defineProperty(navigator, "webdriver", { get: () => false });
+      // Hide webdriver property
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => false,
+      });
+
+      // Override user agent (should match the one set in page options)
+      Object.defineProperty(navigator, "userAgent", {
+        get: () =>
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      });
+
+      // Set Chrome-specific properties
+      Object.defineProperty(navigator, "vendor", {
+        get: () => "Google Inc.",
+      });
+
+      Object.defineProperty(navigator, "platform", {
+        get: () => "Win32",
+      });
+
+      Object.defineProperty(navigator, "languages", {
+        get: () => ["en-US", "en"],
+      });
+
+      // Chrome object (present in real Chrome)
+      (window as any).chrome = {
+        runtime: {},
+      };
+
+      // Plugins (real Chrome has plugins)
+      Object.defineProperty(navigator, "plugins", {
+        get: () => [1, 2, 3, 4, 5],
+      });
+
+      // Remove automation-related properties
+      delete (navigator as any).__proto__.webdriver;
     });
 
     console.log(`[Browser] Navigating to URL (strict=${options.strictStatus})...`);
@@ -171,6 +206,19 @@ async function captureWithPlaywright(
     try {
       await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
       await page.waitForTimeout(3000);
+
+      // Force hide any IE warning elements (in case detection still happens)
+      await page.evaluate(() => {
+        const ieWarning = document.getElementById("ie-warning");
+        if (ieWarning) {
+          ieWarning.style.display = "none";
+        }
+        // Also hide app-root elements that might be hidden
+        const appRoot = document.querySelector('[id^="app-root"]');
+        if (appRoot && (appRoot as HTMLElement).style.display === "none") {
+          (appRoot as HTMLElement).style.display = "block";
+        }
+      });
 
       // Scroll to trigger lazy loading
       await page.evaluate(async () => {
