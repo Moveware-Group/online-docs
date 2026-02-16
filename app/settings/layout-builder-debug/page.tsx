@@ -107,39 +107,69 @@ export default function LayoutBuilderDebugPage() {
           <div className="space-y-6">
             {/* Stats */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="font-semibold text-green-900 mb-2">✓ Capture Successful</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <h3 className="font-semibold text-green-900 mb-2">
+                {result.hasScreenshot ? '✓ Full Capture Successful' : result.hasHtml ? '⚠️ HTML Only (No Screenshot)' : '✓ Capture Complete'}
+              </h3>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                {result.hasScreenshot && (
+                  <div>
+                    <span className="text-green-700 font-medium">Screenshot:</span>
+                    <span className="text-green-900 ml-2">{result.screenshotSizeKB} KB</span>
+                  </div>
+                )}
+                {result.hasHtml && (
+                  <div>
+                    <span className="text-green-700 font-medium">HTML:</span>
+                    <span className="text-green-900 ml-2">{result.htmlSizeKB} KB</span>
+                  </div>
+                )}
                 <div>
-                  <span className="text-green-700 font-medium">Screenshot Size:</span>
-                  <span className="text-green-900 ml-2">{result.screenshotSizeKB} KB</span>
-                </div>
-                <div>
-                  <span className="text-green-700 font-medium">HTML Size:</span>
-                  <span className="text-green-900 ml-2">{result.htmlSizeKB} KB</span>
+                  <span className="text-green-700 font-medium">Time:</span>
+                  <span className="text-green-900 ml-2">{(result.elapsedMs / 1000).toFixed(1)}s</span>
                 </div>
               </div>
+              {result.partialError && (
+                <p className="text-sm text-amber-700 mt-2">
+                  Note: {result.partialError}
+                </p>
+              )}
             </div>
 
             {/* Screenshot */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-900 mb-3">
-                Screenshot (This is what the AI sees)
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                This is the exact screenshot that gets sent to Claude. The AI analyzes this image to replicate the layout.
-              </p>
-              <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
-                <img 
-                  src={result.screenshotDataUrl} 
-                  alt="Captured screenshot" 
-                  className="w-full"
-                />
+            {result.hasScreenshot && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h3 className="font-bold text-gray-900 mb-3">
+                  Screenshot (This is what the AI sees)
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  This is the exact screenshot that gets sent to Claude. The AI analyzes this image to replicate the layout.
+                </p>
+                <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+                  <img 
+                    src={result.screenshotDataUrl} 
+                    alt="Captured screenshot" 
+                    className="w-full"
+                  />
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Does this screenshot show the full layout you want to replicate?</span>
+                </div>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
-                <AlertCircle className="w-4 h-4" />
-                <span>Does this screenshot show the full layout you want to replicate?</span>
+            )}
+
+            {!result.hasScreenshot && result.hasHtml && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+                <h3 className="font-bold text-amber-900 mb-2">No Screenshot Available</h3>
+                <p className="text-sm text-amber-800">
+                  The server was able to fetch HTML but could not capture a screenshot. 
+                  The AI will use the HTML structure to generate the layout, but results may be less accurate without a visual reference.
+                </p>
+                <p className="text-sm text-amber-700 mt-2">
+                  <strong>Recommendation:</strong> For best results, save the page as PDF from your browser and upload it instead.
+                </p>
               </div>
-            </div>
+            )}
 
             {/* HTML Preview */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

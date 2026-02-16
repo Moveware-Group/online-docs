@@ -1,15 +1,20 @@
 /**
- * Browser Service - Use Playwright to render URLs and capture screenshots
- * This works around CORS, authentication, and JavaScript rendering issues
+ * Browser Service - Capture screenshots and HTML from URLs
+ *
+ * Strategy (tries in order):
+ * 1. Playwright with full browser rendering (handles JS-rendered pages)
+ * 2. Playwright with relaxed response checks (some SPAs return non-200 initially)
+ * 3. Simple HTTP fetch for HTML-only fallback
  */
 
 import { chromium, Browser, Page } from "playwright";
 
 let browserInstance: Browser | null = null;
 
-/**
- * Get or create a browser instance
- */
+// ---------------------------------------------------------------------------
+// Browser lifecycle
+// ---------------------------------------------------------------------------
+
 async function getBrowser(): Promise<Browser> {
   if (!browserInstance || !browserInstance.isConnected()) {
     console.log("[Browser] Launching Chromium browser...");
@@ -20,15 +25,13 @@ async function getBrowser(): Promise<Browser> {
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-gpu",
+        "--disable-blink-features=AutomationControlled",
       ],
     });
   }
   return browserInstance;
 }
 
-/**
- * Close the browser instance
- */
 export async function closeBrowser(): Promise<void> {
   if (browserInstance) {
     await browserInstance.close();
@@ -37,37 +40,106 @@ export async function closeBrowser(): Promise<void> {
   }
 }
 
-/**
- * Capture a screenshot and HTML of a URL
- */
+// ---------------------------------------------------------------------------
+// Main capture function with retry strategies
+// ---------------------------------------------------------------------------
+
 export async function captureUrl(url: string): Promise<{
   screenshot: Buffer | null;
   html: string | null;
   error?: string;
 }> {
+  console.log(`[Browser] Starting capture for: ${url}`);
+
+  // Strategy 1: Full Playwright render
+  const result = await captureWithPlaywright(url, { strictStatus: true });
+  if (result.screenshot || result.html) {
+    console.log("[Browser] Strategy 1 (Playwright strict) succeeded");
+    return result;
+  }
+
+  console.log(`[Browser] Strategy 1 failed (${result.error}), trying strategy 2...`);
+
+  // Strategy 2: Playwright but accept any response (some SPAs return 404 initially then render)
+  const result2 = await captureWithPlaywright(url, { strictStatus: false });
+  if (result2.screenshot || result2.html) {
+    console.log("[Browser] Strategy 2 (Playwright relaxed) succeeded");
+    return result2;
+  }
+
+  console.log(`[Browser] Strategy 2 failed (${result2.error}), trying strategy 3...`);
+
+  // Strategy 3: Simple HTTP fetch for HTML only
+  const result3 = await fetchWithHttp(url);
+  if (result3.html) {
+    console.log("[Browser] Strategy 3 (HTTP fetch) succeeded");
+    return { screenshot: null, html: result3.html };
+  }
+
+  console.log(`[Browser] All strategies failed`);
+
+  // Return the most informative error
+  return {
+    screenshot: null,
+    html: null,
+    error: `All capture methods failed. Playwright: ${result.error}. HTTP: ${result3.error}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Strategy 1 & 2: Playwright capture
+// ---------------------------------------------------------------------------
+
+async function captureWithPlaywright(
+  url: string,
+  options: { strictStatus: boolean },
+): Promise<{
+  screenshot: Buffer | null;
+  html: string | null;
+  error?: string;
+}> {
   let page: Page | null = null;
-  
+
   try {
-    console.log(`[Browser] Navigating to: ${url}`);
-    
     const browser = await getBrowser();
     page = await browser.newPage({
       viewport: { width: 1280, height: 1024 },
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      // Mimic a real browser - set common headers
+      extraHTTPHeaders: {
+        "Accept":
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      },
     });
 
-    // Set a reasonable timeout
-    page.setDefaultTimeout(30000); // 30 seconds
+    page.setDefaultTimeout(45000);
 
-    // Navigate to the URL
+    // Hide automation indicators
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => false });
+    });
+
+    console.log(`[Browser] Navigating to URL (strict=${options.strictStatus})...`);
+
     const response = await page.goto(url, {
       waitUntil: "networkidle",
-      timeout: 30000,
+      timeout: 45000,
     });
 
-    if (!response || !response.ok()) {
-      const status = response?.status() || "unknown";
-      console.warn(`[Browser] Response not OK: ${status}`);
+    const status = response?.status() || 0;
+    console.log(`[Browser] Response status: ${status}`);
+
+    // In strict mode, reject non-2xx responses
+    if (options.strictStatus && (!response || !response.ok())) {
       return {
         screenshot: null,
         html: null,
@@ -75,102 +147,136 @@ export async function captureUrl(url: string): Promise<{
       };
     }
 
-    console.log("[Browser] Page loaded, waiting for content...");
+    // In relaxed mode, check if the page actually has content
+    // (some SPAs return 404 status but render the page via JS)
+    if (!options.strictStatus && status >= 400) {
+      console.log(`[Browser] Got ${status} but checking if page has content...`);
+      await page.waitForTimeout(3000);
 
-    // Wait for dynamic content and images to load
+      const bodyText = await page.evaluate(() => document.body?.innerText?.trim() || "");
+      if (bodyText.length < 50) {
+        return {
+          screenshot: null,
+          html: null,
+          error: `HTTP ${status} with empty body`,
+        };
+      }
+      console.log(
+        `[Browser] Page has content despite ${status} status (${bodyText.length} chars)`,
+      );
+    }
+
+    // Wait for content to fully render
+    console.log("[Browser] Waiting for content to render...");
     try {
-      // Wait for images to load
-      await page.waitForLoadState("domcontentloaded", { timeout: 5000 });
-      await page.waitForTimeout(3000); // Give extra time for fonts, images, etc.
-      
-      // Scroll to load lazy-loaded content
-      await page.evaluate(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-      await page.waitForTimeout(1000);
-      
-      // Scroll back to top for screenshot
-      await page.evaluate(() => {
+      await page.waitForLoadState("domcontentloaded", { timeout: 10000 });
+      await page.waitForTimeout(3000);
+
+      // Scroll to trigger lazy loading
+      await page.evaluate(async () => {
+        const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        const totalHeight = document.body.scrollHeight;
+        const step = window.innerHeight;
+        for (let pos = 0; pos < totalHeight; pos += step) {
+          window.scrollTo(0, pos);
+          await delay(200);
+        }
         window.scrollTo(0, 0);
       });
-      await page.waitForTimeout(500);
-      
-      console.log("[Browser] Content fully loaded and rendered");
-    } catch (waitError) {
-      console.warn("[Browser] Timeout waiting for content, proceeding anyway:", waitError);
+      await page.waitForTimeout(1000);
+    } catch {
+      console.warn("[Browser] Timeout waiting for full render, proceeding...");
     }
 
-    // Capture screenshot (full page)
+    // Capture screenshot
     console.log("[Browser] Capturing screenshot...");
-    const screenshot = await page.screenshot({
-      fullPage: true,
-      type: "png",
-    });
+    const screenshot = await page.screenshot({ fullPage: true, type: "png" });
 
-    // Get HTML content
-    console.log("[Browser] Extracting HTML...");
+    // Get HTML
     const html = await page.content();
 
-    console.log(`[Browser] Success - captured ${(screenshot.length / 1024).toFixed(2)}KB screenshot and ${(html.length / 1024).toFixed(2)}KB HTML`);
+    console.log(
+      `[Browser] Captured ${(screenshot.length / 1024).toFixed(2)}KB screenshot, ${(html.length / 1024).toFixed(2)}KB HTML`,
+    );
 
-    // DEBUG: Save screenshot to debug folder (optional)
-    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_SCREENSHOTS === 'true') {
-      try {
-        const fs = await import('fs/promises');
-        const path = await import('path');
-        const debugDir = path.join(process.cwd(), 'public', 'debug-screenshots');
-        
-        // Create directory if it doesn't exist
-        await fs.mkdir(debugDir, { recursive: true });
-        
-        // Save with timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `screenshot-${timestamp}.png`;
-        const filepath = path.join(debugDir, filename);
-        
-        await fs.writeFile(filepath, screenshot);
-        console.log(`[Browser] DEBUG: Screenshot saved to /debug-screenshots/${filename}`);
-      } catch (debugError) {
-        console.warn('[Browser] Failed to save debug screenshot:', debugError);
-      }
-    }
+    // Save debug screenshot
+    await saveDebugScreenshot(screenshot);
 
-    return {
-      screenshot,
-      html,
-    };
+    return { screenshot, html };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Browser] Error capturing URL: ${errorMsg}`);
-    return {
-      screenshot: null,
-      html: null,
-      error: errorMsg,
-    };
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Browser] Playwright capture failed: ${msg}`);
+    return { screenshot: null, html: null, error: msg };
   } finally {
     if (page) {
-      await page.close().catch(console.error);
+      await page.close().catch(() => {});
     }
   }
 }
 
-/**
- * Capture just the HTML of a URL (faster, no screenshot)
- */
+// ---------------------------------------------------------------------------
+// Strategy 3: Simple HTTP fetch
+// ---------------------------------------------------------------------------
+
+async function fetchWithHttp(url: string): Promise<{
+  html: string | null;
+  error?: string;
+}> {
+  try {
+    console.log(`[Browser] Trying simple HTTP fetch: ${url}`);
+
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+    });
+
+    console.log(`[Browser] HTTP fetch status: ${response.status}`);
+
+    if (!response.ok) {
+      return { html: null, error: `HTTP ${response.status} ${response.statusText}` };
+    }
+
+    const html = await response.text();
+    console.log(`[Browser] HTTP fetch got ${(html.length / 1024).toFixed(2)}KB HTML`);
+
+    // Check if we got meaningful HTML (not just error pages)
+    if (html.length < 200) {
+      return { html: null, error: "Response too small to be a valid page" };
+    }
+
+    return { html };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[Browser] HTTP fetch failed: ${msg}`);
+    return { html: null, error: msg };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public: Fetch just HTML (faster, no screenshot)
+// ---------------------------------------------------------------------------
+
 export async function fetchHtml(url: string): Promise<{
   html: string | null;
   error?: string;
 }> {
+  // Try HTTP first (faster), then Playwright
+  const httpResult = await fetchWithHttp(url);
+  if (httpResult.html) return httpResult;
+
   let page: Page | null = null;
-  
   try {
-    console.log(`[Browser] Fetching HTML from: ${url}`);
-    
     const browser = await getBrowser();
     page = await browser.newPage({
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     });
-
     page.setDefaultTimeout(20000);
 
     const response = await page.goto(url, {
@@ -179,42 +285,58 @@ export async function fetchHtml(url: string): Promise<{
     });
 
     if (!response || !response.ok()) {
-      const status = response?.status() || "unknown";
-      return {
-        html: null,
-        error: `HTTP ${status}`,
-      };
+      return { html: null, error: `HTTP ${response?.status() || "unknown"}` };
     }
 
     const html = await page.content();
-    console.log(`[Browser] Fetched ${(html.length / 1024).toFixed(2)}KB HTML`);
-
     return { html };
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Browser] Error fetching HTML: ${errorMsg}`);
-    return {
-      html: null,
-      error: errorMsg,
-    };
+    const msg = error instanceof Error ? error.message : String(error);
+    return { html: null, error: msg };
   } finally {
-    if (page) {
-      await page.close().catch(console.error);
-    }
+    if (page) await page.close().catch(() => {});
   }
 }
 
-// Cleanup on process exit
+// ---------------------------------------------------------------------------
+// Debug: Save screenshot to disk
+// ---------------------------------------------------------------------------
+
+async function saveDebugScreenshot(screenshot: Buffer): Promise<void> {
+  if (
+    process.env.NODE_ENV !== "development" &&
+    process.env.DEBUG_SCREENSHOTS !== "true"
+  ) {
+    return;
+  }
+
+  try {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const debugDir = path.join(process.cwd(), "public", "debug-screenshots");
+    await fs.mkdir(debugDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `screenshot-${timestamp}.png`;
+    await fs.writeFile(path.join(debugDir, filename), screenshot);
+    console.log(`[Browser] DEBUG: Screenshot saved to /debug-screenshots/${filename}`);
+  } catch (err) {
+    console.warn("[Browser] Failed to save debug screenshot:", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cleanup
+// ---------------------------------------------------------------------------
+
 if (typeof process !== "undefined") {
   process.on("exit", () => {
-    closeBrowser().catch(console.error);
+    closeBrowser().catch(() => {});
   });
-  
   process.on("SIGINT", async () => {
     await closeBrowser();
     process.exit(0);
   });
-  
   process.on("SIGTERM", async () => {
     await closeBrowser();
     process.exit(0);

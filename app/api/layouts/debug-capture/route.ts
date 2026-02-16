@@ -18,36 +18,49 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[Debug Capture] Capturing URL: ${url}`);
+    console.log(`[Debug Capture] URL length: ${url.length} chars`);
 
+    const startTime = Date.now();
     const { screenshot, html, error } = await captureUrl(url);
+    const elapsed = Date.now() - startTime;
 
-    if (error) {
+    console.log(`[Debug Capture] Completed in ${elapsed}ms`);
+
+    if (error && !screenshot && !html) {
       return NextResponse.json({
         success: false,
         error,
+        urlLength: url.length,
+        elapsedMs: elapsed,
       });
     }
 
-    if (!screenshot) {
-      return NextResponse.json({
-        success: false,
-        error: "Failed to capture screenshot",
-      });
-    }
-
-    // Return the screenshot as base64 data URL
-    const base64 = screenshot.toString("base64");
-    const dataUrl = `data:image/png;base64,${base64}`;
-
-    return NextResponse.json({
+    const result: Record<string, unknown> = {
       success: true,
-      screenshotSize: screenshot.length,
-      screenshotSizeKB: (screenshot.length / 1024).toFixed(2),
-      htmlSize: html?.length || 0,
-      htmlSizeKB: ((html?.length || 0) / 1024).toFixed(2),
-      screenshotDataUrl: dataUrl,
-      htmlPreview: html?.substring(0, 2000),
-    });
+      urlLength: url.length,
+      elapsedMs: elapsed,
+      hasScreenshot: !!screenshot,
+      hasHtml: !!html,
+    };
+
+    if (screenshot) {
+      const base64 = screenshot.toString("base64");
+      result.screenshotSize = screenshot.length;
+      result.screenshotSizeKB = (screenshot.length / 1024).toFixed(2);
+      result.screenshotDataUrl = `data:image/png;base64,${base64}`;
+    }
+
+    if (html) {
+      result.htmlSize = html.length;
+      result.htmlSizeKB = (html.length / 1024).toFixed(2);
+      result.htmlPreview = html.substring(0, 3000);
+    }
+
+    if (error) {
+      result.partialError = error;
+    }
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("[Debug Capture] Error:", error);
     return NextResponse.json(
