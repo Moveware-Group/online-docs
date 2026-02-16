@@ -18,6 +18,7 @@ import {
   Eye,
   CheckCircle2,
   AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -415,6 +416,16 @@ function LayoutBuilderContent() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href="/docs/ai-layout-guide"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            title="View usage guide"
+          >
+            <HelpCircle className="w-4 h-4" />
+            Help
+          </a>
           {layoutConfig && (
             <>
               <button
@@ -467,6 +478,23 @@ function LayoutBuilderContent() {
           <div className="p-4 border-b border-gray-200 overflow-y-auto flex-shrink-0" style={{ maxHeight: '50%' }}>
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
+            {referenceUrl && (
+              <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-amber-800">
+                    <strong>Important:</strong> The AI cannot view the reference URL. You must describe the layout in detail in the Description field, including:
+                    <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                      <li>Header design (colors, logo position, banner)</li>
+                      <li>Section order and structure</li>
+                      <li>Typography and spacing</li>
+                      <li>Color scheme and styling details</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               {/* Company Dropdown */}
               <CompanySearchDropdown
@@ -477,7 +505,7 @@ function LayoutBuilderContent() {
 
               {/* Reference URL */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Reference URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reference URL (Optional)</label>
                 <input
                   type="url"
                   value={referenceUrl}
@@ -486,7 +514,9 @@ function LayoutBuilderContent() {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={generating}
                 />
-                <p className="text-xs text-gray-400 mt-0.5">URL of the client&apos;s existing quote page for reference</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  URL of the existing quote page to match. The AI will attempt to replicate this layout exactly based on your detailed description below.
+                </p>
               </div>
 
               {/* Reference File Upload */}
@@ -526,15 +556,27 @@ function LayoutBuilderContent() {
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                  {referenceUrl && <span className="text-red-600 ml-1">*</span>}
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the desired layout, style, and any specific requirements..."
-                  rows={3}
+                  placeholder={
+                    referenceUrl
+                      ? "IMPORTANT: Describe the reference layout in DETAIL. Include: header design (colors, gradients, logo placement), section order, styling details, typography, spacing, etc. Be very specific - the AI cannot see the URL."
+                      : "Describe the desired layout, style, and any specific requirements..."
+                  }
+                  rows={referenceUrl ? 5 : 3}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   disabled={generating}
                 />
+                {referenceUrl && (
+                  <p className="text-xs text-red-600 mt-1 font-medium">
+                    ⚠️ Be VERY detailed in your description. The AI cannot view the reference URL - it relies entirely on your description to match the layout exactly.
+                  </p>
+                )}
               </div>
 
               {/* Generate Button */}

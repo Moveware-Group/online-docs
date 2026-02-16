@@ -71,6 +71,8 @@ export interface RefineLayoutInput {
 
 const LAYOUT_SYSTEM_PROMPT = `You are an expert web designer specialising in creating custom quote page layouts for moving companies. You generate layout configurations as JSON that a renderer will use to build the page.
 
+⚠️ CRITICAL INSTRUCTION: When a user provides a REFERENCE URL or REFERENCE FILE, your PRIMARY GOAL is to MATCH that layout EXACTLY. Do not be creative or add your own design touches. Replicate the structure, colors, sections, and styling as precisely as possible based on the user's description of the reference.
+
 ## Available Data Variables (use in HTML with {{variable}} syntax)
 
 ### Job Data
@@ -392,14 +394,27 @@ function buildGeneratePrompt(input: GenerateLayoutInput): string {
   prompt += `\n\n**User's Description:**\n${input.description}`;
 
   if (input.referenceUrl) {
-    prompt += `\n\n**Reference URL:** ${input.referenceUrl}\nThe user wants the layout to be inspired by or similar to the design at this URL.`;
+    prompt += `\n\n**IMPORTANT - REFERENCE LAYOUT TO MATCH:**
+**Reference URL:** ${input.referenceUrl}
+
+⚠️ CRITICAL: The user has provided a reference layout that you MUST match as closely as possible. This is not a suggestion or inspiration - you MUST replicate the layout structure, sections, and styling from the reference URL.
+
+Pay careful attention to:
+- The EXACT order and structure of sections
+- Header design and styling (colors, gradients, layout)
+- Section arrangement and spacing
+- Typography and text alignment
+- Color scheme and branding placement
+- Any custom HTML sections vs built-in components used
+
+The user's description provides additional context about what they see in the reference layout. Use it to understand the exact structure they want you to replicate.`;
   }
 
   if (input.referenceFileContent) {
-    prompt += `\n\n**Reference Document Content (extracted from PDF):**\n${input.referenceFileContent.substring(0, 5000)}`;
+    prompt += `\n\n**Reference Document Content (extracted from PDF):**\n${input.referenceFileContent.substring(0, 5000)}\n\nUse this content to understand the exact layout structure and match it precisely.`;
   }
 
-  prompt += `\n\nGenerate a complete layout config JSON. Return ONLY the JSON.`;
+  prompt += `\n\nGenerate a complete layout config JSON that ${input.referenceUrl ? 'MATCHES the reference layout exactly' : 'follows the description'}. Return ONLY the JSON.`;
 
   return prompt;
 }
