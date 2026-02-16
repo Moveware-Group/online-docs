@@ -4,9 +4,14 @@
 
 The AI Layout Builder allows you to create custom quote page layouts for specific clients using AI assistance. This guide explains how to use it effectively, especially when matching an existing reference layout.
 
-## Important Limitation
+## New Feature: Automatic Reference URL Fetching
 
-⚠️ **CRITICAL**: The AI cannot access or view reference URLs. It relies entirely on your written description to understand what the layout should look like. When you provide a reference URL, you **must** also provide a very detailed description.
+✅ **The AI can now automatically fetch and analyze reference URLs!** When you provide a reference URL, the system will:
+- Fetch the HTML content from the URL
+- Analyze the structure, styling, and layout
+- Match the design exactly based on what it sees
+
+This means you no longer need to provide extremely detailed descriptions - the AI can "see" the layout directly!
 
 ## How to Match a Reference Layout
 

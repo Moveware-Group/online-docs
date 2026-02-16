@@ -166,8 +166,8 @@ function LayoutBuilderContent() {
       setError('Please select a company first');
       return;
     }
-    if (!description.trim()) {
-      setError('Please enter a description of the desired layout');
+    if (!description.trim() && !referenceUrl.trim()) {
+      setError('Please enter a description or provide a reference URL');
       return;
     }
 
@@ -479,17 +479,12 @@ function LayoutBuilderContent() {
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
             {referenceUrl && (
-              <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-800">
-                    <strong>Important:</strong> The AI cannot view the reference URL. You must describe the layout in detail in the Description field, including:
-                    <ul className="list-disc ml-4 mt-1 space-y-0.5">
-                      <li>Header design (colors, logo position, banner)</li>
-                      <li>Section order and structure</li>
-                      <li>Typography and spacing</li>
-                      <li>Color scheme and styling details</li>
-                    </ul>
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-blue-800">
+                    <strong>Reference URL Active:</strong> The AI will fetch and analyze the HTML from this URL to match the layout exactly. 
+                    Still provide a description to help the AI understand any specific requirements or context about what you want to match.
                   </div>
                 </div>
               </div>
@@ -515,7 +510,7 @@ function LayoutBuilderContent() {
                   disabled={generating}
                 />
                 <p className="text-xs text-gray-400 mt-0.5">
-                  URL of the existing quote page to match. The AI will attempt to replicate this layout exactly based on your detailed description below.
+                  URL of the existing quote page to match. The AI will fetch and analyze the HTML automatically to replicate the layout exactly.
                 </p>
               </div>
 
@@ -558,23 +553,23 @@ function LayoutBuilderContent() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
-                  {referenceUrl && <span className="text-red-600 ml-1">*</span>}
+                  {!referenceUrl && <span className="text-red-600 ml-1">*</span>}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     referenceUrl
-                      ? "IMPORTANT: Describe the reference layout in DETAIL. Include: header design (colors, gradients, logo placement), section order, styling details, typography, spacing, etc. Be very specific - the AI cannot see the URL."
+                      ? "The AI will analyze the reference URL automatically. Optionally describe any specific aspects you want to emphasize or context about the layout (e.g., 'This is the Grace New Zealand format with the new header banner style')."
                       : "Describe the desired layout, style, and any specific requirements..."
                   }
-                  rows={referenceUrl ? 5 : 3}
+                  rows={3}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   disabled={generating}
                 />
                 {referenceUrl && (
-                  <p className="text-xs text-red-600 mt-1 font-medium">
-                    ⚠️ Be VERY detailed in your description. The AI cannot view the reference URL - it relies entirely on your description to match the layout exactly.
+                  <p className="text-xs text-blue-600 mt-1">
+                    💡 The AI can now view the reference URL directly. Your description provides helpful context but is optional when a reference URL is provided.
                   </p>
                 )}
               </div>
@@ -582,7 +577,7 @@ function LayoutBuilderContent() {
               {/* Generate Button */}
               <button
                 onClick={handleGenerate}
-                disabled={generating || !selectedCompany || !description.trim()}
+                disabled={generating || !selectedCompany || (!description.trim() && !referenceUrl.trim())}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {generating ? (

@@ -23,33 +23,49 @@ export default function AILayoutGuidePage() {
               This guide explains how to use it effectively, especially when matching an existing reference layout.
             </p>
 
-            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
-              <h3 className="text-lg font-bold text-amber-900 mb-2">⚠️ Important Limitation</h3>
-              <p className="text-amber-800">
-                <strong>CRITICAL</strong>: The AI cannot access or view reference URLs. It relies entirely on your written
-                description to understand what the layout should look like. When you provide a reference URL, you{' '}
-                <strong>must</strong> also provide a very detailed description.
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+              <h3 className="text-lg font-bold text-green-900 mb-2">✅ New Feature: Automatic Reference URL Fetching</h3>
+              <p className="text-green-800 mb-2">
+                <strong>Great news!</strong> The AI can now automatically fetch and analyze reference URLs. When you provide a reference URL, the system will:
+              </p>
+              <ul className="list-disc ml-6 text-green-800 space-y-1">
+                <li>Fetch the HTML content from the URL</li>
+                <li>Analyze the structure, styling, and layout</li>
+                <li>Match the design exactly based on what it sees</li>
+              </ul>
+              <p className="text-green-800 mt-2">
+                This means you no longer need to provide extremely detailed descriptions - the AI can &quot;see&quot; the layout directly!
               </p>
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How to Match a Reference Layout</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">How to Match a Reference Layout (Updated Process)</h2>
             <p className="text-gray-700 mb-4">
-              When you want the AI to replicate an existing quote layout:
+              When you want the AI to replicate an existing quote layout, the process is now much simpler:
             </p>
 
-            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">1. Open the reference URL in your browser</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">1. Select the company</h3>
             <p className="text-gray-700 mb-4">
-              View the layout you want to match so you can describe it accurately.
+              Choose the company from the dropdown for which you want to create a custom layout.
             </p>
 
-            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">2. Enter the reference URL in the form</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">2. Enter the reference URL</h3>
             <p className="text-gray-700 mb-4">
-              This stores the URL for documentation purposes and tells the AI you want to match an existing layout.
+              Paste the URL of the quote page you want to match. The AI will automatically fetch and analyze it.
             </p>
 
-            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">3. Write a DETAILED description</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">3. (Optional) Add context in the description</h3>
             <p className="text-gray-700 mb-4">
-              This is the most important step. Your description should include:
+              You can optionally provide context like &quot;This is the new Grace New Zealand format&quot; or highlight specific aspects you want to emphasize. The description is now optional when you provide a reference URL.
+            </p>
+
+            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">4. Click Generate Layout</h3>
+            <p className="text-gray-700 mb-4">
+              The AI will analyze the reference HTML and create a matching layout configuration.
+            </p>
+
+            <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Legacy: Manual Description (when needed)</h3>
+            <p className="text-gray-700 mb-4">
+              If the reference URL cannot be fetched automatically (e.g., requires authentication), you can still provide a detailed manual description. In that case, your description should include:
             </p>
 
             <h4 className="text-lg font-semibold text-gray-900 mt-4 mb-2">Header Section</h4>

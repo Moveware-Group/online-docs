@@ -304,7 +304,7 @@ function extractJSON(text: string): string {
 export async function generateLayout(
   input: GenerateLayoutInput,
 ): Promise<LayoutConfig> {
-  const userMessage = buildGeneratePrompt(input);
+  const userMessage = await buildGeneratePrompt(input);
   const raw = await callLLM(
     LAYOUT_SYSTEM_PROMPT,
     userMessage,
@@ -377,7 +377,26 @@ Keep responses concise and helpful. Focus on web design, branding, and user expe
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildGeneratePrompt(input: GenerateLayoutInput): string {
+/**
+ * Fetch the HTML content from a reference URL
+ */
+async function fetchReferenceContent(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`Failed to fetch reference URL: ${response.status}`);
+      return null;
+    }
+    const html = await response.text();
+    // Limit to first 50KB to avoid token limits
+    return html.substring(0, 50000);
+  } catch (error) {
+    console.warn('Error fetching reference URL:', error);
+    return null;
+  }
+}
+
+async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<string> {
   let prompt = `Generate a custom quote page layout for the following company:
 
 **Company:** ${input.companyName} (Brand Code: ${input.brandCode})
@@ -394,10 +413,34 @@ function buildGeneratePrompt(input: GenerateLayoutInput): string {
   prompt += `\n\n**User's Description:**\n${input.description}`;
 
   if (input.referenceUrl) {
+    // Fetch the actual reference content
+    const referenceContent = await fetchReferenceContent(input.referenceUrl);
+    
     prompt += `\n\n**IMPORTANT - REFERENCE LAYOUT TO MATCH:**
 **Reference URL:** ${input.referenceUrl}
 
-⚠️ CRITICAL: The user has provided a reference layout that you MUST match as closely as possible. This is not a suggestion or inspiration - you MUST replicate the layout structure, sections, and styling from the reference URL.
+⚠️ CRITICAL: The user has provided a reference layout that you MUST match as closely as possible. This is not a suggestion or inspiration - you MUST replicate the layout structure, sections, and styling from the reference URL.`;
+
+    if (referenceContent) {
+      prompt += `\n\n**REFERENCE HTML CONTENT:**
+I have fetched the actual HTML from the reference URL. Study this carefully to understand the exact layout structure:
+
+\`\`\`html
+${referenceContent}
+\`\`\`
+
+Analyze the HTML to determine:
+- The EXACT order and structure of sections
+- Header design and styling (inline styles, CSS classes, gradients, colors)
+- Section arrangement and spacing
+- Typography and text alignment
+- Color scheme (look for color values in styles)
+- Card/box styling (borders, shadows, padding)
+- Use of custom HTML vs. built-in components
+
+The user's description provides additional context. Use BOTH the HTML content and the description to create an exact match.`;
+    } else {
+      prompt += `\n\nNote: I was unable to fetch the reference URL content automatically. Please rely on the user's description to match the layout as closely as possible.
 
 Pay careful attention to:
 - The EXACT order and structure of sections
@@ -405,9 +448,8 @@ Pay careful attention to:
 - Section arrangement and spacing
 - Typography and text alignment
 - Color scheme and branding placement
-- Any custom HTML sections vs built-in components used
-
-The user's description provides additional context about what they see in the reference layout. Use it to understand the exact structure they want you to replicate.`;
+- Any custom HTML sections vs built-in components used`;
+    }
   }
 
   if (input.referenceFileContent) {
