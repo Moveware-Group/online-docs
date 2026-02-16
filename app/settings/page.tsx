@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2 } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 
@@ -348,6 +348,7 @@ export default function SettingsPage() {
   const [companies, setCompanies] = useState<CompanyBranding[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<CompanyBranding | null>(null);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [companySearch, setCompanySearch] = useState('');
 
   // Custom layouts state
   const [customLayouts, setCustomLayouts] = useState<Record<string, { isActive: boolean; version: number }>>({});
@@ -584,12 +585,54 @@ export default function SettingsPage() {
               />
             ) : (
               <div className="space-y-4">
-                {companies.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    No companies configured yet. Click &quot;Add Company&quot; to get started.
+                {companies.length > 0 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by company name, ID, or brand code..."
+                      value={companySearch}
+                      onChange={(e) => setCompanySearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    {companySearch && (
+                      <button
+                        onClick={() => setCompanySearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  companies.map((company) => (
+                )}
+                {(() => {
+                  const filteredCompanies = companies.filter((company) => {
+                    if (!companySearch.trim()) return true;
+                    const q = companySearch.toLowerCase().trim();
+                    return (
+                      company.companyName.toLowerCase().includes(q) ||
+                      company.companyId.toLowerCase().includes(q) ||
+                      company.brandCode.toLowerCase().includes(q)
+                    );
+                  });
+
+                  if (companies.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-gray-500">
+                        No companies configured yet. Click &quot;Add Company&quot; to get started.
+                      </div>
+                    );
+                  }
+
+                  if (filteredCompanies.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-gray-500 text-sm">
+                        No companies match &quot;{companySearch.trim()}&quot;
+                      </div>
+                    );
+                  }
+
+                  return filteredCompanies.map((company) => (
                     <div
                       key={company.id}
                       className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
@@ -628,6 +671,13 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         <div className="flex gap-2">
+                          <a
+                            href={`/settings/layout-builder?companyId=${company.id}`}
+                            className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
+                          >
+                            <Wand2 className="w-3 h-3" />
+                            {company.id && customLayouts[company.id] ? 'Edit Layout' : 'Create Layout'}
+                          </a>
                           <button
                             onClick={() => setSelectedCompany(company)}
                             className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -643,14 +693,15 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             )}
           </div>
         </div>
 
-        {/* Custom Layouts Section */}
+        {/* Custom Layouts Section — only shown when at least one company has a custom layout */}
+        {Object.keys(customLayouts).length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6 space-y-6 mt-8">
           <div className="flex justify-between items-center">
             <div>
@@ -659,19 +710,16 @@ export default function SettingsPage() {
                 Custom Quote Layouts
               </h2>
               <p className="text-sm text-gray-600">
-                Create AI-generated custom quote page layouts for specific clients.
+                Companies with AI-generated custom quote page layouts.
               </p>
             </div>
           </div>
 
-          {companies.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">
-              Add a company above to create custom layouts.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {companies.map((company) => {
-                const layout = company.id ? customLayouts[company.id] : null;
+          <div className="space-y-3">
+            {companies
+              .filter((company) => company.id && customLayouts[company.id])
+              .map((company) => {
+                const layout = customLayouts[company.id!];
                 return (
                   <div
                     key={`layout-${company.id}`}
@@ -681,74 +729,62 @@ export default function SettingsPage() {
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center"
                         style={{
-                          backgroundColor: layout
-                            ? layout.isActive
-                              ? '#dcfce7'
-                              : '#fef3c7'
-                            : '#f3f4f6',
+                          backgroundColor: layout.isActive ? '#dcfce7' : '#fef3c7',
                         }}
                       >
                         <Wand2
                           className="w-4 h-4"
                           style={{
-                            color: layout
-                              ? layout.isActive
-                                ? '#16a34a'
-                                : '#d97706'
-                              : '#9ca3af',
+                            color: layout.isActive ? '#16a34a' : '#d97706',
                           }}
                         />
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-900">{company.companyName}</h3>
                         <p className="text-xs text-gray-500">
-                          {layout
-                            ? `Custom layout v${layout.version} — ${layout.isActive ? 'Active' : 'Inactive'}`
-                            : 'Using base layout'}
+                          Custom layout v{layout.version} — {layout.isActive ? 'Active' : 'Inactive'}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {layout && (
-                        <button
-                          onClick={async () => {
-                            if (!company.id) return;
-                            if (!confirm('Delete this custom layout? The company will revert to the base layout.')) return;
-                            try {
-                              const res = await fetch(`/api/layouts/${company.id}`, { method: 'DELETE' });
-                              if (res.ok) {
-                                setCustomLayouts((prev) => {
-                                  const next = { ...prev };
-                                  delete next[company.id!];
-                                  return next;
-                                });
-                                setSuccess('Custom layout deleted.');
-                              }
-                            } catch {
-                              setError('Failed to delete layout.');
+                      <button
+                        onClick={async () => {
+                          if (!company.id) return;
+                          if (!confirm('Delete this custom layout? The company will revert to the base layout.')) return;
+                          try {
+                            const res = await fetch(`/api/layouts/${company.id}`, { method: 'DELETE' });
+                            if (res.ok) {
+                              setCustomLayouts((prev) => {
+                                const next = { ...prev };
+                                delete next[company.id!];
+                                return next;
+                              });
+                              setSuccess('Custom layout deleted.');
                             }
-                          }}
-                          className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 inline mr-1" />
-                          Delete
-                        </button>
-                      )}
+                          } catch {
+                            setError('Failed to delete layout.');
+                          }
+                        }}
+                        className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 inline mr-1" />
+                        Delete
+                      </button>
                       <a
                         href={`/settings/layout-builder?companyId=${company.id}`}
                         className="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5"
                       >
                         <Wand2 className="w-3.5 h-3.5" />
-                        {layout ? 'Edit Layout' : 'Create Layout'}
+                        Edit Layout
                       </a>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          )}
+          </div>
         </div>
+        )}
       </main>
     </div>
   );

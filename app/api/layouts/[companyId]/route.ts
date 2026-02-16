@@ -22,14 +22,32 @@ export async function GET(
       );
     }
 
-    const layout = await prisma.customLayout.findUnique({
+    // Try to find layout by internal company ID first, then by tenant ID (coId from URL)
+    let layout = await prisma.customLayout.findUnique({
       where: { companyId },
       include: {
         company: {
-          select: { name: true, brandCode: true },
+          select: { name: true, brandCode: true, tenantId: true },
         },
       },
     });
+
+    // If not found by internal ID, try looking up by tenant ID (e.g. coId=12 from the quote page URL)
+    if (!layout) {
+      const company = await prisma.company.findFirst({
+        where: { tenantId: companyId },
+      });
+      if (company) {
+        layout = await prisma.customLayout.findUnique({
+          where: { companyId: company.id },
+          include: {
+            company: {
+              select: { name: true, brandCode: true, tenantId: true },
+            },
+          },
+        });
+      }
+    }
 
     if (!layout) {
       return NextResponse.json(
