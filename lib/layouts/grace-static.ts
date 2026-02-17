@@ -7,7 +7,7 @@ export const GRACE_STATIC_LAYOUT = {
   version: 1,
   globalStyles: {
     fontFamily: "Arial, Helvetica, sans-serif",
-    backgroundColor: "#ededed",
+    backgroundColor: "#ffffff",
     maxWidth: "980px",
   },
   sections: [
@@ -16,7 +16,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `
-<div style="background:#ededed;margin:0;padding:0;">
+<div style="background:#ffffff;margin:0;padding:0;">
   <!-- Full-width header: white bar with content inside container -->
   <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#ffffff;border-bottom:1px solid #e5e7eb;">
     <div style="max-width:980px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">
@@ -39,11 +39,11 @@ export const GRACE_STATIC_LAYOUT = {
       <img src="/grace-assets/banner_1.png" alt="Grace Banner" style="width:100%;height:auto;display:block;" />
     </div>
 
-    <!-- Main content area: negative top margin so first block overlaps hero (no background gap) -->
-    <div style="padding:0 32px 24px 32px;margin-top:-32px;">
+    <!-- Main content area: first block overlaps hero banner (sits above it visually) -->
+    <div style="padding:0 32px 24px 32px;margin-top:-80px;position:relative;z-index:1;">
       
-      <!-- Thank you section (copy block below hero) -->
-      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;">
+      <!-- Thank you section (copy block - sits above/over the hero banner) -->
+      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <div style="display:flex;align-items:flex-start;gap:20px;">
           <img src="/grace-assets/logo.png" alt="Grace Logo" style="width:80px;height:auto;flex-shrink:0;opacity:0.85;" />
           <div style="flex:1;">
