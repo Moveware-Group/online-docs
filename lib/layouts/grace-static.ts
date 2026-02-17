@@ -20,23 +20,27 @@ export const GRACE_STATIC_LAYOUT = {
   <!-- Main container -->
   <div style="max-width:980px;margin:0 auto;background:#ffffff;">
     
-    <!-- Banner header with kiwi mascots -->
-    <div style="position:relative;width:100%;overflow:hidden;">
+    <!-- Header bar: white block with Grace logo and customer name -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#ffffff;border-bottom:1px solid #e5e7eb;">
+      <img src="/grace-assets/logo.png" alt="Grace Logo" style="height:40px;width:auto;display:block;" />
+      <div style="background:#cc0000;color:#ffffff;padding:8px 20px;border-radius:8px;font-size:16px;font-weight:600;">Hi {{customerName}}</div>
+    </div>
+    <!-- Red block: Moving Proposal and date -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#cc0000;color:#ffffff;">
+      <span style="font-size:20px;font-weight:700;">Moving Proposal</span>
+      <span style="font-size:14px;font-weight:400;">{{quoteDate}}</span>
+    </div>
+
+    <!-- Full-width hero banner (breaks out of container) -->
+    <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
       <img src="/grace-assets/banner_1.png" alt="Grace Banner" style="width:100%;height:auto;display:block;" />
-      <!-- Overlay positioning for "Moving Quote" title -->
-      <div style="position:absolute;top:20px;right:24px;text-align:right;z-index:10;">
-        <div style="background:rgba(204,0,0,0.95);color:#ffffff;padding:8px 20px;display:inline-block;">
-          <div style="font-size:36px;font-weight:700;line-height:1.1;margin-bottom:2px;">Moving Quote</div>
-          <div style="font-size:14px;font-weight:400;">{{quoteDate}}</div>
-        </div>
-      </div>
     </div>
 
     <!-- Main content area -->
     <div style="padding:24px 32px;">
       
-      <!-- Thank you section -->
-      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:24px;">
+      <!-- Thank you section (copy block below hero) -->
+      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:24px;border-radius:20px;">
         <div style="display:flex;align-items:flex-start;gap:20px;">
           <img src="/grace-assets/logo.png" alt="Grace Logo" style="width:80px;height:auto;flex-shrink:0;opacity:0.85;" />
           <div style="flex:1;">
