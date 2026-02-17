@@ -17,30 +17,33 @@ export const GRACE_STATIC_LAYOUT = {
       visible: true,
       html: `
 <div style="background:#ededed;margin:0;padding:0;">
-  <!-- Main container -->
-  <div style="max-width:980px;margin:0 auto;background:#ffffff;">
-    
-    <!-- Header bar: white block with Grace logo and customer name -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:#ffffff;border-bottom:1px solid #e5e7eb;">
+  <!-- Full-width header: white bar with content inside container -->
+  <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#ffffff;border-bottom:1px solid #e5e7eb;">
+    <div style="max-width:980px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">
       <img src="/grace-assets/logo.png" alt="Grace Logo" style="height:40px;width:auto;display:block;" />
       <div style="background:#cc0000;color:#ffffff;padding:8px 20px;border-radius:8px;font-size:16px;font-weight:600;">Hi {{customerName}}</div>
     </div>
-    <!-- Red block: Moving Proposal and date -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:#cc0000;color:#ffffff;">
+  </div>
+  <!-- Full-width red bar with content inside container -->
+  <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#cc0000;color:#ffffff;">
+    <div style="max-width:980px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
       <span style="font-size:20px;font-weight:700;">Moving Proposal</span>
       <span style="font-size:14px;font-weight:400;">{{quoteDate}}</span>
     </div>
+  </div>
 
+  <!-- Main container -->
+  <div style="max-width:980px;margin:0 auto;background:#ffffff;">
     <!-- Full-width hero banner (breaks out of container) -->
     <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
       <img src="/grace-assets/banner_1.png" alt="Grace Banner" style="width:100%;height:auto;display:block;" />
     </div>
 
-    <!-- Main content area -->
-    <div style="padding:24px 32px;">
+    <!-- Main content area: negative top margin so first block overlaps hero (no background gap) -->
+    <div style="padding:0 32px 24px 32px;margin-top:-32px;">
       
       <!-- Thank you section (copy block below hero) -->
-      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:24px;border-radius:20px;">
+      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;">
         <div style="display:flex;align-items:flex-start;gap:20px;">
           <img src="/grace-assets/logo.png" alt="Grace Logo" style="width:80px;height:auto;flex-shrink:0;opacity:0.85;" />
           <div style="flex:1;">
@@ -56,7 +59,7 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- Moving locations -->
-      <div style="margin-bottom:24px;">
+      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;">
         <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 4px 0;padding-bottom:8px;border-bottom:3px solid #cc0000;">Moving locations</h3>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px;">
           <div style="font-size:13px;color:#333;">
@@ -79,7 +82,7 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- GraceCover -->
-      <div style="background:#f9f9f9;padding:20px;margin-bottom:24px;border-left:4px solid #cc0000;">
+      <div style="background:#f9f9f9;padding:20px;margin-bottom:50px;border-left:4px solid #cc0000;border-radius:20px;">
         <h3 style="font-size:24px;font-weight:700;font-style:italic;color:#333;margin:0 0 12px 0;">GraceCover</h3>
         <div style="font-size:13px;color:#444;line-height:1.6;">
           <p style="margin:0 0 8px 0;">Description of insurance options and details about policy coverages.</p>
@@ -89,9 +92,9 @@ export const GRACE_STATIC_LAYOUT = {
 
       <!-- Option 1 - Choose For -->
       <div style="margin-bottom:2px;">
-        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;">Option 1 - Choose For</div>
+        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 1 - Choose For</div>
       </div>
-      <div style="margin-bottom:24px;border:1px solid #e5e7eb;">
+      <div style="margin-bottom:50px;border:1px solid #e5e7eb;border-radius:0 0 20px 20px;overflow:hidden;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
             <tr style="background:#f3f4f6;">
@@ -128,9 +131,9 @@ export const GRACE_STATIC_LAYOUT = {
 
       <!-- Option 2 - Packing/Unpacking Extras -->
       <div style="margin-bottom:2px;">
-        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;">Option 2 - Packing/Unpacking Extras</div>
+        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 2 - Packing/Unpacking Extras</div>
       </div>
-      <div style="margin-bottom:24px;border:1px solid #e5e7eb;">
+      <div style="margin-bottom:50px;border:1px solid #e5e7eb;border-radius:0 0 20px 20px;overflow:hidden;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
             <tr style="background:#f3f4f6;">
@@ -165,9 +168,9 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- Accept quote section -->
-      <div style="margin-bottom:24px;">
+      <div style="margin-bottom:50px;">
         <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 16px 0;">Accept quote</h3>
-        <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;">
+        <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;">
           <div style="font-size:13px;color:#444;line-height:1.6;margin-bottom:20px;">
             <p style="margin:0 0 8px 0;">To confirm this booking, please review all details above, provide your signature below, and click "Accept".</p>
           </div>
@@ -198,9 +201,9 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- Included items / Inventory -->
-      <div style="margin-bottom:32px;">
+      <div style="margin-bottom:32px;background:#ffffff;border:1px solid #e5e7eb;padding:24px;border-radius:20px;">
         <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 12px 0;">Included items</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid #e5e7eb;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
             <tr style="background:#f3f4f6;">
               <th style="text-align:left;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;">Description</th>
