@@ -14,6 +14,7 @@ function isGraceCompany(company: { tenantId?: string | null; brandCode?: string 
   const brandCode = (company.brandCode || "").toLowerCase();
   const name = (company.name || "").toLowerCase();
   return (
+    tenantId === "555" ||
     tenantId === "55580" ||
     tenantId === "67200" ||
     brandCode.includes("grace") ||
@@ -230,21 +231,24 @@ export async function GET(
       }
     }
 
+    // Temporary static fallback for Grace company while AI layout builder is being stabilised.
+    // Force static for known Grace coIds even if a custom AI layout exists.
+    const forceGraceStatic = companyId === "555" || isGraceCompany(resolvedCompany);
+    if (forceGraceStatic) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: `static-grace-${resolvedCompany?.id || companyId}`,
+          companyId: resolvedCompany?.id || companyId,
+          layoutConfig: buildGraceStaticLayoutConfig(),
+          version: 1,
+          isActive: true,
+          source: "static_fallback",
+        },
+      });
+    }
+
     if (!layout) {
-      // Temporary static fallback for Grace company while AI layout builder is being stabilised.
-      if (isGraceCompany(resolvedCompany)) {
-        return NextResponse.json({
-          success: true,
-          data: {
-            id: `static-grace-${resolvedCompany?.id || companyId}`,
-            companyId: resolvedCompany?.id || companyId,
-            layoutConfig: buildGraceStaticLayoutConfig(),
-            version: 1,
-            isActive: true,
-            source: "static_fallback",
-          },
-        });
-      }
       return NextResponse.json(
         { success: false, error: "No custom layout found for this company" },
         { status: 404 },
