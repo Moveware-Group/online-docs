@@ -94,21 +94,45 @@ model HeroSettings {
 }
 
 model BrandingSettings {
+  id                 String   @id @default(cuid())
+  companyId          String   @unique @map("company_id")
+  logoUrl            String?  @map("logo_url")
+  heroBannerUrl      String?  @map("hero_banner_url") @db.VarChar(500)
+  footerImageUrl     String?  @map("footer_image_url") @db.VarChar(500)
+  primaryColor       String   @default("#2563eb") @map("primary_color")
+  secondaryColor     String   @default("#1e40af") @map("secondary_color")
+  fontFamily         String   @default("Inter") @map("font_family")
+  layoutTemplateId   String?  @map("layout_template_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  layoutTemplate LayoutTemplate? @relation(fields: [layoutTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([layoutTemplateId])
+  @@map("branding_settings")
+}
+
+// ---------------------------------------------------------------------------
+// Layout Templates — named, reusable layout configs assignable to companies.
+// ---------------------------------------------------------------------------
+model LayoutTemplate {
   id              String   @id @default(cuid())
-  companyId       String   @unique @map("company_id")
-  logoUrl         String?  @map("logo_url")
-  heroBannerUrl   String?  @map("hero_banner_url") @db.VarChar(500)
-  footerImageUrl  String?  @map("footer_image_url") @db.VarChar(500)
-  primaryColor    String   @default("#2563eb") @map("primary_color")
-  secondaryColor  String   @default("#1e40af") @map("secondary_color")
-  fontFamily      String   @default("Inter") @map("font_family")
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  layoutConfig    String   @db.Text
+  version         Int      @default(1)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdBy       String?  @map("created_by")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Companies that have been assigned this template
+  brandingSettings BrandingSettings[]
 
-  @@index([companyId])
-  @@map("branding_settings")
+  @@index([name])
+  @@map("layout_templates")
 }
 
 model CopySettings {

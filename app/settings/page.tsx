@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, Users } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 
@@ -51,6 +51,18 @@ interface CompanyBranding {
   secondaryColor: string;
   tertiaryColor: string;
   fontFamily: string;
+  layoutTemplateId?: string | null;
+}
+
+interface LayoutTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  version: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  brandingSettings?: Array<{ company: { id: string; name: string; tenantId: string } }>;
 }
 
 /**
@@ -253,11 +265,13 @@ function CompanyForm({
   onSave,
   onCancel,
   loading,
+  layoutTemplates,
 }: {
   company: CompanyBranding | null;
   onSave: (company: CompanyBranding) => void;
   onCancel: () => void;
   loading: boolean;
+  layoutTemplates: LayoutTemplate[];
 }) {
   const [formData, setFormData] = useState<CompanyBranding>(
     company || {
@@ -271,6 +285,7 @@ function CompanyForm({
       secondaryColor: '#ffffff',
       tertiaryColor: '#5a5a5a',
       fontFamily: 'Inter',
+      layoutTemplateId: null,
     }
   );
 
@@ -385,6 +400,37 @@ function CompanyForm({
           <p className="text-xs text-gray-500 mt-1">Used on custom and default quote pages for this company.</p>
         </div>
 
+        {/* Quote Layout Template */}
+        <div className="pt-4 border-t border-gray-200">
+          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+            <Layout className="w-4 h-4 text-blue-500" />
+            Quote Layout Template
+          </label>
+          <select
+            value={formData.layoutTemplateId || ''}
+            onChange={(e) => setFormData({ ...formData, layoutTemplateId: e.target.value || null })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          >
+            <option value="">(No template — use default or company-specific layout)</option>
+            {layoutTemplates.filter(t => t.isActive).map((t) => (
+              <option key={t.id} value={t.id}>{t.name} (v{t.version})</option>
+            ))}
+          </select>
+          {formData.layoutTemplateId && (
+            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+              <Tag className="w-3 h-3" />
+              This company will use the selected template for their quote page layout.
+              Per-company images (hero banner, footer) still apply on top.
+            </p>
+          )}
+          {!formData.layoutTemplateId && formData.id && (
+            <p className="text-xs text-gray-500 mt-1">
+              No template assigned. The company uses their own custom layout (if any) or the system default.
+              Go to <a href={`/settings/layout-builder?companyId=${formData.id}`} className="text-blue-600 underline">Layout Builder</a> to create one.
+            </p>
+          )}
+        </div>
+
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
           <button
             onClick={onCancel}
@@ -413,14 +459,27 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'companies' | 'layouts'>('companies');
+
   // Companies state
   const [companies, setCompanies] = useState<CompanyBranding[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<CompanyBranding | null>(null);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
 
-  // Custom layouts state
-  const [customLayouts, setCustomLayouts] = useState<Record<string, { isActive: boolean; version: number }>>({});
+  // Custom layouts state (per-company)
+  const [customLayouts, setCustomLayouts] = useState<Record<string, { isActive: boolean; version: number; source?: string }>>({});
+
+  // Layout templates state
+  const [layoutTemplates, setLayoutTemplates] = useState<LayoutTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateDesc, setNewTemplateDesc] = useState('');
+  const [promoteCompanyId, setPromoteCompanyId] = useState('');
+  const [promotingTemplate, setPromotingTemplate] = useState(false);
 
   // Load companies
   useEffect(() => {
@@ -470,6 +529,91 @@ export default function SettingsPage() {
     loadSettings();
   }, [isAuthenticated]);
 
+  // Load layout templates
+  const loadLayoutTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch('/api/layout-templates');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) setLayoutTemplates(data.data || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) loadLayoutTemplates();
+  }, [isAuthenticated]);
+
+  const handlePromoteToTemplate = async () => {
+    if (!newTemplateName.trim() || !promoteCompanyId) return;
+    setPromotingTemplate(true);
+    try {
+      const res = await fetch('/api/layout-templates/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: promoteCompanyId, name: newTemplateName, description: newTemplateDesc }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLayoutTemplates((prev) => [data.data, ...prev]);
+        setNewTemplateName('');
+        setNewTemplateDesc('');
+        setPromoteCompanyId('');
+        setCreatingTemplate(false);
+        setSuccess(`Template "${data.data.name}" created!`);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.error || 'Failed to create template');
+      }
+    } catch {
+      setError('Failed to create template');
+    } finally {
+      setPromotingTemplate(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string, name: string) => {
+    if (!confirm(`Delete template "${name}"? All companies using this template will revert to their individual layouts.`)) return;
+    try {
+      const res = await fetch(`/api/layout-templates/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setLayoutTemplates((prev) => prev.filter((t) => t.id !== id));
+        setSuccess('Template deleted.');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.error || 'Failed to delete template');
+      }
+    } catch {
+      setError('Failed to delete template');
+    }
+  };
+
+  const handleAssignTemplate = async (templateId: string, companyId: string, unassign = false) => {
+    try {
+      const res = await fetch(`/api/layout-templates/${templateId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, unassign }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadLayoutTemplates();
+        setSuccess(unassign ? 'Template unassigned.' : 'Template assigned!');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(data.error || 'Failed to assign template');
+      }
+    } catch {
+      setError('Failed to assign template');
+    }
+  };
+
   // Show loading while checking auth
   if (authLoading) {
     return (
@@ -492,9 +636,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/settings/companies', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(company),
       });
 
@@ -508,11 +650,36 @@ export default function SettingsPage() {
 
       const savedCompany = await response.json();
 
+      // Also handle template assignment/unassignment
+      if (savedCompany.id && company.layoutTemplateId !== undefined) {
+        if (company.layoutTemplateId) {
+          // Assign selected template
+          await fetch(`/api/layout-templates/${company.layoutTemplateId}/assign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyId: savedCompany.id }),
+          }).catch(() => {/* gracefully ignore if table not yet migrated */});
+        } else {
+          // Unassign any existing template — find which one to unassign
+          const currentTemplate = layoutTemplates.find((t) =>
+            t.brandingSettings?.some((bs) => bs.company.id === savedCompany.id)
+          );
+          if (currentTemplate) {
+            await fetch(`/api/layout-templates/${currentTemplate.id}/assign`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ companyId: savedCompany.id, unassign: true }),
+            }).catch(() => {});
+          }
+        }
+        await loadLayoutTemplates();
+      }
+
       // Update local state
       if (company.id) {
-        setCompanies(companies.map(c => c.id === company.id ? savedCompany : c));
+        setCompanies(companies.map(c => c.id === company.id ? { ...savedCompany, layoutTemplateId: company.layoutTemplateId } : c));
       } else {
-        setCompanies([...companies, savedCompany]);
+        setCompanies([...companies, { ...savedCompany, layoutTemplateId: company.layoutTemplateId }]);
       }
 
       setSelectedCompany(null);
@@ -592,6 +759,36 @@ export default function SettingsPage() {
         </div>
       </header>
 
+      {/* Tab Bar */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex gap-1" aria-label="Tabs">
+            {[
+              { id: 'companies', label: 'Companies', icon: <Building2 className="w-4 h-4" /> },
+              { id: 'layouts', label: 'Custom Layouts', icon: <Layout className="w-4 h-4" /> },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as 'companies' | 'layouts')}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === 'layouts' && layoutTemplates.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                    {layoutTemplates.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Success/Error Messages */}
@@ -609,6 +806,9 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* ── COMPANIES TAB ── */}
+        {activeTab === 'companies' && (
+        <>
         {/* Company Branding Section */}
         <div className="bg-white rounded-xl shadow-md p-6 space-y-6">
           <div className="space-y-6">
@@ -653,6 +853,7 @@ export default function SettingsPage() {
                   setIsAddingCompany(false);
                 }}
                 loading={loading}
+                layoutTemplates={layoutTemplates}
               />
             ) : (
               <div className="space-y-4">
@@ -771,53 +972,45 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Custom Layouts Section — only shown when at least one company has a custom layout */}
+        {/* Per-company layouts section */}
         {Object.keys(customLayouts).length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-6 space-y-6 mt-8">
+        <div className="bg-white rounded-xl shadow-md p-6 space-y-4 mt-8">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                <Layout className="w-5 h-5 text-blue-600" />
-                Custom Quote Layouts
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-purple-600" />
+                Company-Specific Layouts
               </h2>
-              <p className="text-sm text-gray-600">
-                Companies with AI-generated custom quote page layouts.
+              <p className="text-sm text-gray-600 mt-1">
+                Companies that have their own custom quote page layouts.
               </p>
             </div>
           </div>
-
           <div className="space-y-3">
             {companies
               .filter((company) => company.id && customLayouts[company.id])
               .map((company) => {
                 const layout = customLayouts[company.id!];
+                const assignedTemplate = layoutTemplates.find((t) =>
+                  t.brandingSettings?.some((bs) => bs.company.id === company.id)
+                );
                 return (
-                  <div
-                    key={`layout-${company.id}`}
-                    className="flex items-center justify-between border border-gray-200 rounded-lg p-4 hover:border-blue-200 transition-colors"
-                  >
+                  <div key={`layout-${company.id}`} className="flex items-center justify-between border border-gray-200 rounded-lg p-4 hover:border-blue-200 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center"
-                        style={{
-                          backgroundColor: layout.isActive ? '#dcfce7' : '#fef3c7',
-                        }}
-                      >
-                        <Wand2
-                          className="w-4 h-4"
-                          style={{
-                            color: layout.isActive ? '#16a34a' : '#d97706',
-                          }}
-                        />
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: layout.isActive ? '#dcfce7' : '#fef3c7' }}>
+                        <Wand2 className="w-4 h-4" style={{ color: layout.isActive ? '#16a34a' : '#d97706' }} />
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-900">{company.companyName}</h3>
                         <p className="text-xs text-gray-500">
-                          Custom layout v{layout.version} — {layout.isActive ? 'Active' : 'Inactive'}
+                          {assignedTemplate
+                            ? <>Using template: <span className="font-medium text-blue-600">{assignedTemplate.name}</span></>
+                            : `Custom layout v${layout.version} — ${layout.isActive ? 'Active' : 'Inactive'}`
+                          }
+                          {layout.source === 'static_fallback' && ' (static fallback)'}
                         </p>
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
                       <button
                         onClick={async () => {
@@ -826,28 +1019,17 @@ export default function SettingsPage() {
                           try {
                             const res = await fetch(`/api/layouts/${company.id}`, { method: 'DELETE' });
                             if (res.ok) {
-                              setCustomLayouts((prev) => {
-                                const next = { ...prev };
-                                delete next[company.id!];
-                                return next;
-                              });
+                              setCustomLayouts((prev) => { const next = { ...prev }; delete next[company.id!]; return next; });
                               setSuccess('Custom layout deleted.');
                             }
-                          } catch {
-                            setError('Failed to delete layout.');
-                          }
+                          } catch { setError('Failed to delete layout.'); }
                         }}
                         className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5 inline mr-1" />
-                        Delete
+                        <Trash2 className="w-3.5 h-3.5 inline mr-1" />Delete
                       </button>
-                      <a
-                        href={`/settings/layout-builder?companyId=${company.id}`}
-                        className="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5"
-                      >
-                        <Wand2 className="w-3.5 h-3.5" />
-                        Edit Layout
+                      <a href={`/settings/layout-builder?companyId=${company.id}`} className="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5">
+                        <Wand2 className="w-3.5 h-3.5" />Edit Layout
                       </a>
                     </div>
                   </div>
@@ -856,6 +1038,197 @@ export default function SettingsPage() {
           </div>
         </div>
         )}
+        </> /* end COMPANIES TAB */
+        )}
+
+        {/* ── LAYOUT TEMPLATES TAB ── */}
+        {activeTab === 'layouts' && (
+        <div className="space-y-6">
+          {/* Header + create button */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Layout className="w-5 h-5 text-blue-600" />
+                  Layout Templates
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Named, reusable quote page layouts. Assign a template to multiple companies. Each company keeps their own images (hero banner, footer) on top.
+                </p>
+              </div>
+              <button
+                onClick={() => setCreatingTemplate(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex-shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Create Template
+              </button>
+            </div>
+
+            {/* Create template form */}
+            {creatingTemplate && (
+              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 text-sm">New Layout Template</h3>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Template Name <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    placeholder="e.g. Grace Standard, Crown Premium..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description (optional)</label>
+                  <input
+                    type="text"
+                    value={newTemplateDesc}
+                    onChange={(e) => setNewTemplateDesc(e.target.value)}
+                    placeholder="Brief description of this layout..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Create from company layout <span className="text-gray-400">(source)</span></label>
+                  <select
+                    value={promoteCompanyId}
+                    onChange={(e) => setPromoteCompanyId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">— Select a company to use as source —</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">The company&apos;s existing layout config will be copied into this template.</p>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handlePromoteToTemplate}
+                    disabled={!newTemplateName.trim() || !promoteCompanyId || promotingTemplate}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+                    {promotingTemplate ? 'Creating...' : 'Create Template'}
+                  </button>
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            {layoutTemplates.length > 0 && (
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search templates..."
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Template list */}
+            {loadingTemplates ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-blue-600" /></div>
+            ) : layoutTemplates.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <Layout className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="font-medium">No layout templates yet</p>
+                <p className="text-sm mt-1">Create a template from an existing company layout to share it across multiple companies.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {layoutTemplates
+                  .filter((t) => !templateSearch.trim() || t.name.toLowerCase().includes(templateSearch.toLowerCase()))
+                  .map((template) => {
+                    const assignedCompanies = template.brandingSettings?.map((bs) => bs.company) || [];
+                    return (
+                      <div key={template.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between p-4 bg-white hover:bg-gray-50">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${template.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
+                              <Layout className={`w-4 h-4 ${template.isActive ? 'text-green-600' : 'text-gray-400'}`} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
+                                <span className="text-xs text-gray-400 flex-shrink-0">v{template.version}</span>
+                                {!template.isActive && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Inactive</span>}
+                              </div>
+                              {template.description && <p className="text-xs text-gray-500 truncate">{template.description}</p>}
+                              <div className="flex items-center gap-1 mt-1">
+                                <Users className="w-3 h-3 text-gray-400" />
+                                <span className="text-xs text-gray-400">
+                                  {assignedCompanies.length === 0
+                                    ? 'Not assigned to any company'
+                                    : assignedCompanies.map((c) => c.name).join(', ')}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                            <a
+                              href={`/settings/layout-builder?templateId=${template.id}`}
+                              className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1"
+                            >
+                              <Wand2 className="w-3.5 h-3.5" />Edit
+                            </a>
+                            <button
+                              onClick={() => handleDeleteTemplate(template.id, template.name)}
+                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />Delete
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Assign to company */}
+                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center gap-3">
+                          <span className="text-xs text-gray-500 font-medium flex-shrink-0">Assign to:</span>
+                          <select
+                            defaultValue=""
+                            onChange={async (e) => {
+                              if (!e.target.value) return;
+                              await handleAssignTemplate(template.id, e.target.value);
+                              e.target.value = '';
+                            }}
+                            className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-500 flex-1 max-w-xs"
+                          >
+                            <option value="">— select company —</option>
+                            {companies
+                              .filter((c) => !assignedCompanies.some((ac) => ac.id === c.id))
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>{c.companyName}</option>
+                              ))}
+                          </select>
+                          {assignedCompanies.map((ac) => (
+                            <div key={ac.id} className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                              {ac.name}
+                              <button
+                                onClick={() => handleAssignTemplate(template.id, ac.id, true)}
+                                className="ml-1 hover:text-red-600"
+                                title="Unassign"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+        )} {/* end LAYOUT TEMPLATES TAB */}
+
       </main>
     </div>
   );

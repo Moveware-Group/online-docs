@@ -131,12 +131,51 @@ export async function GET(
       }
     }
 
+    // ── Priority 1: Check if company has a LayoutTemplate assigned in BrandingSettings ──
+    const resolvedInternalId = resolvedCompany?.id;
+    if (resolvedInternalId) {
+      try {
+        const branding = await prisma.brandingSettings.findUnique({
+          where: { companyId: resolvedInternalId },
+          select: { layoutTemplateId: true } as never,
+        }) as { layoutTemplateId?: string | null } | null;
+
+        if (branding?.layoutTemplateId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tmpl = await (prisma as any).layoutTemplate.findUnique({
+            where: { id: branding.layoutTemplateId },
+          });
+          if (tmpl && tmpl.isActive) {
+            let layoutConfig;
+            try { layoutConfig = JSON.parse(tmpl.layoutConfig); } catch { layoutConfig = tmpl.layoutConfig; }
+            const merged = await mergeCompanyBrandingIntoLayout(resolvedInternalId, layoutConfig);
+            return NextResponse.json({
+              success: true,
+              data: {
+                id: tmpl.id,
+                companyId: resolvedInternalId,
+                layoutConfig: merged,
+                templateId: tmpl.id,
+                templateName: tmpl.name,
+                version: tmpl.version,
+                isActive: tmpl.isActive,
+                source: "layout_template",
+              },
+            });
+          }
+        }
+      } catch {
+        // layoutTemplateId column may not exist yet (pre-migration) — fall through
+      }
+    }
+
+    // ── Priority 2: Company-specific CustomLayout ──
     // Temporary static fallback for Grace company while AI layout builder is being stabilised.
     // Force static for known Grace coIds even if a custom AI layout exists.
     const forceGraceStatic = companyId === "555" || isGraceCompany(resolvedCompany);
     if (forceGraceStatic) {
       const layoutConfig = buildGraceStaticLayoutConfig();
-      const merged = await mergeCompanyFontIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
+      const merged = await mergeCompanyBrandingIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
       return NextResponse.json({
         success: true,
         data: {

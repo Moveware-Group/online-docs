@@ -1,26 +1,30 @@
-feat: layout builder tabs with placeholder picker and block reorder, live image preview
+feat: layout template library with company assignment
 
-Layout Builder - 3 new left-panel tabs (Setup / Blocks / Placeholders):
+Schema (prisma/schema.prisma):
+- Add LayoutTemplate model (id, name, description, layoutConfig, version, isActive)
+- Add layoutTemplateId FK to BrandingSettings linking to LayoutTemplate
+- Run: npm run db:push && npm run db:generate on server after pulling
 
-Blocks tab:
-- Drag-and-drop section reorder using HTML5 native drag API
-- Visual drag handles with grab cursor, drop-target highlight, drag-opacity
-- Per-block eye icon to toggle visibility (hides section in live preview instantly)
-- Counter badge shows number of sections
-- Advisory message when layout has only one HTML block
+API routes:
+- GET/POST  /api/layout-templates           — list all templates, create new
+- GET/PUT/DELETE /api/layout-templates/[id] — CRUD for individual template
+- POST /api/layout-templates/[id]/assign    — assign/unassign template to company
+- POST /api/layout-templates/promote        — create template from existing company layout
 
-Placeholders tab:
-- Full placeholder registry displayed in collapsible categories
-- Copy-to-clipboard button appears on hover; shows green tick on copy
-- Categories: Customer, Job, Dates, Addresses, Pricing, Measures, Branding, Loop Fields
-- Customer/Job/Branding/Dates expanded by default
+Layout resolution (api/layouts/[companyId]/route.ts):
+- Priority 1: BrandingSettings.layoutTemplateId (assigned template)
+- Priority 2: Company-specific CustomLayout
+- Priority 3: Grace static fallback
+- Gracefully handles pre-migration state (layoutTemplateId column missing)
 
-Live image preview on upload:
-- Banner and footer image uploads now immediately inject URL into layoutConfig.globalStyles
-  and call updatePreview so the iframe refreshes without requiring Approve & Save
-- quote/page.tsx: globalStyles.heroBannerUrl / footerImageUrl take priority over
-  job branding data, enabling live postMessage-driven image updates
-
-Footer logo fix:
-- Added max-width:180px, object-fit:contain, object-position:left center to prevent
-  the company logo from stretching in the dark grey footer bar
+Settings page:
+- Add top-level tab bar: Companies | Custom Layouts
+- Custom Layouts tab: full LayoutTemplate library CRUD
+  - Create template by promoting from any company's existing layout
+  - Per-template company assignment chips with one-click unassign
+  - Inline "Assign to" company dropdown on each template card
+  - Shows which companies are using each template
+- Company Branding form: add "Quote Layout Template" dropdown selector
+  - Lists all active LayoutTemplate records
+  - Saves assignment via /api/layout-templates/[id]/assign on company save
+  - Note explaining per-company image overrides still apply
