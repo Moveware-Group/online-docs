@@ -99,6 +99,7 @@ export async function GET(
       logoUrl: "",
       primaryColor: "#1E40AF",
       secondaryColor: "#FFFFFF",
+      fontFamily: "Inter",
     };
 
     try {
@@ -138,6 +139,9 @@ export async function GET(
             company.brandingSettings?.secondaryColor ||
             company.secondaryColor ||
             branding.secondaryColor,
+          fontFamily:
+            company.brandingSettings?.fontFamily ||
+            branding.fontFamily,
         };
       }
     } catch (dbError) {

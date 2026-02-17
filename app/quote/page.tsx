@@ -44,6 +44,7 @@ interface Job {
     logoUrl?: string;
     primaryColor?: string;
     secondaryColor?: string;
+    fontFamily?: string;
   };
 }
 
@@ -513,7 +514,27 @@ function QuotePageContent() {
   const companyName = job.branding?.companyName || 'MOVEWARE';
   const logoUrl = job.branding?.logoUrl;
   const primaryColor = job.branding?.primaryColor || '#1E40AF';
+  const fontFamily = job.branding?.fontFamily || 'Inter';
   const totalCube = inventory.reduce((sum, item) => sum + (item.cube || 0), 0);
+
+  // Build Google Fonts stylesheet URL for non-system fonts
+  const systemFonts = ['Arial', 'Georgia', 'system-ui'];
+  const googleFontHref =
+    fontFamily && !systemFonts.includes(fontFamily)
+      ? `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily).replace(/%20/g, '+')}:wght@400;600;700&display=swap`
+      : null;
+
+  // Inject Google Font link into document head so it loads
+  useEffect(() => {
+    if (!googleFontHref) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = googleFontHref;
+    document.head.appendChild(link);
+    return () => {
+      if (link.parentNode) link.parentNode.removeChild(link);
+    };
+  }, [googleFontHref]);
 
   // Format date to DD/MM/YYYY (Australian format)
   const formatDate = (date: Date) => {
@@ -568,7 +589,11 @@ function QuotePageContent() {
   // ---- Base Layout Rendering ----
   return (
     <PageShell includeHeader={false}>
-      <div ref={pdfContentRef} className="min-h-screen bg-gray-50">
+      <div
+        ref={pdfContentRef}
+        className="min-h-screen bg-gray-50"
+        style={{ fontFamily: fontFamily ? `"${fontFamily}", sans-serif` : undefined }}
+      >
         {/* Quote Header with Logo and Banner */}
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-8 py-6">

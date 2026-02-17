@@ -9,6 +9,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { GRACE_STATIC_LAYOUT } from "@/lib/layouts/grace-static";
 
+/** Merge company branding fontFamily into layout config globalStyles */
+async function mergeCompanyFontIntoLayout(
+  companyId: string,
+  layoutConfig: { globalStyles?: Record<string, string> }
+): Promise<typeof layoutConfig> {
+  try {
+    const company = await prisma.company.findFirst({
+      where: {
+        OR: [{ id: companyId }, { tenantId: companyId }],
+      },
+      include: { brandingSettings: true },
+    });
+    const fontFamily = company?.brandingSettings?.fontFamily;
+    if (!fontFamily) return layoutConfig;
+    return {
+      ...layoutConfig,
+      globalStyles: {
+        ...layoutConfig.globalStyles,
+        fontFamily,
+      },
+    };
+  } catch {
+    return layoutConfig;
+  }
+}
+
 function isGraceCompany(company: { tenantId?: string | null; brandCode?: string | null; name?: string | null } | null): boolean {
   if (!company) return false;
   const tenantId = (company.tenantId || "").toLowerCase();
@@ -93,12 +119,14 @@ export async function GET(
     // Force static for known Grace coIds even if a custom AI layout exists.
     const forceGraceStatic = companyId === "555" || isGraceCompany(resolvedCompany);
     if (forceGraceStatic) {
+      const layoutConfig = buildGraceStaticLayoutConfig();
+      const merged = await mergeCompanyFontIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
       return NextResponse.json({
         success: true,
         data: {
           id: `static-grace-${resolvedCompany?.id || companyId}`,
           companyId: resolvedCompany?.id || companyId,
-          layoutConfig: buildGraceStaticLayoutConfig(),
+          layoutConfig: merged,
           version: 1,
           isActive: true,
           source: "static_fallback",
@@ -121,11 +149,13 @@ export async function GET(
       layoutConfig = layout.layoutConfig;
     }
 
+    const mergedConfig = await mergeCompanyFontIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
+
     return NextResponse.json({
       success: true,
       data: {
         ...layout,
-        layoutConfig,
+        layoutConfig: mergedConfig,
       },
     });
   } catch (error) {

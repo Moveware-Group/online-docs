@@ -7,7 +7,7 @@ export const GRACE_STATIC_LAYOUT = {
   version: 1,
   globalStyles: {
     fontFamily: "Arial, Helvetica, sans-serif",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#e9e9e9",
     maxWidth: "980px",
   },
   sections: [
@@ -16,7 +16,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `
-<div style="background:#ffffff;margin:0;padding:0;">
+<div style="background:#e9e9e9;margin:0;padding:0;">
   <!-- Full-width header: white bar with content inside container -->
   <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#ffffff;border-bottom:1px solid #e5e7eb;">
     <div style="max-width:980px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">

@@ -5,6 +5,40 @@ import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image 
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 
+/** Popular Google Fonts for the company branding font selector */
+const GOOGLE_FONTS = [
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Montserrat',
+  'Poppins',
+  'Source Sans 3',
+  'Oswald',
+  'Raleway',
+  'Nunito',
+  'Work Sans',
+  'Merriweather',
+  'Playfair Display',
+  'PT Sans',
+  'Ubuntu',
+  'Rubik',
+  'DM Sans',
+  'Bebas Neue',
+  'Barlow',
+  'Noto Sans',
+  'Quicksand',
+  'Karla',
+  'Libre Baskerville',
+  'Fira Sans',
+  'Manrope',
+  'Outfit',
+  'Plus Jakarta Sans',
+  'Arial',
+  'Georgia',
+  'system-ui',
+];
+
 interface CompanyBranding {
   id?: string;
   companyId: string;
@@ -337,13 +371,18 @@ function CompanyForm({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Font Family
           </label>
-          <input
-            type="text"
+          <select
             value={formData.fontFamily}
             onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Inter"
-          />
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          >
+            {GOOGLE_FONTS.map((font) => (
+              <option key={font} value={font}>
+                {font}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Used on custom and default quote pages for this company.</p>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
