@@ -93,28 +93,35 @@ export async function GET(
       );
     }
 
-    // Try to fetch branding from the database (Crown Worldwide)
+    // Try to fetch branding from the database
     let branding = {
-      companyName: "Crown Worldwide",
-      logoUrl: "/images/crown_logo.svg",
-      primaryColor: "#CC0000",
+      companyName: "Moveware",
+      logoUrl: "",
+      primaryColor: "#1E40AF",
       secondaryColor: "#FFFFFF",
     };
 
     try {
-      // Look up a company whose brandCode matches, or fall back to first active company
-      const company = await prisma.company.findFirst({
-        where: {
-          OR: [
-            { brandCode: mockJob.brandCode },
-            { isActive: true },
-          ],
-        },
-        include: {
-          brandingSettings: true,
-        },
-        orderBy: { createdAt: "asc" },
-      });
+      // Look up company by coId (tenantId) first, then fall back to brandCode match
+      let company = null;
+      if (coId) {
+        company = await prisma.company.findFirst({
+          where: { tenantId: coId },
+          include: { brandingSettings: true },
+        });
+      }
+      if (!company) {
+        company = await prisma.company.findFirst({
+          where: {
+            OR: [
+              { brandCode: mockJob.brandCode },
+              { isActive: true },
+            ],
+          },
+          include: { brandingSettings: true },
+          orderBy: { createdAt: "asc" },
+        });
+      }
 
       if (company) {
         branding = {

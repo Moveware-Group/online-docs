@@ -5,9 +5,12 @@ import { Search, ChevronDown, Building2 } from 'lucide-react';
 
 export interface CompanyOption {
   id: string;
+  tenantId?: string;
   name: string;
   brandCode: string;
   primaryColor?: string;
+  secondaryColor?: string;
+  tertiaryColor?: string;
   logoUrl?: string;
 }
 
@@ -56,9 +59,12 @@ export function CompanySearchDropdown({
       setCompanies(
         companyList.map((c: Record<string, string>) => ({
           id: c.id,
+          tenantId: c.companyId || c.tenantId,
           name: c.companyName || c.name,
           brandCode: c.brandCode,
           primaryColor: c.primaryColor,
+          secondaryColor: c.secondaryColor,
+          tertiaryColor: c.tertiaryColor,
           logoUrl: c.logoUrl,
         })),
       );

@@ -101,9 +101,12 @@ function LayoutBuilderContent() {
         if (match) {
           setSelectedCompany({
             id: match.id,
+            tenantId: match.companyId || match.tenantId,
             name: match.companyName || match.name,
             brandCode: match.brandCode,
             primaryColor: match.primaryColor,
+            secondaryColor: match.secondaryColor,
+            tertiaryColor: match.tertiaryColor,
             logoUrl: match.logoUrl,
           });
         }
@@ -227,7 +230,8 @@ function LayoutBuilderContent() {
           companyName: selectedCompany.name,
           brandCode: selectedCompany.brandCode,
           primaryColor: selectedCompany.primaryColor || '#2563eb',
-          secondaryColor: '#1e40af',
+          secondaryColor: selectedCompany.secondaryColor || '#ffffff',
+          tertiaryColor: selectedCompany.tertiaryColor || undefined,
           logoUrl: selectedCompany.logoUrl,
           referenceUrl: referenceUrl || undefined,
           referenceFilePath: referenceFilePath || undefined,
@@ -294,7 +298,7 @@ function LayoutBuilderContent() {
           feedback,
           companyName: selectedCompany.name,
           primaryColor: selectedCompany.primaryColor || '#2563eb',
-          secondaryColor: '#1e40af',
+          secondaryColor: selectedCompany.secondaryColor || '#ffffff',
           conversationHistory,
         }),
       });
@@ -753,7 +757,7 @@ function LayoutBuilderContent() {
             </h2>
             {selectedCompany && (
               <span className="text-xs text-gray-500">
-                /quote?jobId=111505&coId=12&preview=true
+                /quote?jobId=111505&coId={selectedCompany.tenantId || '12'}&preview=true
               </span>
             )}
           </div>
@@ -770,7 +774,7 @@ function LayoutBuilderContent() {
             ) : (
               <iframe
                 ref={iframeRef}
-                src={`/quote?jobId=111505&coId=12&preview=true`}
+                src={`/quote?jobId=111505&coId=${selectedCompany?.tenantId || '12'}&preview=true`}
                 className="w-full h-full bg-white rounded-lg shadow-lg border border-gray-300"
                 title="Quote Layout Preview"
                 onLoad={() => {
