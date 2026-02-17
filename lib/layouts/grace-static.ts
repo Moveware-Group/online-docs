@@ -257,11 +257,51 @@ export const GRACE_STATIC_LAYOUT = {
     </div>
 
     <!-- Footer banner (full width, breaks out of container) -->
-    <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
-      <img src="/grace-assets/banner_3.png" alt="Grace Footer" style="width:100%;height:auto;display:block;" />
+    <style>
+      .grace-footer-img {
+        width: 100%;
+        height: auto;
+        display: block;
+        max-height: 550px;
+        object-fit: cover;
+        object-position: center;
+      }
+      @media (max-width: 1024px) {
+        .grace-footer-img { max-height: 350px; }
+      }
+      @media (max-width: 640px) {
+        .grace-footer-img { max-height: 200px; }
+      }
+    </style>
+    <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden;">
+      <img src="/grace-assets/banner_3.png" alt="Grace Footer" class="grace-footer-img" />
     </div>
 
   </div>
+
+  <!-- Grey footer bar (full width) -->
+  <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#2e3642;color:#ffffff;">
+    <div style="max-width:980px;margin:0 auto;padding:24px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+      <!-- Left: logo + copyright + powered by -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <img src="/grace-assets/logo-white.png" alt="Grace Removals" style="height:36px;width:auto;display:block;" onerror="this.style.display='none'" />
+        <div style="font-size:11px;color:#aab0bb;line-height:1.6;">
+          <div>&copy;2026, Grace Removals (Australia) Pty Ltd, All rights reserved.</div>
+          <div>Powered by <a href="https://moveware.com" target="_blank" style="color:#cc0000;text-decoration:none;">Moveware</a></div>
+        </div>
+      </div>
+      <!-- Right: address + contact (right aligned) -->
+      <div style="text-align:right;font-size:11px;color:#aab0bb;line-height:1.8;">
+        <div>11 Toohey Street</div>
+        <div>Portsmith Qld</div>
+        <div>+61 7 4035 1796</div>
+        <div><a href="mailto:ops-cairns@grace.com.au" style="color:#cc0000;text-decoration:none;">ops-cairns@grace.com.au</a></div>
+        <div>ABN: 35 083 330 223</div>
+        <div style="color:#cc0000;">Grace Removals (Australia) Pty Ltd</div>
+      </div>
+    </div>
+  </div>
+
 </div>`,
     },
   ],
