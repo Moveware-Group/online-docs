@@ -1,0 +1,26 @@
+feat: layout builder tabs with placeholder picker and block reorder, live image preview
+
+Layout Builder - 3 new left-panel tabs (Setup / Blocks / Placeholders):
+
+Blocks tab:
+- Drag-and-drop section reorder using HTML5 native drag API
+- Visual drag handles with grab cursor, drop-target highlight, drag-opacity
+- Per-block eye icon to toggle visibility (hides section in live preview instantly)
+- Counter badge shows number of sections
+- Advisory message when layout has only one HTML block
+
+Placeholders tab:
+- Full placeholder registry displayed in collapsible categories
+- Copy-to-clipboard button appears on hover; shows green tick on copy
+- Categories: Customer, Job, Dates, Addresses, Pricing, Measures, Branding, Loop Fields
+- Customer/Job/Branding/Dates expanded by default
+
+Live image preview on upload:
+- Banner and footer image uploads now immediately inject URL into layoutConfig.globalStyles
+  and call updatePreview so the iframe refreshes without requiring Approve & Save
+- quote/page.tsx: globalStyles.heroBannerUrl / footerImageUrl take priority over
+  job branding data, enabling live postMessage-driven image updates
+
+Footer logo fix:
+- Added max-width:180px, object-fit:contain, object-position:left center to prevent
+  the company logo from stretching in the dark grey footer bar

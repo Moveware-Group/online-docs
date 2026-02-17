@@ -318,7 +318,7 @@ export const GRACE_STATIC_LAYOUT = {
     <div style="max-width:980px;margin:0 auto;padding:24px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
       <!-- Left: logo + copyright + powered by -->
       <div style="display:flex;flex-direction:column;gap:10px;">
-        <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="height:36px;width:auto;display:block;" onerror="this.style.display='none'" />
+        <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="height:36px;max-width:180px;width:auto;object-fit:contain;object-position:left center;display:block;" onerror="this.style.display='none'" />
         <div style="font-size:11px;color:#aab0bb;line-height:1.6;">
           <div>&copy;2026, Grace Removals (Australia) Pty Ltd, All rights reserved.</div>
           <div>Powered by <a href="https://moveware.com" target="_blank" style="color:#cc0000;text-decoration:none;">Moveware</a></div>

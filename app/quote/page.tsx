@@ -564,15 +564,18 @@ function QuotePageContent() {
 
   // ---- Custom Layout Rendering ----
   if (customLayout) {
+    // globalStyles from the layout config take priority — this lets the Layout Builder
+    // push live image/font updates via postMessage without a DB round-trip
+    const gs = (customLayout.globalStyles || {}) as Record<string, string>;
     const pageData = {
       job,
       inventory,
       costings,
       customerName,
       companyName,
-      logoUrl,
-      heroBannerUrl,
-      footerImageUrl,
+      logoUrl: gs.logoUrl || logoUrl,
+      heroBannerUrl: gs.heroBannerUrl || heroBannerUrl,
+      footerImageUrl: gs.footerImageUrl || footerImageUrl,
       primaryColor,
       quoteDate,
       expiryDate,

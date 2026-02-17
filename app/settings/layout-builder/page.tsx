@@ -19,6 +19,14 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  Copy,
+  Check,
+  GripVertical,
+  Layers,
+  Tag,
+  ChevronDown,
+  ChevronRight,
+  EyeOff,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -28,6 +36,11 @@ import {
 } from '@/lib/components/forms/company-search-dropdown';
 import type { LayoutConfig } from '@/lib/services/llm-service';
 import { LayoutBuilderChatWidget } from '@/lib/components/chat/layout-builder-chat-widget';
+import {
+  PLACEHOLDER_REGISTRY,
+  PLACEHOLDER_CATEGORIES,
+  type PlaceholderCategory,
+} from '@/lib/data/placeholder-registry';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,6 +92,19 @@ function LayoutBuilderContent() {
   // Status messages
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Left panel tabs: 'setup' | 'blocks' | 'placeholders'
+  const [leftPanelTab, setLeftPanelTab] = useState<'setup' | 'blocks' | 'placeholders'>('setup');
+
+  // Placeholder copy state
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<PlaceholderCategory>>(
+    new Set(['Customer', 'Job', 'Branding', 'Dates'])
+  );
+
+  // Block drag-and-drop state
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Preview iframe ref
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -227,6 +253,16 @@ function LayoutBuilderContent() {
       setBannerImagePath(url);
       setBannerImageFile(file);
       setStatusMessage(`Banner image "${file.name}" uploaded successfully`);
+      // Immediately inject into live preview
+      setLayoutConfig((prev) => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          globalStyles: { ...(prev.globalStyles || {}), heroBannerUrl: url },
+        };
+        updatePreview(updated);
+        return updated;
+      });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Banner upload failed';
       console.error('Banner upload error:', err);
@@ -248,6 +284,16 @@ function LayoutBuilderContent() {
       setFooterImagePath(url);
       setFooterImageFile(file);
       setStatusMessage(`Footer image "${file.name}" uploaded successfully`);
+      // Immediately inject into live preview
+      setLayoutConfig((prev) => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          globalStyles: { ...(prev.globalStyles || {}), footerImageUrl: url },
+        };
+        updatePreview(updated);
+        return updated;
+      });
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Footer upload failed';
       console.error('Footer upload error:', err);
@@ -530,6 +576,54 @@ function LayoutBuilderContent() {
     ]);
   };
 
+  // ---- Placeholder copy ----
+  const handleCopyPlaceholder = (key: string) => {
+    navigator.clipboard.writeText(`{{${key}}}`);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1800);
+  };
+
+  const toggleCategory = (cat: PlaceholderCategory) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  // ---- Block drag-and-drop ----
+  const handleDragStartBlock = (index: number) => setDraggingIndex(index);
+  const handleDragOverBlock = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+  const handleDropBlock = (dropIndex: number) => {
+    if (draggingIndex === null || draggingIndex === dropIndex || !layoutConfig) return;
+    const sections = [...(layoutConfig.sections || [])];
+    const [moved] = sections.splice(draggingIndex, 1);
+    sections.splice(dropIndex, 0, moved);
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setDraggingIndex(null);
+    setDragOverIndex(null);
+  };
+  const handleDragEndBlock = () => {
+    setDraggingIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleToggleSectionVisibility = (index: number) => {
+    if (!layoutConfig) return;
+    const sections = layoutConfig.sections.map((s, i) =>
+      i === index ? { ...s, visible: s.visible === false ? true : false } : s
+    );
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+  };
+
   const addAssistantMessage = (content: string) => {
     setChatMessages((prev) => [
       ...prev,
@@ -657,10 +751,38 @@ function LayoutBuilderContent() {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT PANEL: Form */}
+        {/* LEFT PANEL: Tabbed */}
         <div className="w-[420px] flex-shrink-0 border-r border-gray-200 bg-white flex flex-col overflow-hidden">
-          {/* Form Section */}
-          <div className="p-4 overflow-y-auto">
+          {/* Tab Bar */}
+          <div className="flex border-b border-gray-200 flex-shrink-0">
+            {[
+              { id: 'setup', label: 'Setup', icon: <Wand2 className="w-3.5 h-3.5" /> },
+              { id: 'blocks', label: 'Blocks', icon: <Layers className="w-3.5 h-3.5" /> },
+              { id: 'placeholders', label: 'Placeholders', icon: <Tag className="w-3.5 h-3.5" /> },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setLeftPanelTab(tab.id as 'setup' | 'blocks' | 'placeholders')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                  leftPanelTab === tab.id
+                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === 'blocks' && layoutConfig && (
+                  <span className="ml-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px]">
+                    {layoutConfig.sections?.length || 0}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* ── SETUP TAB ── */}
+          {leftPanelTab === 'setup' && (
+          <div className="p-4 overflow-y-auto flex-1">
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
 
             {/* Best Results Tip */}
@@ -884,6 +1006,161 @@ function LayoutBuilderContent() {
               </button>
             </div>
           </div>
+          )} {/* end SETUP TAB */}
+
+          {/* ── BLOCKS TAB ── */}
+          {leftPanelTab === 'blocks' && (
+          <div className="p-4 overflow-y-auto flex-1">
+            <h2 className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-wide flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-600" />
+              Block Order
+            </h2>
+            <p className="text-xs text-gray-500 mb-4">Drag blocks to reorder them. Click the eye to show/hide a block.</p>
+
+            {!layoutConfig || !layoutConfig.sections?.length ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
+                <Layers className="w-10 h-10 mb-3 text-gray-300" />
+                <p className="text-sm font-medium">No layout loaded</p>
+                <p className="text-xs mt-1">Generate or load a layout first.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {layoutConfig.sections.map((section, index) => {
+                  const isHidden = section.visible === false;
+                  const isDragging = draggingIndex === index;
+                  const isOver = dragOverIndex === index && draggingIndex !== index;
+                  const label = section.id || section.component || `Section ${index + 1}`;
+                  const typeTag = section.type === 'custom_html' ? 'HTML' : (section.component || section.type || 'block');
+
+                  return (
+                    <div
+                      key={section.id || index}
+                      draggable
+                      onDragStart={() => handleDragStartBlock(index)}
+                      onDragOver={(e) => handleDragOverBlock(e, index)}
+                      onDrop={() => handleDropBlock(index)}
+                      onDragEnd={handleDragEndBlock}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all select-none ${
+                        isDragging
+                          ? 'opacity-40 border-blue-400 bg-blue-50'
+                          : isOver
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : isHidden
+                              ? 'border-gray-200 bg-gray-50 opacity-60'
+                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
+                      {/* Drag handle */}
+                      <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">{label}</div>
+                        <div className="text-xs text-gray-400">{typeTag}</div>
+                      </div>
+
+                      {/* Position badge */}
+                      <span className="text-xs text-gray-400 font-mono w-5 text-center">{index + 1}</span>
+
+                      {/* Visibility toggle */}
+                      <button
+                        onClick={() => handleToggleSectionVisibility(index)}
+                        title={isHidden ? 'Show block' : 'Hide block'}
+                        className={`p-1 rounded transition-colors ${
+                          isHidden ? 'text-gray-300 hover:text-gray-500' : 'text-gray-500 hover:text-blue-600'
+                        }`}
+                      >
+                        {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {layoutConfig && layoutConfig.sections?.length === 1 && (
+              <p className="mt-4 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                This layout uses a single HTML block. To enable block reordering, ask the AI assistant to split the layout into separate sections (e.g. &ldquo;split into header, intro, locations, pricing, and footer sections&rdquo;).
+              </p>
+            )}
+          </div>
+          )} {/* end BLOCKS TAB */}
+
+          {/* ── PLACEHOLDERS TAB ── */}
+          {leftPanelTab === 'placeholders' && (
+          <div className="p-4 overflow-y-auto flex-1">
+            <h2 className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-wide flex items-center gap-2">
+              <Tag className="w-4 h-4 text-blue-600" />
+              Placeholders
+            </h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Click <Copy className="w-3 h-3 inline mx-0.5" /> to copy a placeholder. Paste it into any copy block in your HTML template.
+            </p>
+
+            <div className="space-y-2">
+              {PLACEHOLDER_CATEGORIES.map((category) => {
+                const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
+                const isExpanded = expandedCategories.has(category);
+                return (
+                  <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
+                    {/* Category header */}
+                    <button
+                      onClick={() => toggleCategory(category)}
+                      className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                    >
+                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">{items.length}</span>
+                        {isExpanded
+                          ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                          : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                        }
+                      </div>
+                    </button>
+
+                    {/* Items */}
+                    {isExpanded && (
+                      <div className="divide-y divide-gray-100">
+                        {items.map((placeholder) => {
+                          const isCopied = copiedKey === placeholder.key;
+                          return (
+                            <div
+                              key={placeholder.key}
+                              className="flex items-center justify-between px-3 py-2 hover:bg-blue-50 group"
+                            >
+                              <div className="flex-1 min-w-0 mr-2">
+                                <div className="text-xs font-mono text-blue-700 truncate">
+                                  {`{{${placeholder.key}}}`}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">{placeholder.label}</div>
+                                {placeholder.description && (
+                                  <div className="text-xs text-gray-400 italic truncate">{placeholder.description}</div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleCopyPlaceholder(placeholder.key)}
+                                title={isCopied ? 'Copied!' : `Copy {{${placeholder.key}}}`}
+                                className={`flex-shrink-0 p-1.5 rounded transition-all ${
+                                  isCopied
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-gray-100 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-blue-100 hover:text-blue-600'
+                                }`}
+                              >
+                                {isCopied
+                                  ? <Check className="w-3.5 h-3.5" />
+                                  : <Copy className="w-3.5 h-3.5" />
+                                }
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          )} {/* end PLACEHOLDERS TAB */}
 
         </div>
 
