@@ -44,18 +44,36 @@ export const GRACE_STATIC_LAYOUT = {
       
       <!-- Thank you section (copy block - 1/3 + 2/3 layout) -->
       <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <h2 style="font-size:28px;font-weight:700;color:#cc0000;margin:0 0 20px 0;">Thank you for considering Grace</h2>
-        <div style="display:grid;grid-template-columns:1fr 2fr;gap:32px;font-size:14px;color:#333;">
-          <div style="display:flex;flex-direction:column;gap:12px;">
-            <div><strong style="font-weight:700;">Prepared for</strong><br /><span style="font-weight:400;">{{customerName}}</span></div>
-            <div><strong style="font-weight:700;">Proposal number</strong><br /><span style="font-weight:400;">#{{job.id}}</span></div>
+        <!-- Heading with border below -->
+        <h2 style="font-size:22px;font-weight:700;color:#cc0000;margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Thank you for considering Grace</h2>
+        <!-- 1/3 + 2/3 grid -->
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:32px;">
+          <!-- Left: meta + consultant -->
+          <div style="display:flex;flex-direction:column;gap:14px;font-size:14px;">
+            <div>
+              <div style="font-weight:700;color:#111;margin-bottom:3px;">Prepared for</div>
+              <div style="font-weight:400;color:#666;">{{customerName}}</div>
+            </div>
+            <div>
+              <div style="font-weight:700;color:#111;margin-bottom:3px;">Proposal number</div>
+              <div style="font-weight:400;color:#666;">#{{job.id}}</div>
+            </div>
+            <!-- Consultant name pill -->
+            <div style="margin-top:auto;padding-top:20px;">
+              <div style="display:inline-block;background:#f3f3f3;padding:10px 18px;border-radius:6px;">
+                <span style="font-weight:700;color:#cc0000;font-size:14px;">{{customerName}}</span>
+              </div>
+            </div>
           </div>
-          <div style="line-height:1.6;color:#555;">
-            <p style="margin:0 0 12px 0;">Dear {{customerName}},</p>
-            <p style="margin:0 0 12px 0;">Thank you for your inquiry. Here is our proposal for your consideration.</p>
-            <p style="margin:0 0 12px 0;">With over 100 years of experience, Grace has branches across Australia and is recognised in household removals. We offer tailored, flexible services and a dedicated team for a seamless, stress-free move.</p>
-            <p style="margin:0 0 12px 0;">Please review the service options below, acknowledge the terms, and click the Acceptance button to confirm. If you have any questions, contact us directly.</p>
-            <p style="margin:0;">We look forward to taking care of your move.</p>
+          <!-- Right: letter body -->
+          <div style="font-size:14px;line-height:1.7;color:#555;">
+            <p style="margin:0 0 14px 0;color:#333;">Dear</p>
+            <p style="margin:0 0 14px 0;">Thank you for your inquiry. Here is our proposal for your consideration.</p>
+            <p style="margin:0 0 14px 0;">With over 100 years of experience, Grace has established itself as a trusted leader in household removals. With more than 30 branches across Australia, we are internationally recognised for excellence in household relocations.</p>
+            <p style="margin:0 0 14px 0;">We appreciate that every move is unique. That's why we offer tailored, flexible services to meet your specific needs. Our team is dedicated to making your relocation as seamless and stress-free as possible.</p>
+            <p style="margin:0 0 14px 0;">To accept, please review the service options, acknowledge the terms and conditions, and click the Acceptance button. If you have any questions or need assistance at all, please contact me directly.</p>
+            <p style="margin:0 0 14px 0;">We look forward to taking care of your move.</p>
+            <p style="margin:0;color:#555;">{{customerName}}</p>
           </div>
         </div>
       </div>
