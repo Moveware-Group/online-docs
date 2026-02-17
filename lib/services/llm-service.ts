@@ -91,21 +91,18 @@ Return ONLY a valid JSON object (no markdown fences, no explanation text). The J
     "customCss": "/* optional global CSS */"
   },
   "sections": [
-    { "id": "unique-id", "type": "custom_html", "html": "<div>...</div>", "css": "", "visible": true },
-    { "id": "inventory", "type": "built_in", "component": "InventoryTable", "visible": true, "config": { "defaultPageSize": 10, "showRoom": true, "showType": true } },
-    { "id": "acceptance", "type": "built_in", "component": "AcceptanceForm", "visible": true },
-    { "id": "terms", "type": "built_in", "component": "TermsSection", "visible": true }
+    { "id": "document", "type": "custom_html", "html": "<div>...</div>", "css": "", "visible": true }
   ]
 }
 
-## Section Types
+## Strict Rendering Mode
 
-Use "custom_html" for all visual sections (headers, intro text, addresses, pricing cards, etc.). Write complete HTML with inline styles.
+FULL_CUSTOM_ONLY is enabled:
+- Every section MUST use "type": "custom_html"
+- Do NOT use built_in components
+- Prefer a single full-document section (id: "document") that contains the full page markup from top to bottom
 
-Only 3 built-in components exist (use these ONLY for their specific purpose):
-- **InventoryTable** — paginated item list (config: defaultPageSize, showRoom, showType)
-- **AcceptanceForm** — signature + accept/decline (REQUIRED, always second-to-last)
-- **TermsSection** — terms and conditions (REQUIRED, always last)
+Write complete HTML with inline styles for precise replication.
 
 ## Template Variables (use in HTML with double-brace syntax)
 
@@ -125,6 +122,7 @@ Note: Template syntax uses double braces around variable names, and hash-each fo
 
 - Use inline styles for precise color/layout control. Tailwind classes are also available.
 - Logo: use branding.logoUrl variable, keep max height 48-64px, width auto.
+- Do not invent image URLs. For logos use branding.logoUrl. For other images (e.g. mascots), only use explicit URLs provided by the user; otherwise render a styled placeholder block.
 - No script tags or event handlers (HTML is sanitised).
 - All tags must be properly opened and closed.
 
@@ -448,6 +446,19 @@ export async function generateLayout(
         maxWidth: "1152px",
       };
     }
+
+    // Enforce full-custom mode: keep only custom_html sections.
+    // This avoids falling back to default built-in quote blocks.
+    const originalCount = config.sections.length;
+    config.sections = config.sections.filter((section) => section.type === "custom_html");
+    if (config.sections.length === 0) {
+      throw new Error("AI response did not contain any custom_html sections");
+    }
+    if (config.sections.length !== originalCount) {
+      console.warn(
+        `[generateLayout] Removed ${originalCount - config.sections.length} built_in section(s) to enforce full-custom rendering mode.`,
+      );
+    }
     
     // Attach URL capture error so the API route can warn the user
     if (urlCaptureError) {
@@ -478,7 +489,11 @@ Company: ${input.companyName}
 Primary Color: ${input.primaryColor}
 Secondary Color: ${input.secondaryColor}
 
-Return the UPDATED layout config JSON incorporating the user's feedback. Return ONLY the JSON.`;
+Return the UPDATED layout config JSON incorporating the user's feedback.
+Constraints:
+- Use custom_html sections only (no built_in sections)
+- Keep the layout as a full custom document structure
+Return ONLY the JSON.`;
 
   const raw = await callLLM(
     LAYOUT_SYSTEM_PROMPT,
@@ -599,7 +614,7 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
 
   if (hasUploadedFile) {
     const fileType = input.referenceFileData!.mediaType === "application/pdf" ? "PDF" : "image";
-    parts.push(`\nA reference ${fileType} is attached. Study it carefully and replicate the layout you see — match the header design, section order, colors, spacing, and structure exactly. Do not add creative improvements. Return ONLY the JSON object.`);
+    parts.push(`\nA reference ${fileType} is attached. Study it carefully and replicate the layout you see — match the header design, section order, colors, spacing, and structure exactly. Do not add creative improvements.`);
   }
 
   let screenshotData: ReferenceFileData | null = null;
@@ -635,7 +650,10 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
     parts.push(`\nExtracted text from reference PDF:\n${input.referenceFileContent.substring(0, 5000)}`);
   }
 
-  parts.push(`\nReturn ONLY the JSON object. No explanation, no markdown fences, no analysis text — just the JSON.`);
+  parts.push(`\nImportant output constraints:
+- Return ONLY the JSON object
+- Use custom_html sections only (no built_in sections)
+- Prefer one full-page custom_html section with all content in order`);
 
   return { prompt: parts.join("\n"), screenshotData, urlCaptureError };
 }
