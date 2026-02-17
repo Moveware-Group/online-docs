@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
       console.log(`[Generate] Description length: ${description?.length || 0}`);
 
       // Read and encode reference file if provided
+      let effectiveReferenceFileContent = referenceFileContent as string | undefined;
       let referenceFileData = null;
       if (referenceFilePath) {
         try {
@@ -98,13 +99,22 @@ export async function POST(request: NextRequest) {
             if (ext === ".png") mediaType = "image/png";
             else if (ext === ".jpg" || ext === ".jpeg") mediaType = "image/jpeg";
             else if (ext === ".webp") mediaType = "image/webp";
-            
-            referenceFileData = {
-              data: base64,
-              mediaType,
-              filename: path.basename(filePath),
-            };
-            console.log(`[Generate] Successfully encoded reference file (${mediaType}, ${(base64.length / 1024).toFixed(2)}KB base64)`);
+            else if (ext === ".html" || ext === ".htm") mediaType = "text/html";
+
+            // For HTML references, pass raw HTML content directly into prompt context.
+            // This gives the model exact DOM structure to map placeholders against.
+            if (mediaType === "text/html") {
+              const htmlText = fileBuffer.toString("utf-8");
+              effectiveReferenceFileContent = htmlText;
+              console.log(`[Generate] Loaded HTML reference (${(htmlText.length / 1024).toFixed(2)}KB text)`);
+            } else {
+              referenceFileData = {
+                data: base64,
+                mediaType,
+                filename: path.basename(filePath),
+              };
+              console.log(`[Generate] Successfully encoded reference file (${mediaType}, ${(base64.length / 1024).toFixed(2)}KB base64)`);
+            }
           } else {
             console.warn(`[Generate] Reference file not found: ${filePath}`);
           }
@@ -127,7 +137,7 @@ export async function POST(request: NextRequest) {
           footerImageUrl,
           referenceUrl,
           referenceFileData,
-          referenceFileContent,
+          referenceFileContent: effectiveReferenceFileContent,
           description,
           conversationHistory,
         });

@@ -60,7 +60,7 @@ export interface GenerateLayoutInput {
   footerImageUrl?: string;
   referenceUrl?: string;
   referenceFileData?: ReferenceFileData | null; // PDF or image as base64
-  referenceFileContent?: string; // deprecated: extracted text from PDF
+  referenceFileContent?: string; // extracted text/HTML reference content
   description: string;
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
 }
@@ -801,7 +801,13 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   }
 
   if (input.referenceFileContent) {
-    parts.push(`\nExtracted text from reference PDF:\n${input.referenceFileContent.substring(0, 5000)}`);
+    const content = input.referenceFileContent.substring(0, 30000);
+    const looksLikeHtml = /<html|<body|<div|<table/i.test(content);
+    if (looksLikeHtml) {
+      parts.push(`\nReference HTML provided (authoritative structure source):\n\`\`\`html\n${content}\n\`\`\`\nUse this DOM structure to place placeholders accurately.`);
+    } else {
+      parts.push(`\nExtracted text from reference file:\n${content}`);
+    }
   }
 
   parts.push(`\nImportant output constraints:
