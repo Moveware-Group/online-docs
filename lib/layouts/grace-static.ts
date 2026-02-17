@@ -42,25 +42,27 @@ export const GRACE_STATIC_LAYOUT = {
     <!-- Main content area: first block overlaps hero banner (sits above it visually) -->
     <div style="padding:0 32px 24px 32px;margin-top:-80px;position:relative;z-index:1;">
       
-      <!-- Thank you section (copy block - sits above/over the hero banner) -->
-      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <div style="display:flex;align-items:flex-start;gap:20px;">
-          <img src="/grace-assets/logo.png" alt="Grace Logo" style="width:80px;height:auto;flex-shrink:0;opacity:0.85;" />
-          <div style="flex:1;">
-            <h2 style="font-size:28px;font-weight:700;color:#222;margin:0 0 16px 0;">Thank you for choosing Grace</h2>
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px 32px;font-size:14px;color:#333;">
-              <div><strong style="font-weight:700;">Prepared for:</strong> <span style="font-weight:400;">{{customerName}}</span></div>
-              <div><strong style="font-weight:700;">Quote ref#:</strong> <span style="font-weight:400;">{{job.id}}</span></div>
-              <div><strong style="font-weight:700;">Quote author:</strong> <span style="font-weight:400;">Consultant Name</span></div>
-              <div><strong style="font-weight:700;">Survey consultant:</strong> <span style="font-weight:400;">N/A</span></div>
-            </div>
+      <!-- Thank you section (copy block - 1/3 + 2/3 layout) -->
+      <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="font-size:28px;font-weight:700;color:#cc0000;margin:0 0 20px 0;">Thank you for considering Grace</h2>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:32px;font-size:14px;color:#333;">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div><strong style="font-weight:700;">Prepared for</strong><br /><span style="font-weight:400;">{{customerName}}</span></div>
+            <div><strong style="font-weight:700;">Proposal number</strong><br /><span style="font-weight:400;">#{{job.id}}</span></div>
+          </div>
+          <div style="line-height:1.6;color:#555;">
+            <p style="margin:0 0 12px 0;">Dear {{customerName}},</p>
+            <p style="margin:0 0 12px 0;">Thank you for your inquiry. Here is our proposal for your consideration.</p>
+            <p style="margin:0 0 12px 0;">With over 100 years of experience, Grace has branches across Australia and is recognised in household removals. We offer tailored, flexible services and a dedicated team for a seamless, stress-free move.</p>
+            <p style="margin:0 0 12px 0;">Please review the service options below, acknowledge the terms, and click the Acceptance button to confirm. If you have any questions, contact us directly.</p>
+            <p style="margin:0;">We look forward to taking care of your move.</p>
           </div>
         </div>
       </div>
 
       <!-- Moving locations -->
-      <div style="background:#ffffff;border:1px solid #e5e7eb;padding:24px;margin-bottom:50px;border-radius:20px;">
-        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 4px 0;padding-bottom:8px;border-bottom:3px solid #cc0000;">Moving locations</h3>
+      <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-bottom:50px;border-radius:20px;">
+        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 4px 0;padding-bottom:8px;border-bottom:1px solid #e9e9e9;">Moving locations</h3>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px;">
           <div style="font-size:13px;color:#333;">
             <div style="font-weight:700;margin-bottom:6px;color:#cc0000;">Packing from</div>
@@ -82,7 +84,7 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- GraceCover -->
-      <div style="background:#f9f9f9;padding:20px;margin-bottom:50px;border-left:4px solid #cc0000;border-radius:20px;">
+      <div style="background:#f9f9f9;padding:20px;margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;">
         <h3 style="font-size:24px;font-weight:700;font-style:italic;color:#333;margin:0 0 12px 0;">GraceCover</h3>
         <div style="font-size:13px;color:#444;line-height:1.6;">
           <p style="margin:0 0 8px 0;">Description of insurance options and details about policy coverages.</p>
@@ -94,7 +96,7 @@ export const GRACE_STATIC_LAYOUT = {
       <div style="margin-bottom:2px;">
         <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 1 - Choose For</div>
       </div>
-      <div style="margin-bottom:50px;border:1px solid #e5e7eb;border-radius:0 0 20px 20px;overflow:hidden;">
+      <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:0 0 20px 20px;overflow:hidden;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
             <tr style="background:#f3f4f6;">
@@ -116,7 +118,7 @@ export const GRACE_STATIC_LAYOUT = {
           </tbody>
         </table>
         <!-- Summary box -->
-        <div style="padding:20px;background:#fafafa;border-top:2px solid #e5e7eb;">
+        <div style="padding:20px;background:#fafafa;border-top:1px solid #e9e9e9;">
           <div style="display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px;max-width:400px;margin-left:auto;">
             <div style="font-weight:400;color:#666;">Subtotal:</div>
             <div style="font-weight:700;text-align:right;color:#333;">\${{job.jobValue}}</div>
@@ -133,7 +135,7 @@ export const GRACE_STATIC_LAYOUT = {
       <div style="margin-bottom:2px;">
         <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 2 - Packing/Unpacking Extras</div>
       </div>
-      <div style="margin-bottom:50px;border:1px solid #e5e7eb;border-radius:0 0 20px 20px;overflow:hidden;">
+      <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:0 0 20px 20px;overflow:hidden;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
             <tr style="background:#f3f4f6;">
@@ -154,7 +156,7 @@ export const GRACE_STATIC_LAYOUT = {
             {{/each}}
           </tbody>
         </table>
-        <div style="padding:20px;background:#fafafa;border-top:2px solid #e5e7eb;">
+        <div style="padding:20px;background:#fafafa;border-top:1px solid #e9e9e9;">
           <div style="display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px;max-width:400px;margin-left:auto;">
             <div style="font-weight:400;color:#666;">Subtotal:</div>
             <div style="font-weight:700;text-align:right;color:#333;">\${{job.jobValue}}</div>
@@ -170,7 +172,7 @@ export const GRACE_STATIC_LAYOUT = {
       <!-- Accept quote section -->
       <div style="margin-bottom:50px;">
         <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 16px 0;">Accept quote</h3>
-        <div style="padding:24px;background:#ffffff;border:1px solid #e5e7eb;border-radius:20px;">
+        <div style="padding:24px;background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;">
           <div style="font-size:13px;color:#444;line-height:1.6;margin-bottom:20px;">
             <p style="margin:0 0 8px 0;">To confirm this booking, please review all details above, provide your signature below, and click "Accept".</p>
           </div>
@@ -201,7 +203,7 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- Included items / Inventory -->
-      <div style="margin-bottom:32px;background:#ffffff;border:1px solid #e5e7eb;padding:24px;border-radius:20px;">
+      <div style="margin-bottom:32px;background:#ffffff;border:1px solid #e9e9e9;padding:24px;border-radius:20px;">
         <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 12px 0;">Included items</h3>
         <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
           <thead>
