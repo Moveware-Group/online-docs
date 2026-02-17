@@ -234,6 +234,24 @@ function QuotePageContent() {
     return () => window.removeEventListener('message', handleMessage);
   }, [isPreviewMode]);
 
+  // Google Font injection - must run unconditionally (before any early return) to avoid React hooks order error #310
+  const fontFamilyForLink = job?.branding?.fontFamily || 'Inter';
+  const systemFontsList = ['Arial', 'Georgia', 'system-ui'];
+  const googleFontHref =
+    fontFamilyForLink && !systemFontsList.includes(fontFamilyForLink)
+      ? `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamilyForLink).replace(/%20/g, '+')}:wght@400;600;700&display=swap`
+      : null;
+  useEffect(() => {
+    if (!googleFontHref) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = googleFontHref;
+    document.head.appendChild(link);
+    return () => {
+      if (link.parentNode) link.parentNode.removeChild(link);
+    };
+  }, [googleFontHref]);
+
   const fetchAcceptanceData = async (acceptanceIdParam: string) => {
     try {
       const response = await fetch(`/api/quotes/acceptance/${acceptanceIdParam}`);
@@ -516,25 +534,6 @@ function QuotePageContent() {
   const primaryColor = job.branding?.primaryColor || '#1E40AF';
   const fontFamily = job.branding?.fontFamily || 'Inter';
   const totalCube = inventory.reduce((sum, item) => sum + (item.cube || 0), 0);
-
-  // Build Google Fonts stylesheet URL for non-system fonts
-  const systemFonts = ['Arial', 'Georgia', 'system-ui'];
-  const googleFontHref =
-    fontFamily && !systemFonts.includes(fontFamily)
-      ? `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily).replace(/%20/g, '+')}:wght@400;600;700&display=swap`
-      : null;
-
-  // Inject Google Font link into document head so it loads
-  useEffect(() => {
-    if (!googleFontHref) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = googleFontHref;
-    document.head.appendChild(link);
-    return () => {
-      if (link.parentNode) link.parentNode.removeChild(link);
-    };
-  }, [googleFontHref]);
 
   // Format date to DD/MM/YYYY (Australian format)
   const formatDate = (date: Date) => {
