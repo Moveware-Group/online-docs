@@ -272,6 +272,7 @@ async function callOpenAI(
   systemPrompt: string,
   userMessage: string,
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  referenceFileData?: ReferenceFileData | null,
 ): Promise<string> {
   const client = getOpenAIClient();
 
@@ -288,7 +289,25 @@ async function callOpenAI(
     }
   }
 
-  messages.push({ role: "user", content: userMessage });
+  // Add current user message. If an image reference is available, attach it.
+  if (referenceFileData && referenceFileData.mediaType.startsWith("image/")) {
+    const dataUrl = `data:${referenceFileData.mediaType};base64,${referenceFileData.data}`;
+    messages.push({
+      role: "user",
+      content: [
+        { type: "text", text: userMessage },
+        {
+          type: "image_url",
+          image_url: {
+            url: dataUrl,
+            detail: "high",
+          },
+        },
+      ],
+    } as OpenAI.ChatCompletionUserMessageParam);
+  } else {
+    messages.push({ role: "user", content: userMessage });
+  }
 
   const response = await client.chat.completions.create({
     model: "gpt-4o",
@@ -309,15 +328,34 @@ async function callLLM(
   const provider = (
     process.env.LLM_PRIMARY_PROVIDER || "anthropic"
   ).toLowerCase();
+  const hasImageReference = !!(
+    referenceFileData && referenceFileData.mediaType.startsWith("image/")
+  );
 
   try {
+    // Image-first routing: OpenAI vision generally performs better for screenshot replication.
+    if (hasImageReference) {
+      console.log("[LLM] Image reference detected, preferring OpenAI vision path");
+      return await callOpenAI(
+        systemPrompt,
+        userMessage,
+        conversationHistory,
+        referenceFileData,
+      );
+    }
+
     if (provider === "openai") {
       // OpenAI doesn't support PDF documents, only images
       if (referenceFileData && !referenceFileData.mediaType.startsWith("image/")) {
         console.warn("[LLM] OpenAI does not support PDF documents, falling back to Anthropic");
         return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
       }
-      return await callOpenAI(systemPrompt, userMessage, conversationHistory);
+      return await callOpenAI(
+        systemPrompt,
+        userMessage,
+        conversationHistory,
+        referenceFileData,
+      );
     }
     return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
   } catch (primaryError) {
@@ -333,7 +371,12 @@ async function callLLM(
           referenceFileData,
         );
       }
-      return await callOpenAI(systemPrompt, userMessage, conversationHistory);
+      return await callOpenAI(
+        systemPrompt,
+        userMessage,
+        conversationHistory,
+        referenceFileData,
+      );
     } catch (fallbackError) {
       console.error("Both LLM providers failed:", fallbackError);
       throw new Error(
