@@ -106,6 +106,11 @@ function LayoutBuilderContent() {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
+  // Block editor state
+  const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
+  const [editingBlockContent, setEditingBlockContent] = useState('');
+  const editBlockTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Preview iframe ref
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -624,6 +629,52 @@ function LayoutBuilderContent() {
     updatePreview(updated);
   };
 
+  // ---- Block editor ----
+  const openBlockEditor = (index: number) => {
+    if (!layoutConfig) return;
+    const section = layoutConfig.sections[index];
+    setEditingBlockIndex(index);
+    setEditingBlockContent(section.html || '');
+    // Switch to blocks tab so the editor renders inside it
+    setLeftPanelTab('blocks');
+  };
+
+  const closeBlockEditor = () => {
+    setEditingBlockIndex(null);
+    setEditingBlockContent('');
+  };
+
+  const saveBlockEdit = () => {
+    if (editingBlockIndex === null || !layoutConfig) return;
+    const sections = layoutConfig.sections.map((s, i) =>
+      i === editingBlockIndex ? { ...s, html: editingBlockContent } : s
+    );
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    closeBlockEditor();
+    setStatusMessage('Block saved. Preview updated.');
+  };
+
+  /** Insert {{key}} at the current textarea cursor position */
+  const insertPlaceholderInEditor = (key: string) => {
+    const textarea = editBlockTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? editingBlockContent.length;
+    const end = textarea.selectionEnd ?? start;
+    const token = `{{${key}}}`;
+    const before = editingBlockContent.slice(0, start);
+    const after = editingBlockContent.slice(end);
+    const newContent = before + token + after;
+    setEditingBlockContent(newContent);
+    // Restore focus and advance cursor past the inserted token
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + token.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
   const addAssistantMessage = (content: string) => {
     setChatMessages((prev) => [
       ...prev,
@@ -1010,12 +1061,114 @@ function LayoutBuilderContent() {
 
           {/* ── BLOCKS TAB ── */}
           {leftPanelTab === 'blocks' && (
+
+          /* ── BLOCK EDITOR (full-panel takeover) ── */
+          editingBlockIndex !== null && layoutConfig ? (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Editor header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={closeBlockEditor}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+              <span className="text-gray-300">|</span>
+              <span className="text-sm font-semibold text-gray-800 truncate">
+                {layoutConfig.sections[editingBlockIndex]?.label ||
+                 layoutConfig.sections[editingBlockIndex]?.id ||
+                 `Block ${editingBlockIndex + 1}`}
+              </span>
+            </div>
+
+            {/* Two-column editor body */}
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left: textarea */}
+              <div className="flex flex-col flex-1 overflow-hidden border-r border-gray-200">
+                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+                  <p className="text-xs text-gray-500">Edit the HTML for this block. Click a placeholder on the right to insert it at your cursor.</p>
+                </div>
+                <textarea
+                  ref={editBlockTextareaRef}
+                  value={editingBlockContent}
+                  onChange={(e) => setEditingBlockContent(e.target.value)}
+                  className="flex-1 w-full p-3 font-mono text-xs text-gray-800 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  spellCheck={false}
+                  placeholder="Enter HTML content for this block..."
+                />
+              </div>
+
+              {/* Right: placeholder picker */}
+              <div className="w-44 flex-shrink-0 overflow-y-auto bg-white">
+                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Placeholders</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Click to insert</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {PLACEHOLDER_CATEGORIES.map((category) => {
+                    const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
+                    const isExpanded = expandedCategories.has(category);
+                    return (
+                      <div key={category}>
+                        <button
+                          onClick={() => toggleCategory(category)}
+                          className="w-full flex items-center justify-between px-3 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                        >
+                          <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">{category}</span>
+                          {isExpanded
+                            ? <ChevronDown className="w-3 h-3 text-gray-400" />
+                            : <ChevronRight className="w-3 h-3 text-gray-400" />
+                          }
+                        </button>
+                        {isExpanded && items.map((p) => (
+                          <button
+                            key={p.key}
+                            onClick={() => insertPlaceholderInEditor(p.key)}
+                            title={p.description || p.label}
+                            className="w-full text-left px-3 py-1.5 hover:bg-blue-50 group transition-colors"
+                          >
+                            <div className="text-[10px] font-mono text-blue-700 truncate group-hover:text-blue-800">
+                              {`{{${p.key}}}`}
+                            </div>
+                            <div className="text-[10px] text-gray-400 truncate">{p.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Editor footer: Save / Cancel */}
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 bg-white flex-shrink-0">
+              <button
+                onClick={saveBlockEdit}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                Save Block
+              </button>
+              <button
+                onClick={closeBlockEditor}
+                className="px-3 py-2 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <span className="ml-auto text-[10px] text-gray-400">Preview updates on save</span>
+            </div>
+          </div>
+
+          ) : (
+
+          /* ── BLOCK LIST ── */
           <div className="p-4 overflow-y-auto flex-1">
             <h2 className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-wide flex items-center gap-2">
               <Layers className="w-4 h-4 text-blue-600" />
               Block Order
             </h2>
-            <p className="text-xs text-gray-500 mb-4">Drag blocks to reorder them. Click the eye to show/hide a block.</p>
+            <p className="text-xs text-gray-500 mb-4">Drag to reorder · eye icon to show/hide · pencil to edit copy.</p>
 
             {!layoutConfig || !layoutConfig.sections?.length ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
@@ -1027,10 +1180,11 @@ function LayoutBuilderContent() {
               <div className="space-y-2">
                 {layoutConfig.sections.map((section, index) => {
                   const isHidden = section.visible === false;
-                  const isDragging = draggingIndex === index;
+                  const isDraggingThis = draggingIndex === index;
                   const isOver = dragOverIndex === index && draggingIndex !== index;
-                  const label = section.id || section.component || `Section ${index + 1}`;
+                  const label = section.label || section.id || section.component || `Section ${index + 1}`;
                   const typeTag = section.type === 'custom_html' ? 'HTML' : (section.component || section.type || 'block');
+                  const isEditable = section.type === 'custom_html';
 
                   return (
                     <div
@@ -1041,7 +1195,7 @@ function LayoutBuilderContent() {
                       onDrop={() => handleDropBlock(index)}
                       onDragEnd={handleDragEndBlock}
                       className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all select-none ${
-                        isDragging
+                        isDraggingThis
                           ? 'opacity-40 border-blue-400 bg-blue-50'
                           : isOver
                             ? 'border-blue-500 bg-blue-50 shadow-md'
@@ -1062,6 +1216,17 @@ function LayoutBuilderContent() {
                       {/* Position badge */}
                       <span className="text-xs text-gray-400 font-mono w-5 text-center">{index + 1}</span>
 
+                      {/* Edit button (custom_html only) */}
+                      {isEditable && (
+                        <button
+                          onClick={() => openBlockEditor(index)}
+                          title="Edit block content"
+                          className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
+
                       {/* Visibility toggle */}
                       <button
                         onClick={() => handleToggleSectionVisibility(index)}
@@ -1077,13 +1242,9 @@ function LayoutBuilderContent() {
                 })}
               </div>
             )}
-            {layoutConfig && layoutConfig.sections?.length === 1 && (
-              <p className="mt-4 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                This layout uses a single HTML block. To enable block reordering, ask the AI assistant to split the layout into separate sections (e.g. &ldquo;split into header, intro, locations, pricing, and footer sections&rdquo;).
-              </p>
-            )}
           </div>
-          )} {/* end BLOCKS TAB */}
+
+          ))} {/* end BLOCKS TAB */}
 
           {/* ── PLACEHOLDERS TAB ── */}
           {leftPanelTab === 'placeholders' && (

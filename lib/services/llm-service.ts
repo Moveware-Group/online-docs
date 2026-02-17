@@ -14,6 +14,8 @@ import OpenAI from "openai";
 
 export interface LayoutSection {
   id: string;
+  /** Human-readable display name shown in the Blocks panel */
+  label?: string;
   type: "custom_html" | "built_in";
   /** For custom_html sections */
   html?: string;

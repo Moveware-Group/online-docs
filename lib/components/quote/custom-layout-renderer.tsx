@@ -149,6 +149,7 @@ export function CustomLayoutRenderer({
       style={{
         fontFamily: globalStyles.fontFamily || 'Inter, sans-serif',
         backgroundColor: globalStyles.backgroundColor || '#f9fafb',
+        overflowX: 'hidden',
       }}
       className="min-h-screen"
     >
@@ -195,11 +196,12 @@ function RenderSection({
       ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror'],
     });
 
+    // custom_html sections manage their own spacing via inline styles
     return (
-      <div className="mb-6">
+      <>
         {section.css && <style>{section.css}</style>}
         <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
-      </div>
+      </>
     );
   }
 
