@@ -713,7 +713,7 @@ function LayoutBuilderContent() {
                   >
                     <input
                       type="file"
-                      accept=".pdf,.html,.htm,image/png,image/jpeg,image/webp"
+                      accept=".pdf,.html,.htm,.zip,image/png,image/jpeg,image/webp"
                       onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                       className="hidden"
                       id="file-upload"
@@ -726,7 +726,7 @@ function LayoutBuilderContent() {
                         <Upload className="w-4 h-4 text-gray-400" />
                       )}
                       <span className="text-sm text-gray-500">
-                        {isDragging ? 'Drop file here' : 'Upload or drag & drop PDF/HTML/image'}
+                        {isDragging ? 'Drop file here' : 'Upload or drag & drop PDF/HTML/ZIP/image'}
                       </span>
                     </label>
                   </div>

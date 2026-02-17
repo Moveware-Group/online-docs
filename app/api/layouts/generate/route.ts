@@ -17,6 +17,7 @@ import {
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import JSZip from "jszip";
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
             else if (ext === ".jpg" || ext === ".jpeg") mediaType = "image/jpeg";
             else if (ext === ".webp") mediaType = "image/webp";
             else if (ext === ".html" || ext === ".htm") mediaType = "text/html";
+            else if (ext === ".zip") mediaType = "application/zip";
 
             // For HTML references, pass raw HTML content directly into prompt context.
             // This gives the model exact DOM structure to map placeholders against.
@@ -107,6 +109,27 @@ export async function POST(request: NextRequest) {
               const htmlText = fileBuffer.toString("utf-8");
               effectiveReferenceFileContent = htmlText;
               console.log(`[Generate] Loaded HTML reference (${(htmlText.length / 1024).toFixed(2)}KB text)`);
+            } else if (mediaType === "application/zip") {
+              // Extract HTML from a "Save page complete" style ZIP bundle
+              const zip = await JSZip.loadAsync(fileBuffer);
+              const htmlCandidates = Object.values(zip.files).filter(
+                (entry) => !entry.dir && /\.(html?|xhtml)$/i.test(entry.name),
+              );
+
+              if (htmlCandidates.length === 0) {
+                throw new Error("ZIP file contains no HTML files");
+              }
+
+              // Prefer index/home-like names, otherwise the first HTML file
+              const preferred =
+                htmlCandidates.find((e) => /index|quote|home/i.test(e.name)) ||
+                htmlCandidates[0];
+
+              const htmlText = await preferred.async("string");
+              effectiveReferenceFileContent = htmlText;
+              console.log(
+                `[Generate] Loaded HTML from ZIP (${preferred.name}, ${(htmlText.length / 1024).toFixed(2)}KB text)`,
+              );
             } else {
               referenceFileData = {
                 data: base64,

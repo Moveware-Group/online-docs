@@ -2,7 +2,7 @@
  * Layout Reference File Upload API
  * POST /api/layouts/upload - Upload a reference file for layout generation
  *
- * Accepts PDF/image/HTML files up to 10MB. Stores them in public/uploads/layouts/
+ * Accepts PDF/image/HTML/ZIP files up to 10MB. Stores them in public/uploads/layouts/
  * and returns the file path for use in the layout builder.
  */
 
@@ -20,6 +20,8 @@ const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/webp",
   "text/html",
+  "application/zip",
+  "application/x-zip-compressed",
 ];
 
 function sanitizeFilename(filename: string): string {
@@ -58,16 +60,20 @@ export async function POST(request: NextRequest) {
       file.type === "text/html" ||
       file.name.toLowerCase().endsWith(".html") ||
       file.name.toLowerCase().endsWith(".htm");
+    const isZip =
+      file.type === "application/zip" ||
+      file.type === "application/x-zip-compressed" ||
+      file.name.toLowerCase().endsWith(".zip");
     const isPdf =
       file.type === "application/pdf" ||
       file.name.toLowerCase().endsWith(".pdf");
     const isImage = ALLOWED_MIME_TYPES.includes(file.type);
 
-    if (!isPdf && !isImage && !isHtml) {
+    if (!isPdf && !isImage && !isHtml && !isZip) {
       return NextResponse.json(
         {
           success: false,
-          error: "Only PDF, HTML, PNG, JPEG, and WebP files are allowed",
+          error: "Only PDF, HTML, ZIP, PNG, JPEG, and WebP files are allowed",
         },
         { status: 400 },
       );
