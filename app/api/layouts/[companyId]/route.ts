@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { GRACE_STATIC_LAYOUT } from "@/lib/layouts/grace-static";
 
-/** Merge company branding fontFamily into layout config globalStyles */
-async function mergeCompanyFontIntoLayout(
+/** Merge company branding (font, hero banner, footer image) into layout config globalStyles */
+async function mergeCompanyBrandingIntoLayout(
   companyId: string,
   layoutConfig: { globalStyles?: Record<string, string> }
 ): Promise<typeof layoutConfig> {
@@ -21,18 +21,34 @@ async function mergeCompanyFontIntoLayout(
       },
       include: { brandingSettings: true },
     });
-    const fontFamily = company?.brandingSettings?.fontFamily;
-    if (!fontFamily) return layoutConfig;
+    const branding = company?.brandingSettings;
+    if (!branding) return layoutConfig;
+
+    const overrides: Record<string, string> = {};
+    if (branding.fontFamily) overrides.fontFamily = branding.fontFamily;
+    if (branding.heroBannerUrl) overrides.heroBannerUrl = branding.heroBannerUrl;
+    if (branding.footerImageUrl) overrides.footerImageUrl = branding.footerImageUrl;
+
+    if (Object.keys(overrides).length === 0) return layoutConfig;
+
     return {
       ...layoutConfig,
       globalStyles: {
         ...layoutConfig.globalStyles,
-        fontFamily,
+        ...overrides,
       },
     };
   } catch {
     return layoutConfig;
   }
+}
+
+/** @deprecated Use mergeCompanyBrandingIntoLayout */
+async function mergeCompanyFontIntoLayout(
+  companyId: string,
+  layoutConfig: { globalStyles?: Record<string, string> }
+): Promise<typeof layoutConfig> {
+  return mergeCompanyBrandingIntoLayout(companyId, layoutConfig);
 }
 
 function isGraceCompany(company: { tenantId?: string | null; brandCode?: string | null; name?: string | null } | null): boolean {
@@ -149,7 +165,7 @@ export async function GET(
       layoutConfig = layout.layoutConfig;
     }
 
-    const mergedConfig = await mergeCompanyFontIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
+    const mergedConfig = await mergeCompanyBrandingIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
 
     return NextResponse.json({
       success: true,
@@ -190,6 +206,8 @@ export async function PUT(
       isActive,
       conversationId,
       createdBy,
+      heroBannerUrl,
+      footerImageUrl,
     } = body;
 
     if (!layoutConfig) {
@@ -209,6 +227,22 @@ export async function PUT(
         { success: false, error: "Company not found" },
         { status: 404 },
       );
+    }
+
+    // If banner/footer image URLs provided, persist them to branding settings
+    if (heroBannerUrl || footerImageUrl) {
+      await prisma.brandingSettings.upsert({
+        where: { companyId },
+        update: {
+          ...(heroBannerUrl ? { heroBannerUrl } : {}),
+          ...(footerImageUrl ? { footerImageUrl } : {}),
+        },
+        create: {
+          companyId,
+          heroBannerUrl: heroBannerUrl || null,
+          footerImageUrl: footerImageUrl || null,
+        },
+      });
     }
 
     // Stringify config if it's an object

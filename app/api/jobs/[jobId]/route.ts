@@ -97,6 +97,8 @@ export async function GET(
     let branding = {
       companyName: "Moveware",
       logoUrl: "",
+      heroBannerUrl: "",
+      footerImageUrl: "",
       primaryColor: "#1E40AF",
       secondaryColor: "#FFFFFF",
       fontFamily: "Inter",
@@ -131,6 +133,12 @@ export async function GET(
             company.brandingSettings?.logoUrl ||
             company.logoUrl ||
             branding.logoUrl,
+          heroBannerUrl:
+            company.brandingSettings?.heroBannerUrl ||
+            branding.heroBannerUrl,
+          footerImageUrl:
+            company.brandingSettings?.footerImageUrl ||
+            branding.footerImageUrl,
           primaryColor:
             company.brandingSettings?.primaryColor ||
             company.primaryColor ||

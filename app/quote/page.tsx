@@ -42,6 +42,8 @@ interface Job {
   branding?: {
     companyName?: string;
     logoUrl?: string;
+    heroBannerUrl?: string;
+    footerImageUrl?: string;
     primaryColor?: string;
     secondaryColor?: string;
     fontFamily?: string;
@@ -531,6 +533,8 @@ function QuotePageContent() {
   const customerName = `${job.titleName || ''} ${job.firstName || ''} ${job.lastName || ''}`.trim();
   const companyName = job.branding?.companyName || 'MOVEWARE';
   const logoUrl = job.branding?.logoUrl;
+  const heroBannerUrl = job.branding?.heroBannerUrl;
+  const footerImageUrl = job.branding?.footerImageUrl;
   const primaryColor = job.branding?.primaryColor || '#1E40AF';
   const fontFamily = job.branding?.fontFamily || 'Inter';
   const totalCube = inventory.reduce((sum, item) => sum + (item.cube || 0), 0);
@@ -567,6 +571,8 @@ function QuotePageContent() {
       customerName,
       companyName,
       logoUrl,
+      heroBannerUrl,
+      footerImageUrl,
       primaryColor,
       quoteDate,
       expiryDate,

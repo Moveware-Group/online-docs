@@ -95,6 +95,8 @@ function resolveTemplate(
     // Branding
     'branding.companyName': data.companyName,
     'branding.logoUrl': data.logoUrl || '',
+    'branding.heroBannerUrl': data.heroBannerUrl || data.job.branding?.heroBannerUrl || '',
+    'branding.footerImageUrl': data.footerImageUrl || data.job.branding?.footerImageUrl || '',
     'branding.primaryColor': data.primaryColor,
     'branding.secondaryColor': data.job.branding?.secondaryColor || '',
     // Derived
@@ -190,7 +192,7 @@ function RenderSection({
     const rawHtml = resolveTemplate(section.html || '', data);
     const cleanHtml = DOMPurify.sanitize(rawHtml, {
       ADD_TAGS: ['style'],
-      ADD_ATTR: ['style', 'class'],
+      ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror'],
     });
 
     return (

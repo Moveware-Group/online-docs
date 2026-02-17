@@ -132,6 +132,10 @@ function LayoutBuilderContent() {
           setReferenceUrl(data.data.referenceUrl || '');
           setDescription(data.data.description || '');
           setReferenceFilePath(data.data.referenceFile || '');
+          // Restore saved banner/footer image paths from branding globalStyles
+          const gs = data.data.layoutConfig?.globalStyles || {};
+          if (gs.heroBannerUrl) setBannerImagePath(gs.heroBannerUrl);
+          if (gs.footerImageUrl) setFooterImagePath(gs.footerImageUrl);
           setStatusMessage('Existing layout loaded. You can refine it or generate a new one.');
           addAssistantMessage('I loaded the existing custom layout for this company. You can ask me to modify it, or fill in the form and click "Generate Layout" to start fresh.');
         }
@@ -440,6 +444,8 @@ function LayoutBuilderContent() {
           referenceFile: referenceFilePath || null,
           description: description || null,
           isActive: true,
+          heroBannerUrl: bannerImagePath || null,
+          footerImageUrl: footerImagePath || null,
         }),
       });
 

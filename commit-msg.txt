@@ -1,0 +1,21 @@
+feat: dynamic branding images, placeholder registry, and accept section UX
+
+- Wire hero banner and footer images from Layout Builder through to quote renderer
+  - Upload paths saved to BrandingSettings (heroBannerUrl, footerImageUrl) on Approve & Save
+  - Layout API merges branding images and font into layout globalStyles at serve time
+  - Jobs API returns heroBannerUrl and footerImageUrl in branding object
+  - grace-static.ts uses {{branding.heroBannerUrl}} and {{branding.footerImageUrl}}
+    with static asset fallbacks via onerror
+  - QuotePageData type and template resolver updated with new branding variables
+  - DOMPurify config expanded to allow id, for, type, placeholder, href, onerror attrs
+
+- Add lib/data/placeholder-registry.ts: central registry of all 40+ template variables
+  organised by category (Customer, Job, Dates, Addresses, Pricing, Branding, Loop Fields)
+  Foundation for the placeholder picker UI in the block editor
+
+- Accept quote section UX improvements in grace-static.ts
+  - Checkbox accent-color uses company primary colour when checked
+  - Accept button disabled (grey) until Terms checkbox is ticked via pure CSS
+    sibling selector (#grace-terms-checkbox:checked ~ .grace-accept-row)
+  - Accept button enabled state uses company primary colour with white text
+  - Terms link and heading use company primary colour for consistency

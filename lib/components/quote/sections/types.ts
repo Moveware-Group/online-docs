@@ -29,8 +29,11 @@ export interface Job {
   branding?: {
     companyName?: string;
     logoUrl?: string;
+    heroBannerUrl?: string;
+    footerImageUrl?: string;
     primaryColor?: string;
     secondaryColor?: string;
+    fontFamily?: string;
   };
 }
 
@@ -66,6 +69,8 @@ export interface QuotePageData {
   customerName: string;
   companyName: string;
   logoUrl?: string;
+  heroBannerUrl?: string;
+  footerImageUrl?: string;
   primaryColor: string;
   quoteDate: string;
   expiryDate: string;
