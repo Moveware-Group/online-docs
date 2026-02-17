@@ -180,6 +180,9 @@ async function captureWithPlaywright(
     });
 
     page = await context.newPage();
+    if (!page) {
+      throw new Error('Failed to create browser page');
+    }
     page.setDefaultTimeout(45000);
 
     console.log(`[Browser] Navigating to URL (strict=${options.strictStatus})...`);
