@@ -55,8 +55,14 @@ function LayoutBuilderContent() {
   const [referenceUrl, setReferenceUrl] = useState('');
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referenceFilePath, setReferenceFilePath] = useState('');
+  const [bannerImageFile, setBannerImageFile] = useState<File | null>(null);
+  const [bannerImagePath, setBannerImagePath] = useState('');
+  const [footerImageFile, setFooterImageFile] = useState<File | null>(null);
+  const [footerImagePath, setFooterImagePath] = useState('');
   const [description, setDescription] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingFooter, setUploadingFooter] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   // Layout state
@@ -166,30 +172,34 @@ function LayoutBuilderContent() {
   };
 
   // ---- File Upload ----
+  const uploadFileAndGetUrl = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/layouts/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('Non-JSON response from upload:', text.substring(0, 500));
+      throw new Error(`Upload failed: Server returned ${res.status}. Check console for details.`);
+    }
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Upload failed');
+    }
+    return data.url;
+  };
+
   const handleFileUpload = async (file: File) => {
     setUploading(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/layouts/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      // Check if response is JSON
-      const contentType = res.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await res.text();
-        console.error('Non-JSON response from upload:', text.substring(0, 500));
-        throw new Error(`Upload failed: Server returned ${res.status}. Check console for details.`);
-      }
-      
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Upload failed');
-      }
-      setReferenceFilePath(data.url);
+      const url = await uploadFileAndGetUrl(file);
+      setReferenceFilePath(url);
       setReferenceFile(file);
       setStatusMessage(`File "${file.name}" uploaded successfully`);
     } catch (err) {
@@ -198,6 +208,48 @@ function LayoutBuilderContent() {
       setError(errorMsg);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleBannerImageUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Banner image must be a PNG, JPG, or WebP image');
+      return;
+    }
+    setUploadingBanner(true);
+    setError(null);
+    try {
+      const url = await uploadFileAndGetUrl(file);
+      setBannerImagePath(url);
+      setBannerImageFile(file);
+      setStatusMessage(`Banner image "${file.name}" uploaded successfully`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Banner upload failed';
+      console.error('Banner upload error:', err);
+      setError(errorMsg);
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleFooterImageUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Footer image must be a PNG, JPG, or WebP image');
+      return;
+    }
+    setUploadingFooter(true);
+    setError(null);
+    try {
+      const url = await uploadFileAndGetUrl(file);
+      setFooterImagePath(url);
+      setFooterImageFile(file);
+      setStatusMessage(`Footer image "${file.name}" uploaded successfully`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Footer upload failed';
+      console.error('Footer upload error:', err);
+      setError(errorMsg);
+    } finally {
+      setUploadingFooter(false);
     }
   };
 
@@ -233,6 +285,8 @@ function LayoutBuilderContent() {
           secondaryColor: selectedCompany.secondaryColor || '#ffffff',
           tertiaryColor: selectedCompany.tertiaryColor || undefined,
           logoUrl: selectedCompany.logoUrl,
+          bannerImageUrl: bannerImagePath || undefined,
+          footerImageUrl: footerImagePath || undefined,
           referenceUrl: referenceUrl || undefined,
           referenceFilePath: referenceFilePath || undefined,
           description,
@@ -674,6 +728,85 @@ function LayoutBuilderContent() {
                       <span className="text-sm text-gray-500">
                         {isDragging ? 'Drop file here' : 'Upload or drag & drop PDF/image'}
                       </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Reference URL (Secondary option) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Header Banner Image <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                {bannerImageFile || bannerImagePath ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-gray-700 truncate flex-1">
+                      {bannerImageFile?.name || bannerImagePath.split('/').pop()}
+                    </span>
+                    <button
+                      onClick={() => { setBannerImageFile(null); setBannerImagePath(''); }}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg ${uploadingBanner ? 'opacity-50 cursor-wait' : ''}`}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => e.target.files?.[0] && handleBannerImageUpload(e.target.files[0])}
+                      className="hidden"
+                      id="banner-image-upload"
+                      disabled={uploadingBanner || generating}
+                    />
+                    <label htmlFor="banner-image-upload" className="flex items-center gap-2 cursor-pointer flex-1">
+                      {uploadingBanner ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      ) : (
+                        <Upload className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className="text-sm text-gray-500">Upload header banner image</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Footer Image <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                {footerImageFile || footerImagePath ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-gray-700 truncate flex-1">
+                      {footerImageFile?.name || footerImagePath.split('/').pop()}
+                    </span>
+                    <button
+                      onClick={() => { setFooterImageFile(null); setFooterImagePath(''); }}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-2 px-3 py-2 border-2 border-dashed rounded-lg ${uploadingFooter ? 'opacity-50 cursor-wait' : ''}`}>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(e) => e.target.files?.[0] && handleFooterImageUpload(e.target.files[0])}
+                      className="hidden"
+                      id="footer-image-upload"
+                      disabled={uploadingFooter || generating}
+                    />
+                    <label htmlFor="footer-image-upload" className="flex items-center gap-2 cursor-pointer flex-1">
+                      {uploadingFooter ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      ) : (
+                        <Upload className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className="text-sm text-gray-500">Upload footer image</span>
                     </label>
                   </div>
                 )}

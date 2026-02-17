@@ -56,6 +56,8 @@ export interface GenerateLayoutInput {
   secondaryColor: string;
   tertiaryColor?: string;
   logoUrl?: string;
+  bannerImageUrl?: string;
+  footerImageUrl?: string;
   referenceUrl?: string;
   referenceFileData?: ReferenceFileData | null; // PDF or image as base64
   referenceFileContent?: string; // deprecated: extracted text from PDF
@@ -113,8 +115,10 @@ Branding: branding.companyName, branding.logoUrl, branding.primaryColor, brandin
 Derived: customerName, quoteDate, expiryDate, totalCube
 
 Loops (for arrays):
-- Inventory: Use each-inventory loop with: this.description, this.room, this.quantity, this.cube, this.typeCode
-- Costings: Use each-costings loop with: this.id, this.name, this.description, this.quantity, this.rate, this.netTotal, this.totalPrice, this.taxIncluded, this.rawData.inclusions (array), this.rawData.exclusions (array)
+- Inventory loop syntax: {{#each inventory}} ... {{/each}}
+- Costings loop syntax: {{#each costings}} ... {{/each}}
+- Inventory row fields: this.description, this.room, this.quantity, this.cube, this.typeCode
+- Costings row fields: this.id, this.name, this.description, this.quantity, this.rate, this.netTotal, this.totalPrice, this.taxIncluded, this.rawData.inclusions (array), this.rawData.exclusions (array)
 
 Note: Template syntax uses double braces around variable names, and hash-each for loops, hash-slash-each to close loops.
 
@@ -122,6 +126,7 @@ Note: Template syntax uses double braces around variable names, and hash-each fo
 
 - Use inline styles for precise color/layout control. Tailwind classes are also available.
 - Logo: use branding.logoUrl variable, keep max height 48-64px, width auto.
+- If bannerImageUrl or footerImageUrl is provided by user, use those exact URLs in img tags.
 - Do not invent image URLs. For logos use branding.logoUrl. For other images (e.g. mascots), only use explicit URLs provided by the user; otherwise render a styled placeholder block.
 - No script tags or event handlers (HTML is sanitised).
 - All tags must be properly opened and closed.
@@ -648,6 +653,8 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   parts.push(`Secondary Color: ${input.secondaryColor}`);
   if (input.tertiaryColor) parts.push(`Tertiary Color: ${input.tertiaryColor}`);
   if (input.logoUrl) parts.push(`Logo URL: ${input.logoUrl}`);
+  if (input.bannerImageUrl) parts.push(`Banner Image URL: ${input.bannerImageUrl}`);
+  if (input.footerImageUrl) parts.push(`Footer Image URL: ${input.footerImageUrl}`);
 
   if (input.description) {
     parts.push(`\nUser's Description:\n${input.description}`);
@@ -696,7 +703,9 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   parts.push(`\nImportant output constraints:
 - Return ONLY the JSON object
 - Use custom_html sections only (no built_in sections)
-- Prefer one full-page custom_html section with all content in order`);
+- Prefer one full-page custom_html section with all content in order
+- If Banner Image URL is provided, include it in the header/hero area using that exact URL
+- If Footer Image URL is provided, include it near the bottom/footer area using that exact URL`);
 
   return { prompt: parts.join("\n"), screenshotData, urlCaptureError };
 }
