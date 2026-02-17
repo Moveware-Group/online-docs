@@ -32,8 +32,8 @@ export const GRACE_STATIC_LAYOUT = {
     </div>
   </div>
 
-  <!-- Main container -->
-  <div style="max-width:980px;margin:0 auto;background:#ffffff;">
+  <!-- Main container (no background so #e9e9e9 shows through) -->
+  <div style="max-width:980px;margin:0 auto;">
     <!-- Full-width hero banner (breaks out of container) -->
     <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
       <img src="/grace-assets/banner_1.png" alt="Grace Banner" style="width:100%;height:auto;display:block;" />
@@ -229,8 +229,8 @@ export const GRACE_STATIC_LAYOUT = {
 
     </div>
 
-    <!-- Footer banner -->
-    <div style="width:100%;overflow:hidden;">
+    <!-- Footer banner (full width, breaks out of container) -->
+    <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
       <img src="/grace-assets/banner_3.png" alt="Grace Footer" style="width:100%;height:auto;display:block;" />
     </div>
 
