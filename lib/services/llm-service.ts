@@ -456,6 +456,99 @@ function extractJSON(text: string): string {
   return text.trim();
 }
 
+function normaliseTemplateSyntax(html: string): string {
+  return html
+    .replace(/\{\{#each[-_\s]*inventory\}\}/gi, "{{#each inventory}}")
+    .replace(/\{\{#each[-_\s]*costings\}\}/gi, "{{#each costings}}")
+    .replace(/\{\{\/each[-_\s]*(?:inventory|costings)\}\}/gi, "{{/each}}");
+}
+
+function parseAndNormaliseConfig(json: string): LayoutConfig {
+  const config = JSON.parse(json) as LayoutConfig;
+  config.version = config.version || 1;
+
+  if (!config.sections || !Array.isArray(config.sections)) {
+    throw new Error("AI response is missing 'sections' array");
+  }
+  if (!config.globalStyles) {
+    config.globalStyles = {
+      fontFamily: "Inter, sans-serif",
+      backgroundColor: "#ffffff",
+      maxWidth: "1152px",
+    };
+  }
+
+  // Enforce full-custom mode.
+  const originalCount = config.sections.length;
+  config.sections = config.sections.filter((section) => section.type === "custom_html");
+  if (config.sections.length === 0) {
+    throw new Error("AI response did not contain any custom_html sections");
+  }
+  if (config.sections.length !== originalCount) {
+    console.warn(
+      `[generateLayout] Removed ${originalCount - config.sections.length} built_in section(s) to enforce full-custom rendering mode.`,
+    );
+  }
+
+  // Repair common template loop mistakes before rendering.
+  config.sections = config.sections.map((section) => ({
+    ...section,
+    html: section.html ? normaliseTemplateSyntax(section.html) : section.html,
+  }));
+
+  return config;
+}
+
+function validateLayoutAgainstInput(
+  config: LayoutConfig,
+  input: GenerateLayoutInput,
+): { valid: boolean; issues: string[] } {
+  const issues: string[] = [];
+  const html = config.sections.map((s) => s.html || "").join("\n");
+  const htmlLower = html.toLowerCase();
+  const descriptionLower = input.description.toLowerCase();
+
+  if (input.bannerImageUrl && !html.includes(input.bannerImageUrl)) {
+    issues.push("Header banner image URL was provided but not used in output HTML.");
+  }
+
+  if (input.footerImageUrl && !html.includes(input.footerImageUrl)) {
+    issues.push("Footer image URL was provided but not used in output HTML.");
+  }
+
+  // Validate important textual structure markers only when the user asked for them.
+  const markerChecks = [
+    "thank you for choosing",
+    "moving locations",
+    "gracecover",
+    "option 1",
+    "option 2",
+    "accept quote",
+    "included items",
+  ];
+  for (const marker of markerChecks) {
+    if (descriptionLower.includes(marker) && !htmlLower.includes(marker)) {
+      issues.push(`Missing required section marker: "${marker}"`);
+    }
+  }
+
+  // Ensure loop syntax is valid when pricing/inventory content is expected.
+  if (
+    (descriptionLower.includes("option") || descriptionLower.includes("cost")) &&
+    !html.includes("{{#each costings}}")
+  ) {
+    issues.push("Missing '{{#each costings}}' loop for pricing options.");
+  }
+  if (
+    (descriptionLower.includes("inventory") || descriptionLower.includes("included items")) &&
+    !html.includes("{{#each inventory}}")
+  ) {
+    issues.push("Missing '{{#each inventory}}' loop for inventory table/items.");
+  }
+
+  return { valid: issues.length === 0, issues };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -479,47 +572,58 @@ export async function generateLayout(
   );
   const json = extractJSON(raw);
 
+  let config: LayoutConfig;
   try {
-    const config = JSON.parse(json) as LayoutConfig & { _urlCaptureError?: string };
-    config.version = config.version || 1;
-
-    // Validate the config has required fields
-    if (!config.sections || !Array.isArray(config.sections)) {
-      throw new Error("AI response is missing 'sections' array");
-    }
-    if (!config.globalStyles) {
-      config.globalStyles = {
-        fontFamily: "Inter, sans-serif",
-        backgroundColor: "#ffffff",
-        maxWidth: "1152px",
-      };
-    }
-
-    // Enforce full-custom mode: keep only custom_html sections.
-    // This avoids falling back to default built-in quote blocks.
-    const originalCount = config.sections.length;
-    config.sections = config.sections.filter((section) => section.type === "custom_html");
-    if (config.sections.length === 0) {
-      throw new Error("AI response did not contain any custom_html sections");
-    }
-    if (config.sections.length !== originalCount) {
-      console.warn(
-        `[generateLayout] Removed ${originalCount - config.sections.length} built_in section(s) to enforce full-custom rendering mode.`,
-      );
-    }
-    
-    // Attach URL capture error so the API route can warn the user
-    if (urlCaptureError) {
-      config._urlCaptureError = urlCaptureError;
-    }
-    
-    return config;
+    config = parseAndNormaliseConfig(json);
   } catch (parseError) {
     console.error("[generateLayout] JSON parse failed. First 500 chars of extracted JSON:", json.substring(0, 500));
     console.error("[generateLayout] Last 200 chars:", json.substring(json.length - 200));
     const msg = parseError instanceof Error ? parseError.message : "Unknown parse error";
     throw new Error(`AI returned invalid JSON: ${msg}. Please try again.`);
   }
+
+  // Validate visual/structural similarity. If it misses key constraints, auto-retry once.
+  const initialValidation = validateLayoutAgainstInput(config, input);
+  if (!initialValidation.valid) {
+    console.warn(
+      `[generateLayout] First pass failed validation, retrying once. Issues: ${initialValidation.issues.join(" | ")}`,
+    );
+
+    const repairPrompt = `${userMessage}
+
+Your previous output did not meet required constraints.
+Fix these issues exactly:
+${initialValidation.issues.map((i) => `- ${i}`).join("\n")}
+
+Return ONLY corrected JSON.`;
+
+    const retryRaw = await callLLM(
+      LAYOUT_SYSTEM_PROMPT,
+      repairPrompt,
+      input.conversationHistory,
+      referenceData,
+    );
+    const retryJson = extractJSON(retryRaw);
+    try {
+      config = parseAndNormaliseConfig(retryJson);
+    } catch (parseError) {
+      const msg = parseError instanceof Error ? parseError.message : "Unknown parse error";
+      throw new Error(`AI retry returned invalid JSON: ${msg}. Please try again.`);
+    }
+
+    const retryValidation = validateLayoutAgainstInput(config, input);
+    if (!retryValidation.valid) {
+      throw new Error(
+        `AI output still failed required layout checks after retry: ${retryValidation.issues.join("; ")}`,
+      );
+    }
+  }
+
+  const out = config as LayoutConfig & { _urlCaptureError?: string };
+  if (urlCaptureError) {
+    out._urlCaptureError = urlCaptureError;
+  }
+  return out;
 }
 
 export async function refineLayout(
