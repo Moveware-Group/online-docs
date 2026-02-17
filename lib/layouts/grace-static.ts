@@ -79,144 +79,153 @@ export const GRACE_STATIC_LAYOUT = {
       </div>
 
       <!-- Moving locations -->
-      <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-bottom:50px;border-radius:20px;">
-        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 4px 0;padding-bottom:8px;border-bottom:1px solid #e9e9e9;">Moving locations</h3>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px;">
-          <div style="font-size:13px;color:#333;">
-            <div style="font-weight:700;margin-bottom:6px;color:#cc0000;">Packing from</div>
-            <div style="font-weight:400;">{{job.upliftLine1}}</div>
-            <div style="font-weight:400;">{{job.upliftCity}}, {{job.upliftState}} {{job.upliftPostcode}}</div>
-            <div style="font-weight:400;">{{job.upliftCountry}}</div>
+      <div style="background:#ffffff;border:1px solid #e9e9e9;padding:28px 24px;margin-bottom:50px;border-radius:20px;">
+        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 0 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Moving locations</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:20px;">
+          <!-- Moving from -->
+          <div style="font-size:14px;color:#555;">
+            <div style="font-weight:700;color:#111;margin-bottom:10px;">Moving from</div>
+            <div>{{job.upliftLine1}}</div>
+            <div>{{job.upliftCity}} {{job.upliftState}}</div>
+            <div>{{job.upliftCountry}}</div>
+            <div>{{job.upliftPostcode}}</div>
           </div>
-          <div style="font-size:13px;color:#333;">
-            <div style="font-weight:700;margin-bottom:6px;color:#cc0000;">From info</div>
-            <div style="font-weight:400;">Details about origin location can be placed here.</div>
+          <!-- Moving to -->
+          <div style="font-size:14px;color:#555;">
+            <div style="font-weight:700;color:#111;margin-bottom:10px;">Moving to</div>
+            <div>{{job.deliveryLine1}}</div>
+            <div>{{job.deliveryCity}} {{job.deliveryState}}</div>
+            <div>{{job.deliveryCountry}}</div>
+            <div>{{job.deliveryPostcode}}</div>
           </div>
-          <div style="font-size:13px;color:#333;">
-            <div style="font-weight:700;margin-bottom:6px;color:#cc0000;">Moving to/na</div>
-            <div style="font-weight:400;">{{job.deliveryLine1}}</div>
-            <div style="font-weight:400;">{{job.deliveryCity}}, {{job.deliveryState}} {{job.deliveryPostcode}}</div>
-            <div style="font-weight:400;">{{job.deliveryCountry}}</div>
+          <!-- Moving dates -->
+          <div style="font-size:14px;color:#555;">
+            <div style="font-weight:700;color:#111;margin-bottom:10px;">Moving dates</div>
+            <div>Packing:</div>
+            <div>Uplift:</div>
+            <div>Delivery:</div>
           </div>
         </div>
       </div>
 
       <!-- GraceCover -->
-      <div style="background:#f9f9f9;padding:20px;margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;">
-        <h3 style="font-size:24px;font-weight:700;font-style:italic;color:#333;margin:0 0 12px 0;">GraceCover</h3>
-        <div style="font-size:13px;color:#444;line-height:1.6;">
-          <p style="margin:0 0 8px 0;">Description of insurance options and details about policy coverages.</p>
-          <p style="margin:0;">More detailed descriptions and terms.</p>
+      <div style="background:#ffffff;padding:28px 24px;margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;">
+        <h3 style="font-size:22px;font-weight:700;font-style:italic;color:#cc0000;margin:0 0 0 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">GraceCover</h3>
+        <div style="font-size:14px;color:#555;line-height:1.7;margin-top:20px;">
+          <p style="margin:0 0 14px 0;">Just as moving isn't a day-to-day occurrence, it needs more than just day to day cover. While Grace enjoys one of the lowest claim rates in the industry, we encourage the use of transit protection to ensure your peace of mind. We offer a range of options to best protect your belongings in transit and storage.</p>
+          <p style="margin:0 0 14px 0;">We are pleased to offer you protection for your personal belongings in the form of our GraceCover Transit Protection program, which is underwritten and administered by Grace Removals, with additional coverage underwritten by AXA Corporate Solutions Marine.</p>
+          <p style="margin:0 0 14px 0;">You can chose two different ways of arranging protection:</p>
+          <p style="margin:0 0 14px 0;">You can either complete a Valued Inventory option which involves listing separately the full replacement value of your effects, or you can take the easy-to-use Lump Sum option of covering your shipment.</p>
+          <p style="margin:0 0 14px 0;">Should you decide on the Lump Sum option the sum covered is determined by a calculation on the volume of your shipment. Each cubic meter is valued at USD$2750 and any specific items over USD$1500 are additional, on top of this. The premium is then worked out on this total.</p>
+          <p style="margin:0;">We provide additional protection to both Valued Inventory and Lump Sum options. These additional covers can include mould and mildew, electrical and mechanical derangement and pairs and sets cover.</p>
         </div>
       </div>
 
-      <!-- Option 1 - Choose For -->
-      <div style="margin-bottom:2px;">
-        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 1 - Choose For</div>
-      </div>
-      <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:0 0 20px 20px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
+      <!-- Pricing options - one card per costing -->
+      {{#each costings}}
+      <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;overflow:hidden;">
+        <!-- Red header: option name left, total price right -->
+        <div style="background:#cc0000;color:#ffffff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:16px;font-weight:700;">{{this.name}}</span>
+          <div style="text-align:right;">
+            <div style="font-size:16px;font-weight:700;">\${{this.totalPrice}}</div>
+            <div style="font-size:11px;font-weight:400;opacity:0.85;">Tax Included where applicable</div>
+          </div>
+        </div>
+        <!-- Table -->
+        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#ffffff;">
           <thead>
-            <tr style="background:#f3f4f6;">
-              <th style="text-align:left;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;">Description</th>
-              <th style="text-align:center;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:100px;">Quantity</th>
-              <th style="text-align:right;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:120px;">Rate</th>
-              <th style="text-align:right;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:120px;">Total</th>
+            <tr style="background:#f5f5f5;border-bottom:1px solid #e9e9e9;">
+              <th style="text-align:left;padding:12px 16px;font-weight:400;color:#888;">Moving Services</th>
+              <th style="text-align:center;padding:12px 16px;font-weight:400;color:#888;width:110px;">Quantity</th>
+              <th style="text-align:right;padding:12px 16px;font-weight:400;color:#888;width:120px;">Rate</th>
+              <th style="text-align:right;padding:12px 16px;font-weight:700;color:#333;width:120px;">\${{this.totalPrice}}</th>
             </tr>
           </thead>
           <tbody>
-            {{#each costings}}
-            <tr style="border-bottom:1px solid #ececec;">
-              <td style="padding:12px 16px;">{{this.description}}</td>
-              <td style="padding:12px 16px;text-align:center;">{{this.quantity}}</td>
-              <td style="padding:12px 16px;text-align:right;">\${{this.rate}}</td>
-              <td style="padding:12px 16px;text-align:right;font-weight:600;">\${{this.totalPrice}}</td>
+            <tr style="border-bottom:1px solid #f0f0f0;">
+              <td style="padding:14px 16px;font-weight:700;color:#222;">{{this.description}}</td>
+              <td style="padding:14px 16px;text-align:center;color:#444;">{{this.quantity}}</td>
+              <td style="padding:14px 16px;text-align:right;color:#444;">\${{this.rate}}</td>
+              <td style="padding:14px 16px;text-align:right;font-weight:600;color:#cc0000;">\${{this.totalPrice}}</td>
             </tr>
-            {{/each}}
           </tbody>
         </table>
-        <!-- Summary box -->
-        <div style="padding:20px;background:#fafafa;border-top:1px solid #e9e9e9;">
-          <div style="display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px;max-width:400px;margin-left:auto;">
-            <div style="font-weight:400;color:#666;">Subtotal:</div>
-            <div style="font-weight:700;text-align:right;color:#333;">\${{job.jobValue}}</div>
-            <div style="font-weight:400;color:#666;">GST:</div>
-            <div style="font-weight:700;text-align:right;color:#333;">\$0.00</div>
-            <div style="font-weight:700;font-size:16px;color:#cc0000;padding-top:8px;border-top:2px solid #cc0000;">Total:</div>
-            <div style="font-weight:700;font-size:16px;color:#cc0000;text-align:right;padding-top:8px;border-top:2px solid #cc0000;">\${{job.jobValue}}</div>
+        <!-- Summary + Select button -->
+        <div style="padding:20px 20px 20px 20px;background:#ffffff;border-top:1px solid #e9e9e9;">
+          <!-- Totals right-aligned -->
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:14px;padding-bottom:16px;border-bottom:1px solid #e0e0e0;margin-bottom:16px;">
+            <div style="display:flex;gap:40px;">
+              <span style="color:#888;">Ex Tax</span>
+              <span style="color:#333;min-width:90px;text-align:right;">\${{this.rate}}</span>
+            </div>
+            <div style="display:flex;gap:40px;">
+              <span style="color:#888;">Tax</span>
+              <span style="color:#333;min-width:90px;text-align:right;">\$0.00</span>
+            </div>
+            <div style="display:flex;gap:40px;font-weight:700;font-size:15px;">
+              <span style="color:#333;">Total</span>
+              <span style="color:#cc0000;min-width:90px;text-align:right;">\${{this.totalPrice}}</span>
+            </div>
+            <div style="color:#888;font-size:12px;">Tax Included</div>
           </div>
-          <button style="margin-top:20px;width:100%;background:#cc0000;color:#fff;border:none;padding:14px;font-size:15px;font-weight:700;border-radius:4px;cursor:pointer;transition:background 0.2s;">Select</button>
+          <!-- Select Option button – right aligned -->
+          <div style="display:flex;justify-content:flex-end;">
+            <button style="background:#cc0000;color:#fff;border:none;padding:12px 32px;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Select Option</button>
+          </div>
         </div>
       </div>
-
-      <!-- Option 2 - Packing/Unpacking Extras -->
-      <div style="margin-bottom:2px;">
-        <div style="background:#cc0000;color:#ffffff;font-size:16px;font-weight:700;padding:10px 16px;border-radius:20px 20px 0 0;">Option 2 - Packing/Unpacking Extras</div>
-      </div>
-      <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:0 0 20px 20px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
-          <thead>
-            <tr style="background:#f3f4f6;">
-              <th style="text-align:left;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;">Description</th>
-              <th style="text-align:center;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:100px;">Quantity</th>
-              <th style="text-align:right;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:120px;">Rate</th>
-              <th style="text-align:right;padding:12px 16px;font-weight:700;border-bottom:2px solid #d1d5db;width:120px;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each costings}}
-            <tr style="border-bottom:1px solid #ececec;">
-              <td style="padding:12px 16px;">{{this.description}}</td>
-              <td style="padding:12px 16px;text-align:center;">{{this.quantity}}</td>
-              <td style="padding:12px 16px;text-align:right;">\${{this.rate}}</td>
-              <td style="padding:12px 16px;text-align:right;font-weight:600;">\${{this.totalPrice}}</td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-        <div style="padding:20px;background:#fafafa;border-top:1px solid #e9e9e9;">
-          <div style="display:grid;grid-template-columns:1fr auto;gap:10px;font-size:14px;max-width:400px;margin-left:auto;">
-            <div style="font-weight:400;color:#666;">Subtotal:</div>
-            <div style="font-weight:700;text-align:right;color:#333;">\${{job.jobValue}}</div>
-            <div style="font-weight:400;color:#666;">GST:</div>
-            <div style="font-weight:700;text-align:right;color:#333;">\$0.00</div>
-            <div style="font-weight:700;font-size:16px;color:#cc0000;padding-top:8px;border-top:2px solid #cc0000;">Total:</div>
-            <div style="font-weight:700;font-size:16px;color:#cc0000;text-align:right;padding-top:8px;border-top:2px solid #cc0000;">\${{job.jobValue}}</div>
-          </div>
-          <button style="margin-top:20px;width:100%;background:#cc0000;color:#fff;border:none;padding:14px;font-size:15px;font-weight:700;border-radius:4px;cursor:pointer;transition:background 0.2s;">Select</button>
-        </div>
-      </div>
+      {{/each}}
 
       <!-- Accept quote section -->
-      <div style="margin-bottom:50px;">
-        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 16px 0;">Accept quote</h3>
-        <div style="padding:24px;background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;">
-          <div style="font-size:13px;color:#444;line-height:1.6;margin-bottom:20px;">
-            <p style="margin:0 0 8px 0;">To confirm this booking, please review all details above, provide your signature below, and click "Accept".</p>
+      <div style="margin-bottom:50px;background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
+        <!-- Heading + grey rule -->
+        <h3 style="color:#cc0000;font-size:22px;font-weight:700;margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Accept quote</h3>
+
+        <!-- Selected options summary -->
+        <div style="margin-bottom:16px;font-size:13px;color:#333;">
+          <div style="font-weight:700;margin-bottom:4px;">Selected Options (AUD)</div>
+          <div style="color:#555;">Packing and removal charges: A\${{job.jobValue}}</div>
+          <div style="color:#555;">Total: {{job.jobValue}}</div>
+        </div>
+
+        <!-- Intro paragraph -->
+        <p style="font-size:13px;color:#777;line-height:1.7;margin:0 0 20px 0;">Please review the details of this proposal carefully to ensure everything is correct before accepting the quote for your move. By accepting the quote, you acknowledge and agree to the terms and conditions outlined at the bottom of this proposal. When you're ready, simply click "Accept." If you have any questions or notice anything unexpected, click the "Request Help" button, and a member of our team will get in touch with you as soon as possible.</p>
+
+        <!-- Signature box -->
+        <div style="border:1px solid #d1d5db;border-radius:6px;padding:40px 20px;background:#fafafa;margin-bottom:0;position:relative;">
+          <!-- Draw area -->
+          <div style="height:100px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-family:'Brush Script MT',cursive;font-size:32px;color:#ccc;">Sign here</span>
           </div>
-          <!-- Signature canvas area -->
-          <div style="margin-bottom:20px;">
-            <label style="display:block;font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">Signature</label>
-            <div style="border:2px solid #d1d5db;height:100px;background:#fafafa;border-radius:4px;"></div>
+          <!-- Underline input -->
+          <div style="border-top:1px solid #ccc;margin:20px 0 12px 0;padding-top:12px;">
+            <input type="text" placeholder="Type signature" style="width:100%;border:none;border-bottom:1px solid #ccc;padding:8px 0;font-size:14px;color:#999;background:transparent;outline:none;" />
           </div>
-          <!-- Type signature input -->
-          <div style="margin-bottom:20px;">
-            <label style="display:block;font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">Type signature</label>
-            <input type="text" style="width:100%;border:1px solid #d1d5db;padding:10px 14px;font-size:14px;border-radius:4px;" placeholder="Enter your name" />
-          </div>
-          <!-- Date picker -->
-          <div style="margin-bottom:20px;">
-            <label style="display:block;font-size:13px;font-weight:700;color:#333;margin-bottom:8px;">Date</label>
-            <input type="text" style="width:250px;border:1px solid #d1d5db;padding:10px 14px;font-size:14px;border-radius:4px;" value="{{quoteDate}}" readonly />
-          </div>
-          <!-- Checkbox and accept button -->
-          <div style="margin-bottom:20px;">
-            <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#333;cursor:pointer;">
-              <input type="checkbox" style="width:18px;height:18px;cursor:pointer;" />
-              <span>I agree to the terms and conditions</span>
-            </label>
-          </div>
-          <button style="background:#cc0000;color:#fff;border:none;padding:14px 40px;font-size:15px;font-weight:700;border-radius:4px;cursor:pointer;transition:background 0.2s;">Accept</button>
+          <!-- Clear button -->
+          <button style="width:100%;background:#666;color:#fff;border:none;padding:12px;font-size:14px;font-weight:600;border-radius:4px;cursor:pointer;margin-top:4px;">Clear</button>
+        </div>
+
+        <!-- Terms link -->
+        <div style="margin-top:20px;margin-bottom:12px;">
+          <a href="#" style="color:#cc0000;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+            Read Terms &amp; Conditions here
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+
+        <!-- Checkbox -->
+        <div style="margin-bottom:24px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:13px;color:#333;cursor:pointer;">
+            <input type="checkbox" style="width:18px;height:18px;border:2px solid #ccc;cursor:pointer;flex-shrink:0;" />
+            <span>I have read and agree to the Terms &amp; Conditions</span>
+          </label>
+        </div>
+
+        <!-- Action buttons: Request Help (dark grey) + Accept (faded red) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <button style="background:#555;color:#fff;border:none;padding:14px;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Request Help</button>
+          <button style="background:#f8c5c5;color:#cc0000;border:none;padding:14px;font-size:14px;font-weight:700;border-radius:6px;cursor:not-allowed;opacity:0.9;">Accept</button>
         </div>
       </div>
 
