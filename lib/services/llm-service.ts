@@ -732,60 +732,109 @@ YOU MUST FIRST ANALYZE THE REFERENCE, THEN REPLICATE IT.
 
 **MANDATORY PRE-GENERATION ANALYSIS:**
 
-Before you write ANY JSON, you MUST complete this analysis by writing it out:
+⚠️ STOP. Do NOT proceed to JSON generation until you complete this DETAILED analysis.
+
+You MUST analyze EVERY visual element in the reference and write it out:
 
 \`\`\`
-VISUAL ANALYSIS OF REFERENCE:
+COMPLETE VISUAL ANALYSIS:
 
-1. HEADER SECTION:
-   - Background: [describe: solid color? gradient? if gradient: direction and colors]
-   - Logo: [position: left/center/right? size: small/medium/large?]
-   - Title text: [what does it say? color? size? position?]
-   - Other header content: [quote number? date? customer name? where positioned?]
+HEADER (describe EVERYTHING you see):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Background: [exact colors, gradient direction, any images/patterns]
+- Logo: [exact position, exact size in pixels if visible, any special styling]
+- Mascot/character images: [are there ANY character images? where? what do they show?]
+- Title text: [exact text, exact color, exact font size, exact position]
+- Subtitle/quote number: [what text? where positioned?]
+- Date fields: [what dates? where positioned? exact format?]
+- Any other images in header: [describe ALL images you see]
+- Header height: [tall? medium? short?]
 
-2. SECTIONS BELOW HEADER (list in exact order from top to bottom):
-   - Section 1: [type? heading? content?]
-   - Section 2: [type? heading? content?]
-   - Section 3: [type? heading? content?]
-   - [continue for ALL visible sections...]
+SECTION-BY-SECTION ANALYSIS (TOP TO BOTTOM):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For EACH section, describe:
+- Section name/heading: [exact text and color]
+- Background color: [exact color]
+- Content layout: [single column? 2 columns? grid?]
+- Specific elements: [list EVERY element: text, images, tables, forms]
+- Border/shadow: [describe exact styling]
+- Spacing: [describe padding and margins]
 
-3. STYLING DETAILS:
-   - Page background color: [what color?]
-   - Section headings color: [what color? size?]
-   - Card/box styling: [rounded? borders? shadows? background colors?]
-   - Text colors: [heading colors? body text colors?]
-   - Spacing: [tight? generous? specific patterns?]
+[CONTINUE FOR ALL SECTIONS - DO NOT SKIP ANY]
 
-4. LAYOUT STRUCTURE:
-   - Overall: [single column? multi-column? cards? continuous?]
-   - Location section: [how displayed? two columns? cards?]
-   - Pricing section: [how displayed? cards? table? list?]
-   - Quote summary: [how displayed? cards in a row? list?]
+TABLES (if present):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Header row styling: [background color, text color, borders]
+- Body row styling: [alternating colors? borders? padding?]
+- Column structure: [list all column names]
+- Special formatting: [any special styling for specific columns?]
+
+BUTTONS/FORMS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Button colors: [exact colors for each button type]
+- Button text: [exact text on buttons]
+- Form field styling: [borders, backgrounds, labels]
+
+FOOTER (if present):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Background: [color or image]
+- Content: [text, images, links]
+- Images: [describe ALL images in footer - staff photos? office photos?]
+- Layout: [single column? multiple columns?]
+
+COLORS USED (list ALL colors you can identify):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Primary: [hex code if visible]
+- Secondary: [hex code if visible]
+- Accent: [hex code if visible]
+- Text colors: [list all text colors used]
+- Background colors: [list all background colors]
+
+IMAGES (list ALL images you see):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. [Image location]: [describe what the image shows]
+2. [Image location]: [describe what the image shows]
+[CONTINUE FOR ALL IMAGES]
 \`\`\`
 
-AFTER writing this analysis, generate the JSON that EXACTLY matches what you described.
+NOW - Only after completing the above analysis - generate JSON that recreates EXACTLY what you described, element by element.
 
 **OUTPUT FORMAT:**
-First, write your visual analysis in plain text.
-Then, write the complete JSON layout config.
+First, write your COMPLETE visual analysis with ALL details.
+Then, write the JSON layout config.
+
+**CRITICAL RULES FOR JSON GENERATION:**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. ⚠️ EVERY visual element you described MUST appear in your JSON
+2. ⚠️ If you see character/mascot images in the header, include them in custom HTML as <img> tags
+3. ⚠️ If you see staff photos in footer, include them in custom HTML as <img> tags
+4. ⚠️ Table styling must match EXACTLY (header colors, row colors, borders)
+5. ⚠️ Button colors must match EXACTLY
+6. ⚠️ Section order must match EXACTLY
+7. ⚠️ Spacing and padding must recreate the visual density you see
+8. ⚠️ DO NOT use generic built-in components - use custom_html for everything except InventoryTable, AcceptanceForm, TermsSection
+
+**VERIFICATION CHECKLIST (before submitting JSON):**
+□ Did I include ALL images I saw in my analysis?
+□ Does my header match the reference EXACTLY (colors, images, text layout)?
+□ Are sections in the SAME order as the reference?
+□ Do my tables have the SAME styling as the reference?
+□ Do my colors match the reference EXACTLY?
+□ Did I include the footer if one exists in the reference?
 
 **EXAMPLE OUTPUT:**
 \`\`\`
-VISUAL ANALYSIS OF REFERENCE:
-[your analysis here...]
+COMPLETE VISUAL ANALYSIS:
+[your DETAILED analysis here with EVERY element...]
 
 {
   "version": 1,
   "globalStyles": { ... },
-  "sections": [ ... ]
+  "sections": [ ... your sections matching the analysis ... ]
 }
 \`\`\`
 
-**CRITICAL RULES:**
-- The VISUAL REFERENCE is your PRIMARY source of truth - replicate what you SEE, not what you imagine
-- If the user's text description conflicts with what you see visually, follow the VISUAL
-- Every section in your JSON must correspond to a section you identified in your analysis
-- Colors, spacing, layout structure must match the visual reference EXACTLY`;
+⚠️ FINAL REMINDER: The VISUAL REFERENCE is LAW. Replicate what you SEE, not what you imagine or think looks good.`;
   }
 
   let screenshotData: ReferenceFileData | null = null;
