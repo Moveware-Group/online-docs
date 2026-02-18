@@ -822,6 +822,7 @@ export default function SettingsPage() {
   const [promotingTemplate, setPromotingTemplate] = useState(false);
   const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default'>('company');
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
+  const [createAsGlobalDefault, setCreateAsGlobalDefault] = useState(false);
 
   // Company-specific layout records (for Custom Layouts tab)
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
@@ -1076,13 +1077,13 @@ export default function SettingsPage() {
         res = await fetch('/api/layout-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: GRACE_STATIC_LAYOUT }),
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: GRACE_STATIC_LAYOUT, isDefault: createAsGlobalDefault }),
         });
       } else if (createFromBase === 'default') {
         res = await fetch('/api/layout-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT }),
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT, isDefault: createAsGlobalDefault }),
         });
       } else {
         res = await fetch('/api/layout-templates/promote', {
@@ -1098,8 +1099,9 @@ export default function SettingsPage() {
         setNewTemplateDesc('');
         setPromoteCompanyId('');
         setCreateFromBase('company');
+        setCreateAsGlobalDefault(false);
         setCreatingTemplate(false);
-        setSuccess(`Template "${data.data.name}" created!`);
+        setSuccess(createAsGlobalDefault ? `Template "${data.data.name}" created and set as Global Default!` : `Template "${data.data.name}" created!`);
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(data.error || 'Failed to create template');
@@ -1814,16 +1816,38 @@ export default function SettingsPage() {
                   <span><strong>Built-in default</strong> — the hard-coded standard quote layout (no customisation applied).</span>
                 </li>
               </ol>
-              <p className="text-xs text-blue-700 mt-3 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                To edit the default layout Crown Worldwide uses: create a template using <strong>&nbsp;&quot;Default Layout&quot;</strong> as the base, open it in the Layout Builder, then mark it as <strong>&nbsp;Global Default</strong>.
-              </p>
             </div>
+
+            {/* Global Default callout — shown when no template is marked as default */}
+            {!layoutTemplates.some((t) => t.isDefault) && !creatingTemplate && (
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-amber-800">No Global Default template set</p>
+                  <p className="text-xs text-amber-700 mt-0.5">All companies without an assigned template or company layout will fall back to the built-in hard-coded default. Create a Global Default template to control what they see.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setNewTemplateName('Default Layout');
+                    setNewTemplateDesc('Global default layout used by all companies without a specific template');
+                    setCreateFromBase('default');
+                    setCreateAsGlobalDefault(true);
+                    setCreatingTemplate(true);
+                  }}
+                  className="flex-shrink-0 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+                >
+                  + Create Global Default
+                </button>
+              </div>
+            )}
 
             {/* Create template form */}
             {creatingTemplate && (
-              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-4 space-y-3">
-                <h3 className="font-semibold text-gray-900 text-sm">New Layout Template</h3>
+              <div className={`border rounded-lg p-4 mb-4 space-y-3 ${createAsGlobalDefault ? 'border-amber-300 bg-amber-50' : 'border-blue-200 bg-blue-50'}`}>
+                <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                  New Layout Template
+                  {createAsGlobalDefault && <span className="text-xs bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded-full">🌐 Will be set as Global Default</span>}
+                </h3>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Template Name <span className="text-red-500">*</span></label>
                   <input
@@ -1904,7 +1928,7 @@ export default function SettingsPage() {
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('company'); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('company'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>
