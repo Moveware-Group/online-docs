@@ -236,7 +236,72 @@ function QuotePageContent() {
       `</div>`;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
-  
+
+  // ── Grace banner JS fallback ──────────────────────────────────────────────
+  // The graceBannerCss <style> tag handles most cases via CSS, but runs as a
+  // belt-and-braces DOM pass after React commits so that any stale inline
+  // styles on the stored template HTML are overwritten with setProperty
+  // ('important') — which has higher priority than stylesheet !important.
+  // Targets elements by BOTH the .grace-hero-wrap class (current templates)
+  // AND the [data-sid] wrapper's first div child (old templates without class).
+  useLayoutEffect(() => {
+    if (!customLayout) return;
+
+    const heroSec = customLayout.sections?.find((s) => s.id === 'grace-hero');
+    const footSec = customLayout.sections?.find((s) => s.id === 'grace-footer-image');
+    if (!heroSec && !footSec) return;
+
+    const hD = Number((heroSec?.config  as Record<string,unknown>)?.desktopMaxHeight || 500);
+    const fD = Number((footSec?.config  as Record<string,unknown>)?.desktopMaxHeight || 500);
+
+    const applyWrap = (el: HTMLElement, heightPx: number) => {
+      el.style.setProperty('width',        '100vw',         'important');
+      el.style.setProperty('position',     'relative',      'important');
+      el.style.setProperty('left',         '50%',           'important');
+      el.style.setProperty('right',        '50%',           'important');
+      el.style.setProperty('margin-left',  '-50vw',         'important');
+      el.style.setProperty('margin-right', '-50vw',         'important');
+      el.style.setProperty('height',       `${heightPx}px`, 'important');
+      el.style.setProperty('max-height',   'none',          'important');
+      el.style.setProperty('overflow',     'hidden',        'important');
+      el.style.setProperty('display',      'block',         'important');
+      el.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+        img.style.setProperty('position',        'absolute', 'important');
+        img.style.setProperty('top',             '0',        'important');
+        img.style.setProperty('left',            '0',        'important');
+        img.style.setProperty('right',           '0',        'important');
+        img.style.setProperty('bottom',          '0',        'important');
+        img.style.setProperty('width',           '100%',     'important');
+        img.style.setProperty('height',          '100%',     'important');
+        img.style.setProperty('max-width',       'none',     'important');
+        img.style.setProperty('object-fit',      'cover',    'important');
+        img.style.setProperty('object-position', 'center',   'important');
+        img.style.setProperty('display',         'block',    'important');
+      });
+    };
+
+    // Strategy 1: class-based (current / recent stored templates)
+    document.querySelectorAll<HTMLElement>('.grace-hero-wrap').forEach(
+      (el) => applyWrap(el, hD),
+    );
+    document.querySelectorAll<HTMLElement>('.grace-footer-wrap').forEach(
+      (el) => applyWrap(el, fD),
+    );
+
+    // Strategy 2: data-sid-based first-child div (old templates without class)
+    const heroWrapper = document.querySelector<HTMLElement>('[data-sid="grace-hero"]');
+    if (heroWrapper) {
+      const firstDiv = heroWrapper.querySelector<HTMLElement>(':scope > div');
+      if (firstDiv) applyWrap(firstDiv, hD);
+    }
+    const footWrapper = document.querySelector<HTMLElement>('[data-sid="grace-footer-image"]');
+    if (footWrapper) {
+      const firstDiv = footWrapper.querySelector<HTMLElement>(':scope > div');
+      if (firstDiv) applyWrap(firstDiv, fD);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout]);
+
   // Validation states
   const [errors, setErrors] = useState({
     signatureName: '',

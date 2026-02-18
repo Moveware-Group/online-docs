@@ -224,18 +224,22 @@ export function CustomLayoutRenderer({
   }, [globalStyles.customCss]);
 
   // ---------------------------------------------------------------------------
-  // Grace banner height CSS
-  // Injects per-layout config heights with !important so they override the
-  // global defaults in globals.css.  Positioning is handled entirely by
-  // globals.css (.grace-hero-wrap / .grace-footer-wrap rules) so we only
-  // need to emit height overrides here.
+  // Grace banner corrective CSS
+  // Uses TWO selector strategies so old stored templates render correctly
+  // regardless of whether .grace-hero-wrap / .grace-footer-wrap class names
+  // are present in the stored HTML:
+  //   1. Class selector (.grace-hero-wrap) — works when class is present
+  //   2. data-sid selector ([data-sid="grace-hero"] > *:not(style)) — targets
+  //      the FIRST non-<style> child of the section wrapper even when the class
+  //      is absent from the stored template.
+  // Both target groups share the same !important rules.
   // ---------------------------------------------------------------------------
   const graceBannerCss = useMemo(() => {
-    const heroSection = config.sections.find((s) => s.id === 'grace-hero');
+    const heroSection   = config.sections.find((s) => s.id === 'grace-hero');
     const footerSection = config.sections.find((s) => s.id === 'grace-footer-image');
     if (!heroSection && !footerSection) return '';
 
-    const heroC = (heroSection?.config || {}) as Record<string, unknown>;
+    const heroC = (heroSection?.config  || {}) as Record<string, unknown>;
     const footC = (footerSection?.config || {}) as Record<string, unknown>;
 
     const hD = Number(heroC.desktopMaxHeight  || 500);
@@ -245,16 +249,58 @@ export function CustomLayoutRenderer({
     const fT = Number(footC.tabletMaxHeight   || 350);
     const fM = Number(footC.mobileMaxHeight   || 250);
 
+    // Full-width breakout rules applied to both the class-based selector
+    // (works for all current/recent stored layouts) and the data-sid-based
+    // selector (covers old layouts where the class may be missing).
+    const wrapRules = (h: number) => `
+      width: 100vw !important;
+      position: relative !important;
+      left: 50% !important;
+      right: 50% !important;
+      margin-left: -50vw !important;
+      margin-right: -50vw !important;
+      height: ${h}px !important;
+      max-height: none !important;
+      overflow: hidden !important;
+      display: block !important;
+    `;
+
     return `
-      .grace-hero-wrap   { height: ${hD}px !important; }
-      .grace-footer-wrap { height: ${fD}px !important; }
+      /* ── Hero banner ─────────────────────────── */
+      .grace-hero-wrap,
+      [data-sid="grace-hero"] > div { ${wrapRules(hD)} }
+
+      /* ── Footer banner ───────────────────────── */
+      .grace-footer-wrap,
+      [data-sid="grace-footer-image"] > div { ${wrapRules(fD)} }
+
+      /* ── Images inside banners (both strategies) */
+      .grace-hero-wrap img,
+      [data-sid="grace-hero"] > div img,
+      .grace-footer-wrap img,
+      [data-sid="grace-footer-image"] > div img {
+        position: absolute !important;
+        top: 0 !important; left: 0 !important;
+        right: 0 !important; bottom: 0 !important;
+        width: 100% !important; height: 100% !important;
+        max-width: none !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        display: block !important;
+      }
+
+      /* ── Responsive heights ──────────────────── */
       @media (max-width: 1024px) {
-        .grace-hero-wrap   { height: ${hT}px !important; }
-        .grace-footer-wrap { height: ${fT}px !important; }
+        .grace-hero-wrap,
+        [data-sid="grace-hero"] > div   { height: ${hT}px !important; }
+        .grace-footer-wrap,
+        [data-sid="grace-footer-image"] > div { height: ${fT}px !important; }
       }
       @media (max-width: 640px) {
-        .grace-hero-wrap   { height: ${hM}px !important; }
-        .grace-footer-wrap { height: ${fM}px !important; }
+        .grace-hero-wrap,
+        [data-sid="grace-hero"] > div   { height: ${hM}px !important; }
+        .grace-footer-wrap,
+        [data-sid="grace-footer-image"] > div { height: ${fM}px !important; }
       }
     `;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,11 +411,12 @@ function RenderSection({
       ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror', 'data-dir', 'data-costing-id'],
     });
 
-    // custom_html sections manage their own spacing via inline styles
+    // data-sid lets the graceBannerCss and JS find the first child of a section
+    // by section ID regardless of whether class names are present in stored HTML.
     return (
       <>
         {section.css && <style>{section.css}</style>}
-        <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+        <div data-sid={section.id} dangerouslySetInnerHTML={{ __html: cleanHtml }} />
       </>
     );
   }
