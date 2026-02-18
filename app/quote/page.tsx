@@ -392,19 +392,19 @@ function QuotePageContent() {
       setInventory(inventoryResult.data || []);
       setCostings(costingsResult.data || []);
 
-      // Check for a custom layout for this company (unless in preview mode where it comes via postMessage)
-      if (!isPreviewMode) {
-        try {
-          const layoutRes = await fetch(`/api/layouts/${coIdParam}`);
-          if (layoutRes.ok) {
-            const layoutData = await layoutRes.json();
-            if (layoutData.success && layoutData.data?.layoutConfig && layoutData.data?.isActive) {
-              setCustomLayout(layoutData.data.layoutConfig);
-            }
+      // Always load the saved layout from the API.
+      // In preview mode (Layout Builder iframe) the postMessage handler will
+      // override this with the latest in-editor config after it arrives.
+      try {
+        const layoutRes = await fetch(`/api/layouts/${coIdParam}`);
+        if (layoutRes.ok) {
+          const layoutData = await layoutRes.json();
+          if (layoutData.success && layoutData.data?.layoutConfig && layoutData.data?.isActive) {
+            setCustomLayout(layoutData.data.layoutConfig);
           }
-        } catch {
-          // No custom layout — use base layout
         }
+      } catch {
+        // No custom layout — use base layout
       }
     } catch (err) {
       console.error('Error fetching job data:', err);
