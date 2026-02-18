@@ -93,17 +93,59 @@ export const PLACEHOLDER_REGISTRY: PlaceholderDefinition[] = [
   // ── Dates ─────────────────────────────────────────────────────────────────
   {
     key: 'quoteDate',
-    label: 'Quote Date',
+    label: 'Quote Date (short)',
     category: 'Dates',
     example: '18/02/2026',
     description: 'Today\'s date in DD/MM/YYYY format',
   },
   {
+    key: 'quoteDateLong',
+    label: 'Quote Date (long US)',
+    category: 'Dates',
+    example: 'Wednesday, February 18, 2026',
+    description: 'Full date — day name, month name, day, year',
+  },
+  {
+    key: 'quoteDateFull',
+    label: 'Quote Date (long AU)',
+    category: 'Dates',
+    example: 'Wednesday, 18 February 2026',
+    description: 'Full date — day name, day, month name, year',
+  },
+  {
+    key: 'quoteDateMedium',
+    label: 'Quote Date (medium)',
+    category: 'Dates',
+    example: '18 Feb 2026',
+    description: 'Day, abbreviated month, year',
+  },
+  {
     key: 'expiryDate',
-    label: 'Expiry Date',
+    label: 'Expiry Date (short)',
     category: 'Dates',
     example: '18/03/2026',
-    description: '30 days from quote date',
+    description: '30 days from quote date in DD/MM/YYYY format',
+  },
+  {
+    key: 'expiryDateLong',
+    label: 'Expiry Date (long US)',
+    category: 'Dates',
+    example: 'Saturday, March 18, 2026',
+    description: 'Expiry date — day name, month name, day, year',
+  },
+  {
+    key: 'expiryDateFull',
+    label: 'Expiry Date (long AU)',
+    category: 'Dates',
+    example: 'Saturday, 18 March 2026',
+    description: 'Expiry date — day name, day, month name, year',
+  },
+  {
+    key: 'expiryDateMedium',
+    label: 'Expiry Date (medium)',
+    category: 'Dates',
+    example: '18 Mar 2026',
+    description: 'Expiry — day, abbreviated month, year',
   },
 
   // ── Origin Address ────────────────────────────────────────────────────────

@@ -149,8 +149,14 @@ function resolveTemplate(
     // Derived
     customerName: data.customerName,
     companyName: data.companyName,
-    quoteDate: data.quoteDate,
-    expiryDate: data.expiryDate,
+    quoteDate:        data.quoteDate,
+    quoteDateLong:    data.quoteDateLong    || '',
+    quoteDateFull:    data.quoteDateFull    || '',
+    quoteDateMedium:  data.quoteDateMedium  || '',
+    expiryDate:       data.expiryDate,
+    expiryDateLong:   data.expiryDateLong   || '',
+    expiryDateFull:   data.expiryDateFull   || '',
+    expiryDateMedium: data.expiryDateMedium || '',
     totalCube: data.totalCube.toFixed(2),
     primaryColor: data.primaryColor,
     // Inventory pagination
