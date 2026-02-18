@@ -28,6 +28,14 @@ import {
   ChevronDown,
   ChevronRight,
   EyeOff,
+  Plus,
+  Trash2,
+  Image as ImageIcon,
+  Type,
+  Code2,
+  Columns2,
+  Columns3,
+  LayoutTemplate,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -197,6 +205,9 @@ function LayoutBuilderContent() {
   // Block drag-and-drop state
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Add-block modal
+  const [showAddBlockModal, setShowAddBlockModal] = useState(false);
 
   // Block editor state
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
@@ -736,6 +747,111 @@ function LayoutBuilderContent() {
   const handleDragEndBlock = () => {
     setDraggingIndex(null);
     setDragOverIndex(null);
+  };
+
+  // ---- Add / delete blocks ----
+
+  /** Starter HTML templates for each addable block type */
+  const BLOCK_TEMPLATES = {
+    image: {
+      label: 'Image',
+      html: `<div style="padding:0 32px;margin-bottom:50px;">
+  <div style="background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;overflow:hidden;">
+    <img src="{{branding.heroBannerUrl}}" alt="Image" style="width:100%;display:block;object-fit:cover;max-height:400px;" />
+  </div>
+</div>`,
+    },
+    html: {
+      label: 'Custom HTML',
+      html: `<div style="padding:0 32px;margin-bottom:50px;">
+  <div style="background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
+    <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 16px 0;">Block Title</h3>
+    <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">Add your content here. Use the placeholders panel on the right to insert dynamic data.</p>
+  </div>
+</div>`,
+    },
+    text1col: {
+      label: 'Text — 1 Column',
+      html: `<div style="padding:0 32px;margin-bottom:50px;">
+  <div style="background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
+    <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 12px 0;">Section Heading</h3>
+    <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">Your paragraph text goes here. Replace this with your own copy or insert a placeholder like {{customerName}}.</p>
+  </div>
+</div>`,
+    },
+    text2col: {
+      label: 'Text — 2 Columns',
+      html: `<div style="padding:0 32px;margin-bottom:50px;">
+  <div style="background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
+    <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 20px 0;">Section Heading</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div>
+        <h4 style="font-size:15px;font-weight:700;color:#222;margin:0 0 8px 0;">Column 1 Title</h4>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">Column 1 content goes here. Replace this with your copy.</p>
+      </div>
+      <div>
+        <h4 style="font-size:15px;font-weight:700;color:#222;margin:0 0 8px 0;">Column 2 Title</h4>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">Column 2 content goes here. Replace this with your copy.</p>
+      </div>
+    </div>
+  </div>
+</div>`,
+    },
+    text3col: {
+      label: 'Text — 3 Columns',
+      html: `<div style="padding:0 32px;margin-bottom:50px;">
+  <div style="background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
+    <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 20px 0;">Section Heading</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+      <div>
+        <h4 style="font-size:14px;font-weight:700;color:#222;margin:0 0 8px 0;">Column 1</h4>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">Column 1 content.</p>
+      </div>
+      <div>
+        <h4 style="font-size:14px;font-weight:700;color:#222;margin:0 0 8px 0;">Column 2</h4>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">Column 2 content.</p>
+      </div>
+      <div>
+        <h4 style="font-size:14px;font-weight:700;color:#222;margin:0 0 8px 0;">Column 3</h4>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:0;">Column 3 content.</p>
+      </div>
+    </div>
+  </div>
+</div>`,
+    },
+  } as const;
+
+  type BlockTemplateKey = keyof typeof BLOCK_TEMPLATES;
+
+  const handleAddBlock = (templateKey: BlockTemplateKey) => {
+    if (!layoutConfig) return;
+    const tmpl = BLOCK_TEMPLATES[templateKey];
+    const uid = `custom-${templateKey}-${Date.now()}`;
+    const newSection = {
+      id: uid,
+      label: tmpl.label,
+      type: 'custom_html' as const,
+      visible: true,
+      html: tmpl.html,
+    };
+    const updated = { ...layoutConfig, sections: [...layoutConfig.sections, newSection] };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setShowAddBlockModal(false);
+    setStatusMessage(`"${tmpl.label}" block added at the bottom. Drag to reorder, then click the pencil to customise.`);
+    setSaved(false);
+  };
+
+  const handleDeleteBlock = (index: number) => {
+    if (!layoutConfig) return;
+    const label = layoutConfig.sections[index]?.label || `Block ${index + 1}`;
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    const sections = layoutConfig.sections.filter((_, i) => i !== index);
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setStatusMessage(`"${label}" deleted.`);
+    setSaved(false);
   };
 
   const handleToggleSectionVisibility = (index: number) => {
@@ -1519,14 +1635,151 @@ function LayoutBuilderContent() {
                       >
                         {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
+
+                      {/* Delete button */}
+                      <button
+                        onClick={() => handleDeleteBlock(index)}
+                        title="Delete block"
+                        className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
+
+            {/* + Add Block button */}
+            {layoutConfig && (
+              <button
+                onClick={() => setShowAddBlockModal(true)}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Block
+              </button>
+            )}
           </div>
 
           ))} {/* end BLOCKS TAB */}
+
+          {/* ── ADD BLOCK MODAL ── */}
+          {showAddBlockModal && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={(e) => { if (e.target === e.currentTarget) setShowAddBlockModal(false); }}
+            >
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-blue-600" />
+                    <h2 className="text-base font-bold text-gray-900">Add a Block</h2>
+                  </div>
+                  <button onClick={() => setShowAddBlockModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Block type grid */}
+                <div className="p-5 space-y-4">
+
+                  {/* Image */}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Media</p>
+                  <button
+                    onClick={() => handleAddBlock('image')}
+                    className="w-full flex items-center gap-4 px-4 py-3.5 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
+                      <ImageIcon className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800 group-hover:text-blue-700">Image</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Full-width image with rounded card container</div>
+                    </div>
+                  </button>
+
+                  {/* HTML */}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Developer</p>
+                  <button
+                    onClick={() => handleAddBlock('html')}
+                    className="w-full flex items-center gap-4 px-4 py-3.5 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
+                      <Code2 className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800 group-hover:text-blue-700">Custom HTML</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Blank HTML block — full control over markup and styles</div>
+                    </div>
+                  </button>
+
+                  {/* Text blocks */}
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Text Blocks</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* 1 Column */}
+                    <button
+                      onClick={() => handleAddBlock('text1col')}
+                      className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                        <Type className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-800 group-hover:text-blue-700">1 Column</div>
+                        {/* Column layout preview */}
+                        <div className="flex gap-1 justify-center mt-2">
+                          <div className="w-10 h-4 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* 2 Columns */}
+                    <button
+                      onClick={() => handleAddBlock('text2col')}
+                      className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                        <Columns2 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-800 group-hover:text-blue-700">2 Columns</div>
+                        <div className="flex gap-1 justify-center mt-2">
+                          <div className="w-4 h-4 bg-gray-200 rounded" />
+                          <div className="w-4 h-4 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* 3 Columns */}
+                    <button
+                      onClick={() => handleAddBlock('text3col')}
+                      className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                        <Columns3 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-800 group-hover:text-blue-700">3 Columns</div>
+                        <div className="flex gap-1 justify-center mt-2">
+                          <div className="w-3 h-4 bg-gray-200 rounded" />
+                          <div className="w-3 h-4 bg-gray-200 rounded" />
+                          <div className="w-3 h-4 bg-gray-200 rounded" />
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* Footer note */}
+                <div className="px-5 pb-4">
+                  <p className="text-xs text-gray-400 text-center">New block is added at the bottom — drag to reposition</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── PLACEHOLDERS TAB ── */}
           {leftPanelTab === 'placeholders' && (
