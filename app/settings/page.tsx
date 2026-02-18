@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
@@ -738,6 +738,7 @@ export default function SettingsPage() {
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
   const [loadingCompanyLayouts, setLoadingCompanyLayouts] = useState(false);
   const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
+  const [syncingLayoutId, setSyncingLayoutId] = useState<string | null>(null);
 
   // Help popover for Custom Layouts tab
   const [showLayoutHelp, setShowLayoutHelp] = useState(false);
@@ -1540,6 +1541,35 @@ export default function SettingsPage() {
                           </div>
                         </button>
                         <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Reset "${record.company.name}" to the latest built-in template?\n\nThis will overwrite any custom edits with the current template structure. Company branding (logo, hero, footer images) will be preserved.`)) return;
+                              setSyncingLayoutId(record.companyId);
+                              try {
+                                const res = await fetch('/api/layouts/reset', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ companyId: record.companyId }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  await loadCompanyLayouts();
+                                } else {
+                                  alert(`Reset failed: ${data.error}`);
+                                }
+                              } finally {
+                                setSyncingLayoutId(null);
+                              }
+                            }}
+                            disabled={syncingLayoutId === record.companyId}
+                            className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg flex items-center gap-1 transition-colors border border-amber-200 disabled:opacity-50"
+                            title="Reset this layout to the latest built-in template"
+                          >
+                            {syncingLayoutId === record.companyId
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <RefreshCw className="w-3.5 h-3.5" />}
+                            Sync to Latest
+                          </button>
                           <button
                             onClick={() => {
                               handlePromoteToTemplate();
