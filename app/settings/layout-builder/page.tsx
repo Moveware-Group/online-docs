@@ -242,21 +242,43 @@ function LayoutBuilderContent() {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data) {
-          setLayoutConfig(data.data.layoutConfig);
+          const loadedConfig = data.data.layoutConfig;
+          setLayoutConfig(loadedConfig);
           setReferenceUrl(data.data.referenceUrl || '');
           setDescription(data.data.description || '');
           setReferenceFilePath(data.data.referenceFile || '');
           // Restore saved banner/footer image paths from branding globalStyles
-          const gs = data.data.layoutConfig?.globalStyles || {};
+          const gs = loadedConfig?.globalStyles || {};
           if (gs.heroBannerUrl) setBannerImagePath(gs.heroBannerUrl);
           if (gs.footerImageUrl) setFooterImagePath(gs.footerImageUrl);
-          setStatusMessage('Existing layout loaded. You can refine it or generate a new one.');
-          addAssistantMessage('I loaded the existing custom layout for this company. You can ask me to modify it, or fill in the form and click "Generate Layout" to start fresh.');
+
+          // Detect legacy single-block layout (pre-split) and warn the user
+          const sectionCount = loadedConfig?.sections?.length || 0;
+          const isLegacy = sectionCount === 1 && loadedConfig?.sections?.[0]?.id === 'grace-document';
+
+          if (isLegacy) {
+            setStatusMessage('Layout loaded — using legacy single-block format. Click "Upgrade to multi-block" to enable per-block editing.');
+          } else {
+            setStatusMessage(`Layout loaded — ${sectionCount} editable block${sectionCount !== 1 ? 's' : ''}. Switch to the Blocks tab to edit copy.`);
+            // Auto-switch to Blocks tab so editing is immediately visible
+            setLeftPanelTab('blocks');
+          }
+          addAssistantMessage('I loaded the existing custom layout for this company. Switch to the **Blocks** tab to edit individual sections, or ask me to modify the layout.');
         }
       }
     } catch {
       // No existing layout — that's fine
     }
+  };
+
+  /** Upgrade a legacy single-block layout to the current multi-block grace-static format */
+  const handleUpgradeToMultiBlock = async () => {
+    if (!selectedCompany) return;
+    const { GRACE_STATIC_LAYOUT } = await import('@/lib/layouts/grace-static');
+    setLayoutConfig(GRACE_STATIC_LAYOUT as unknown as LayoutConfig);
+    setLeftPanelTab('blocks');
+    setStatusMessage('Upgraded to 10-block layout. Review the blocks then click "Approve & Save" to apply.');
+    setSaved(false);
   };
 
   // ---- Drag and Drop Handlers ----
@@ -447,12 +469,14 @@ function LayoutBuilderContent() {
 
       setLayoutConfig(data.data);
       setChatOpen(true);
+      // Switch to Blocks tab so editing is immediately accessible
+      setLeftPanelTab('blocks');
       
       // Show warnings in chat if URL capture failed
       if (data.warnings && data.warnings.length > 0) {
         addAssistantMessage(data.message);
       } else {
-        addAssistantMessage(data.message || 'Layout generated successfully. Review the preview and provide feedback to refine it.');
+        addAssistantMessage(data.message || 'Layout generated! Switch to the **Blocks** tab (already active) to edit copy and add placeholders. Use the **Placeholders** tab to see all available data fields.');
       }
       
       updatePreview(data.data);
@@ -886,12 +910,21 @@ function LayoutBuilderContent() {
       {/* Status / Error Bar */}
       {(error || statusMessage) && (
         <div className={`px-4 py-2 text-sm flex-shrink-0 ${error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-          <div className="flex items-center gap-2">
-            {error ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
-            {error || statusMessage}
+          <div className="flex items-center gap-2 flex-wrap">
+            {error ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+            <span>{error || statusMessage}</span>
+            {/* Legacy single-block upgrade CTA */}
+            {!error && statusMessage?.includes('legacy single-block') && (
+              <button
+                onClick={handleUpgradeToMultiBlock}
+                className="ml-2 px-2.5 py-0.5 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700 transition-colors"
+              >
+                Upgrade to multi-block
+              </button>
+            )}
             <button
               onClick={() => { setError(null); setStatusMessage(null); }}
-              className="ml-auto text-gray-400 hover:text-gray-600"
+              className="ml-auto text-gray-400 hover:text-gray-600 flex-shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -934,6 +967,25 @@ function LayoutBuilderContent() {
           {leftPanelTab === 'setup' && (
           <div className="p-4 overflow-y-auto flex-1">
             <h2 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Layout Request</h2>
+
+            {/* If a layout is already loaded, prompt them to switch to Blocks */}
+            {layoutConfig && layoutConfig.sections?.length > 0 && (
+              <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 text-sm">💡</span>
+                  <div className="text-xs text-amber-800">
+                    <strong>Layout loaded ({layoutConfig.sections.length} blocks).</strong> To edit copy or add placeholders, switch to the{' '}
+                    <button
+                      onClick={() => setLeftPanelTab('blocks')}
+                      className="underline font-semibold hover:text-amber-900"
+                    >
+                      Blocks tab
+                    </button>
+                    {' '}and click the pencil icon on any block.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Best Results Tip */}
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1342,13 +1394,29 @@ function LayoutBuilderContent() {
               <Layers className="w-4 h-4 text-blue-600" />
               Block Order
             </h2>
-            <p className="text-xs text-gray-500 mb-4">Drag to reorder · eye icon to show/hide · pencil to edit copy.</p>
+            <p className="text-xs text-gray-500 mb-3">Drag to reorder · eye icon to show/hide · pencil to edit copy.</p>
+
+            {/* How to edit hint */}
+            {layoutConfig && layoutConfig.sections?.length > 0 && (
+              <div className="mb-4 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-[11px] text-blue-800 space-y-1">
+                  <p><strong>✏️ To edit text / add placeholders:</strong></p>
+                  <p>Click the <span className="inline-flex items-center gap-0.5 font-semibold">pencil <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> icon on any block to open its editor. Use the <strong>Placeholders</strong> tab to find data fields like <code className="bg-blue-100 px-0.5 rounded">{"{{customer_name}}"}</code>.</p>
+                </div>
+              </div>
+            )}
 
             {!layoutConfig || !layoutConfig.sections?.length ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
                 <Layers className="w-10 h-10 mb-3 text-gray-300" />
                 <p className="text-sm font-medium">No layout loaded</p>
                 <p className="text-xs mt-1">Generate or load a layout first.</p>
+                <button
+                  onClick={() => setLeftPanelTab('setup')}
+                  className="mt-3 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Setup
+                </button>
               </div>
             ) : (
               <div className="space-y-2">
