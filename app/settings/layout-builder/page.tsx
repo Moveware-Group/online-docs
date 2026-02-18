@@ -177,6 +177,9 @@ function LayoutBuilderContent() {
   // Left panel tabs: 'setup' | 'blocks' | 'placeholders'
   const [leftPanelTab, setLeftPanelTab] = useState<'setup' | 'blocks' | 'placeholders'>('setup');
 
+  // Custom preview URL (optional — overrides the default job URL)
+  const [previewJobUrl, setPreviewJobUrl] = useState('');
+
   // Placeholder copy state
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<PlaceholderCategory>>(
@@ -1581,16 +1584,38 @@ function LayoutBuilderContent() {
 
         {/* RIGHT PANEL: Live Preview */}
         <div className="flex-1 flex flex-col overflow-hidden bg-gray-200">
-          <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+          {/* Preview header bar */}
+          <div className="px-4 py-2 bg-white border-b border-gray-200 flex items-center gap-3 flex-shrink-0">
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wide flex items-center gap-2 flex-shrink-0">
               <Eye className="w-4 h-4 text-blue-600" />
               Live Preview
             </h2>
-            {selectedCompany && (
-              <span className="text-xs text-gray-500">
-                /quote?jobId=111505&coId={selectedCompany.tenantId || '12'}&preview=true
-              </span>
-            )}
+            {/* URL bar */}
+            <div className="flex-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="url"
+                  value={previewJobUrl}
+                  onChange={(e) => setPreviewJobUrl(e.target.value)}
+                  placeholder={selectedCompany
+                    ? `/quote?jobId=111505&coId=${selectedCompany.tenantId || '12'}&preview=true  (default)`
+                    : 'Paste a quote URL to preview with live data…'}
+                  className="w-full pl-3 pr-8 py-1 text-xs border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-gray-600 placeholder:text-gray-400 placeholder:font-sans"
+                />
+                {previewJobUrl && (
+                  <button
+                    onClick={() => setPreviewJobUrl('')}
+                    title="Clear — revert to default URL"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {previewJobUrl && (
+                <span className="text-[10px] text-amber-600 font-medium flex-shrink-0">custom URL</span>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 p-4 overflow-hidden">
@@ -1605,7 +1630,10 @@ function LayoutBuilderContent() {
             ) : (
               <iframe
                 ref={iframeRef}
-                src={`/quote?jobId=111505&coId=${selectedCompany?.tenantId || '12'}&preview=true`}
+                src={
+                  previewJobUrl.trim() ||
+                  `/quote?jobId=111505&coId=${selectedCompany?.tenantId || '12'}&preview=true`
+                }
                 className="w-full h-full bg-white rounded-lg shadow-lg border border-gray-300"
                 title="Quote Layout Preview"
                 onLoad={() => {
