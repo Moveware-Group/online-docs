@@ -261,11 +261,17 @@ export function CustomLayoutRenderer({
         display: block;
       }
       .grace-hero-wrap img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
-        display: block;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        display: block !important;
       }
       .grace-footer-wrap {
         width: 100vw;
@@ -280,11 +286,17 @@ export function CustomLayoutRenderer({
         display: block;
       }
       .grace-footer-wrap img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
-        display: block;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        display: block !important;
       }
       @media (max-width: 1024px) {
         .grace-hero-wrap   { height: ${hT}px; }

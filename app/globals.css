@@ -61,6 +61,24 @@
   }
 }
 
+/* Grace banner image fill — position:absolute so the img fills the 100vw
+   .grace-*-wrap div regardless of any intermediate max-width containers.
+   !important overrides Tailwind Preflight (img { height:auto; max-width:100% }) */
+.grace-hero-wrap img,
+.grace-footer-wrap img {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block !important;
+}
+
 /* PDF-friendly styles */
 @media print {
   .no-print {

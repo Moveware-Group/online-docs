@@ -246,14 +246,21 @@ function QuotePageContent() {
       el.style.setProperty('max-height',   'none',            'important');
       el.style.setProperty('overflow',     'hidden',          'important');
       el.style.setProperty('display',      'block',           'important');
-      const img = el.querySelector<HTMLImageElement>('img');
-      if (img) {
-        img.style.setProperty('width',          '100%',   'important');
-        img.style.setProperty('height',         '100%',   'important');
-        img.style.setProperty('object-fit',     'cover',  'important');
-        img.style.setProperty('object-position','center', 'important');
-        img.style.setProperty('display',        'block',  'important');
-      }
+      el.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+        // position:absolute so the image fills .grace-*-wrap (its nearest
+        // positioned ancestor) regardless of any intermediate max-width containers.
+        img.style.setProperty('position',       'absolute', 'important');
+        img.style.setProperty('top',            '0',        'important');
+        img.style.setProperty('left',           '0',        'important');
+        img.style.setProperty('right',          '0',        'important');
+        img.style.setProperty('bottom',         '0',        'important');
+        img.style.setProperty('width',          '100%',     'important');
+        img.style.setProperty('height',         '100%',     'important');
+        img.style.setProperty('max-width',      'none',     'important');
+        img.style.setProperty('object-fit',     'cover',    'important');
+        img.style.setProperty('object-position','center',   'important');
+        img.style.setProperty('display',        'block',    'important');
+      });
     };
 
     document.querySelectorAll<HTMLElement>('.grace-hero-wrap').forEach((el) => applyWrap(el, hD));
