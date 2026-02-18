@@ -1544,7 +1544,7 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                           <button
                             onClick={async () => {
-                              if (!confirm(`Reset "${record.company.name}" to the latest built-in template?\n\nThis will overwrite any custom edits with the current template structure. Company branding (logo, hero, footer images) will be preserved.`)) return;
+                              if (!confirm(`Remove the saved custom layout for "${record.company.name}"?\n\nThe Layout Template assigned to this company will then be used automatically. Any block-level customisations made in the Layout Builder will be lost.`)) return;
                               setSyncingLayoutId(record.companyId);
                               try {
                                 const res = await fetch('/api/layouts/reset', {
@@ -1564,12 +1564,12 @@ export default function SettingsPage() {
                             }}
                             disabled={syncingLayoutId === record.companyId}
                             className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg flex items-center gap-1 transition-colors border border-amber-200 disabled:opacity-50"
-                            title="Reset this layout to the latest built-in template"
+                            title="Remove this company's saved layout so the assigned template is used instead"
                           >
                             {syncingLayoutId === record.companyId
                               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               : <RefreshCw className="w-3.5 h-3.5" />}
-                            Sync to Latest
+                            Reset to Template
                           </button>
                           <button
                             onClick={() => {

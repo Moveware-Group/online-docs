@@ -1,22 +1,19 @@
 /**
  * POST /api/layouts/reset
  *
- * Resets a company's saved layout to the latest built-in static template.
+ * Removes a company's saved custom layout so that the Layout Template
+ * assigned to them in Settings takes over on the next page load.
+ *
  * Body: { companyId: string }
  *
- * Why this exists:
- *   Company layouts are saved as JSON blobs in the database.  When the static
- *   grace-static.ts template is updated (e.g. container widths, block HTML)
- *   those changes are NOT automatically propagated to already-saved company
- *   layouts.  This endpoint overwrites the saved layout with a fresh copy of
- *   the current static template so the company immediately picks up the latest
- *   structure.  Company-specific branding (hero banner, footer image, colours)
- *   is preserved via mergeCompanyBrandingIntoLayout on the next GET request.
+ * Use-case: when the underlying template has been updated and a company's
+ * stale DB-saved layout needs to be cleared so it picks up the latest
+ * template automatically via the normal GET priority chain:
+ *   1. Assigned Layout Template  →  2. Saved CustomLayout  →  3. 404 (default)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { GRACE_STATIC_LAYOUT } from "@/lib/layouts/grace-static";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,28 +39,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const configString = JSON.stringify(GRACE_STATIC_LAYOUT);
-
-    const layout = await prisma.customLayout.upsert({
+    const existing = await prisma.customLayout.findUnique({
       where: { companyId: company.id },
-      update: {
-        layoutConfig: configString,
-        isActive: true,
-        version: { increment: 1 },
-        description: "Reset to latest grace template",
-      },
-      create: {
-        companyId: company.id,
-        layoutConfig: configString,
-        isActive: true,
-        description: "Reset to latest grace template",
-      },
     });
+
+    if (!existing) {
+      return NextResponse.json({
+        success: true,
+        message: `No saved layout found for "${company.name}" — already using the assigned template.`,
+      });
+    }
+
+    await prisma.customLayout.delete({ where: { companyId: company.id } });
 
     return NextResponse.json({
       success: true,
-      data: { id: layout.id, companyId: layout.companyId, version: layout.version },
-      message: `Layout for "${company.name}" reset to latest template (v${layout.version})`,
+      message: `Custom layout for "${company.name}" removed. The assigned template will now be used.`,
     });
   } catch (error) {
     console.error("Error resetting layout:", error);

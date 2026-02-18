@@ -3,13 +3,21 @@
  * GET    /api/layouts/[companyId] - Fetch layout for a company
  * PUT    /api/layouts/[companyId] - Create or update layout for a company
  * DELETE /api/layouts/[companyId] - Delete layout for a company
+ *
+ * Priority order for GET:
+ *   1. Layout Template assigned to company via branding_settings.layoutTemplateId
+ *   2. Company-specific CustomLayout saved in DB
+ *   3. 404 — caller falls back to the default quote template
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { GRACE_STATIC_LAYOUT } from "@/lib/layouts/grace-static";
 
-/** Merge company branding (font, hero banner, footer image) into layout config globalStyles */
+/**
+ * Merge company-specific branding overrides (hero banner, footer image, font)
+ * into the layout's globalStyles so each company keeps its own imagery even
+ * when sharing a template.
+ */
 async function mergeCompanyBrandingIntoLayout(
   companyId: string,
   layoutConfig: { globalStyles?: Record<string, string> }
@@ -41,32 +49,6 @@ async function mergeCompanyBrandingIntoLayout(
   } catch {
     return layoutConfig;
   }
-}
-
-/** @deprecated Use mergeCompanyBrandingIntoLayout */
-async function mergeCompanyFontIntoLayout(
-  companyId: string,
-  layoutConfig: { globalStyles?: Record<string, string> }
-): Promise<typeof layoutConfig> {
-  return mergeCompanyBrandingIntoLayout(companyId, layoutConfig);
-}
-
-function isGraceCompany(company: { tenantId?: string | null; brandCode?: string | null; name?: string | null } | null): boolean {
-  if (!company) return false;
-  const tenantId = (company.tenantId || "").toLowerCase();
-  const brandCode = (company.brandCode || "").toLowerCase();
-  const name = (company.name || "").toLowerCase();
-  return (
-    tenantId === "555" ||
-    tenantId === "55580" ||
-    tenantId === "67200" ||
-    brandCode.includes("grace") ||
-    name.includes("grace")
-  );
-}
-
-function buildGraceStaticLayoutConfig() {
-  return GRACE_STATIC_LAYOUT;
 }
 
 export async function GET(
@@ -169,26 +151,7 @@ export async function GET(
       }
     }
 
-    // ── Priority 2: Company-specific CustomLayout ──
-    // For Grace companies: use their saved layout if one exists in the DB;
-    // otherwise fall back to the built-in static template.
-    const isGrace = companyId === "555" || isGraceCompany(resolvedCompany);
-    if (isGrace && !layout) {
-      const layoutConfig = buildGraceStaticLayoutConfig();
-      const merged = await mergeCompanyBrandingIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
-      return NextResponse.json({
-        success: true,
-        data: {
-          id: `static-grace-${resolvedCompany?.id || companyId}`,
-          companyId: resolvedCompany?.id || companyId,
-          layoutConfig: merged,
-          version: 1,
-          isActive: true,
-          source: "static_fallback",
-        },
-      });
-    }
-
+    // ── Priority 2: Company-specific CustomLayout saved in the DB ──
     if (!layout) {
       return NextResponse.json(
         { success: false, error: "No custom layout found for this company" },
