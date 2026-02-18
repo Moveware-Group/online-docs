@@ -98,14 +98,13 @@ function extractCopyFields(html: string): { fields: CopyField[]; markedHtml: str
       if (['STYLE', 'SCRIPT', 'INPUT', 'SELECT', 'TEXTAREA'].includes(parentTag)) return;
 
       const baseLabel = getLabel(textNode);
-      // Pure placeholder labels are already unique (keyed by name) — don't number them
+      labelCounts[baseLabel] = (labelCounts[baseLabel] || 0) + 1;
       const isPurePlaceholder = /^\{\{[^}]+\}\}$/.test(trimmed);
+      // Regular text: always numbered ("Text Block 1", "Text Block 2", …)
+      // Pure placeholder: only add a count when there are duplicates ("{{customerName}}", "{{customerName}} (2)")
       const label = isPurePlaceholder
-        ? baseLabel
-        : (() => {
-            labelCounts[baseLabel] = (labelCounts[baseLabel] || 0) + 1;
-            return `${baseLabel} ${labelCounts[baseLabel]}`;
-          })();
+        ? (labelCounts[baseLabel] > 1 ? `${baseLabel} (${labelCounts[baseLabel]})` : baseLabel)
+        : `${baseLabel} ${labelCounts[baseLabel]}`;
       const sentinel = `__COPY_${counter}__`;
 
       fields.push({ id: String(counter), label, value: raw, sentinel });
