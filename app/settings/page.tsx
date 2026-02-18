@@ -824,6 +824,8 @@ export default function SettingsPage() {
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
   const [createAsGlobalDefault, setCreateAsGlobalDefault] = useState(false);
   const [cloningTemplateToLayoutId, setCloningTemplateToLayoutId] = useState<string | null>(null);
+  const [clonePickerCompanyId, setClonePickerCompanyId] = useState<string | null>(null);
+  const [clonePickerTemplateId, setClonePickerTemplateId] = useState<string>('');
 
   // Company-specific layout records (for Custom Layouts tab)
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
@@ -1686,51 +1688,30 @@ export default function SettingsPage() {
                               : <RefreshCw className="w-3.5 h-3.5" />}
                             Reset to Template
                           </button>
-                          {/* Clone assigned template → this company's custom layout */}
-                          {(() => {
-                            const matchedCo = companies.find((c) => c.id === record.companyId || c.companyId === record.company?.tenantId);
-                            const assignedTemplateId = matchedCo?.layoutTemplateId;
-                            const assignedTemplate = layoutTemplates.find((t) => t.id === assignedTemplateId);
-                            if (!assignedTemplate) return null;
-                            return (
-                              <button
-                                disabled={cloningTemplateToLayoutId === record.companyId}
-                                onClick={async () => {
-                                  if (!confirm(`Replace the company layout for "${record.company.name}" with the content of template "${assignedTemplate.name}"?\n\nThis creates an editable company-specific copy of the template. The template itself is not changed.`)) return;
-                                  setCloningTemplateToLayoutId(record.companyId);
-                                  try {
-                                    // Fetch full template config
-                                    const tmplRes = await fetch(`/api/layout-templates/${assignedTemplateId}`);
-                                    const tmplData = await tmplRes.json();
-                                    if (!tmplData.success) { alert('Failed to load template: ' + (tmplData.error || 'unknown error')); return; }
-                                    // Save as company layout
-                                    const saveRes = await fetch(`/api/layouts/${record.companyId}`, {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ layoutConfig: tmplData.data.layoutConfig, isActive: true, description: `Cloned from template: ${assignedTemplate.name}` }),
-                                    });
-                                    const saveData = await saveRes.json();
-                                    if (saveData.success) {
-                                      await loadCompanyLayouts();
-                                      setSuccess(`Company layout for "${record.company.name}" updated from template "${assignedTemplate.name}".`);
-                                      setTimeout(() => setSuccess(null), 4000);
-                                    } else {
-                                      alert('Failed to save: ' + (saveData.error || 'unknown error'));
-                                    }
-                                  } finally {
-                                    setCloningTemplateToLayoutId(null);
-                                  }
-                                }}
-                                className="px-3 py-1.5 text-xs text-green-700 hover:bg-green-50 rounded-lg flex items-center gap-1 transition-colors border border-green-300 disabled:opacity-50"
-                                title={`Copy template "${assignedTemplate.name}" into this company's editable layout`}
-                              >
-                                {cloningTemplateToLayoutId === record.companyId
-                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  : <Copy className="w-3.5 h-3.5" />}
-                                Clone from Template
-                              </button>
-                            );
-                          })()}
+                          {/* Clone any template → this company's custom layout */}
+                          {layoutTemplates.length > 0 && (
+                            <button
+                              disabled={cloningTemplateToLayoutId === record.companyId}
+                              onClick={() => {
+                                if (clonePickerCompanyId === record.companyId) {
+                                  setClonePickerCompanyId(null);
+                                  setClonePickerTemplateId('');
+                                } else {
+                                  // Pre-select the company's assigned template if available
+                                  const matchedCo = companies.find((c) => c.id === record.companyId || c.companyId === record.company?.tenantId);
+                                  setClonePickerTemplateId(matchedCo?.layoutTemplateId || layoutTemplates[0]?.id || '');
+                                  setClonePickerCompanyId(record.companyId);
+                                }
+                              }}
+                              className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1 transition-colors border disabled:opacity-50 ${clonePickerCompanyId === record.companyId ? 'bg-green-50 border-green-400 text-green-800' : 'text-green-700 hover:bg-green-50 border-green-300'}`}
+                              title="Copy a template into this company's editable layout"
+                            >
+                              {cloningTemplateToLayoutId === record.companyId
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <Copy className="w-3.5 h-3.5" />}
+                              Clone from Template
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               handlePromoteToTemplate();
@@ -1752,6 +1733,63 @@ export default function SettingsPage() {
                           </a>
                         </div>
                       </div>
+
+                      {/* Clone-from-template picker — shown inline when button is active */}
+                      {clonePickerCompanyId === record.companyId && (
+                        <div className="border-t border-green-200 bg-green-50 px-4 py-3 flex items-center gap-3 flex-wrap">
+                          <span className="text-xs font-medium text-green-800 flex-shrink-0">Clone from:</span>
+                          <select
+                            value={clonePickerTemplateId}
+                            onChange={(e) => setClonePickerTemplateId(e.target.value)}
+                            className="flex-1 min-w-[160px] px-2 py-1.5 text-xs border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-green-400"
+                          >
+                            {layoutTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name} v{t.version}</option>
+                            ))}
+                          </select>
+                          <button
+                            disabled={!clonePickerTemplateId || cloningTemplateToLayoutId === record.companyId}
+                            onClick={async () => {
+                              const tmpl = layoutTemplates.find((t) => t.id === clonePickerTemplateId);
+                              if (!tmpl) return;
+                              if (!confirm(`Replace the company layout for "${record.company.name}" with the content of template "${tmpl.name}"?\n\nThis creates an editable company-specific copy. The template itself is not changed.`)) return;
+                              setCloningTemplateToLayoutId(record.companyId);
+                              try {
+                                const tmplRes = await fetch(`/api/layout-templates/${clonePickerTemplateId}`);
+                                const tmplData = await tmplRes.json();
+                                if (!tmplData.success) { alert('Failed to load template: ' + (tmplData.error || 'unknown error')); return; }
+                                const saveRes = await fetch(`/api/layouts/${record.companyId}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ layoutConfig: tmplData.data.layoutConfig, isActive: true, description: `Cloned from template: ${tmpl.name}` }),
+                                });
+                                const saveData = await saveRes.json();
+                                if (saveData.success) {
+                                  setClonePickerCompanyId(null);
+                                  setClonePickerTemplateId('');
+                                  await loadCompanyLayouts();
+                                  setSuccess(`Company layout for "${record.company.name}" replaced with "${tmpl.name}". Open the Layout Builder to make company-specific edits.`);
+                                  setTimeout(() => setSuccess(null), 5000);
+                                } else {
+                                  alert('Failed to save: ' + (saveData.error || 'unknown error'));
+                                }
+                              } finally {
+                                setCloningTemplateToLayoutId(null);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {cloningTemplateToLayoutId === record.companyId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                            Apply
+                          </button>
+                          <button
+                            onClick={() => { setClonePickerCompanyId(null); setClonePickerTemplateId(''); }}
+                            className="px-3 py-1.5 text-xs text-gray-500 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
 
                       {/* Expanded: block list */}
                       {isExpanded && (
