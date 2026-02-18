@@ -161,14 +161,45 @@ function QuotePageContent() {
         });
       });
 
-      // Update "X / Y" page indicator
-      const indicator = document.getElementById('grace-page-indicator');
-      if (indicator) indicator.textContent = `${currentPage} / ${pages}`;
+      // Populate branded page-number circles
+      const pageNumbersEl = document.getElementById('grace-page-numbers');
+      if (pageNumbersEl) {
+        pageNumbersEl.innerHTML = '';
+        const maxVisible = 5;
+        const half = Math.floor(maxVisible / 2);
+        const startPage = Math.max(1, Math.min(currentPage - half, pages - maxVisible + 1));
+        const endPage = Math.min(pages, startPage + maxVisible - 1);
+        for (let p = startPage; p <= endPage; p++) {
+          const isActive = p === currentPage;
+          const pageBtn = document.createElement('button');
+          pageBtn.textContent = String(p);
+          pageBtn.style.cssText = [
+            'width:32px', 'height:32px', 'border-radius:50%', 'font-size:13px',
+            'font-weight:' + (isActive ? '700' : '400'),
+            'cursor:' + (isActive ? 'default' : 'pointer'),
+            'display:flex', 'align-items:center', 'justify-content:center', 'flex-shrink:0',
+            'border:1px solid ' + (isActive ? (primaryColor || '#e53e3e') : '#d1d5db'),
+            'background:' + (isActive ? (primaryColor || '#e53e3e') : '#fff'),
+            'color:' + (isActive ? '#fff' : '#374151'),
+            'transition:background 0.15s',
+          ].join(';');
+          if (!isActive) {
+            pageBtn.addEventListener('click', () => setCurrentPage(p));
+          }
+          pageNumbersEl.appendChild(pageBtn);
+        }
+      }
+
+      // Update "Showing X–Y of Z items" info text
+      const from = (currentPage - 1) * itemsPerPage + 1;
+      const to = Math.min(currentPage * itemsPerPage, inventory.length);
+      const infoEl = document.getElementById('grace-page-info');
+      if (infoEl) infoEl.textContent = `Showing ${from} to ${to} of ${inventory.length} items`;
     }, 100);
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout, currentPage, itemsPerPage, inventory.length]);
+  }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
   
   // Validation states
   const [errors, setErrors] = useState({
@@ -880,6 +911,19 @@ function QuotePageContent() {
             acceptanceFormSlot={acceptanceFormSlot}
           />
         </div>
+        {/* Back to Top — desktop & tablet only */}
+        {showBackToTop && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="no-print fixed bottom-8 right-8 w-12 h-12 rounded-full text-white shadow-lg hover:shadow-xl transition-all duration-300 hidden md:flex items-center justify-center z-50 hover:scale-110"
+            style={{ backgroundColor: primaryColor }}
+            aria-label="Back to top"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+          </button>
+        )}
       </PageShell>
     );
   }
