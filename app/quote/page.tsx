@@ -118,14 +118,18 @@ function QuotePageContent() {
   const nextStepsRef = useRef<HTMLDivElement>(null);
 
   // Wire up custom-layout inventory pagination buttons.
-  // Re-runs whenever currentPage or inventory/itemsPerPage changes so the
-  // buttons always reflect the latest page state after React re-renders the HTML block.
+  // Re-runs whenever currentPage, inventory, itemsPerPage, or primaryColor changes so the
+  // buttons always reflect the latest page state and branding after React re-renders the HTML block.
+  // NOTE: primaryColor and inventory.length are the only external values captured; all others
+  // are local to the effect so no additional deps are needed.
   useEffect(() => {
     if (!customLayout) return;
 
-    // Compute totalPages here to avoid a forward-reference to the variable
-    // declared later in the render body (after the early-return guards).
-    const pages = itemsPerPage === -1 ? 1 : Math.ceil(inventory.length / itemsPerPage);
+    // Snapshot the values we need so the closure stays stable
+    const color = primaryColor || '#e53e3e';
+    const totalItems = inventory.length;
+    const pages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    const page = currentPage;
 
     const timer = setTimeout(() => {
       const paginationEl = document.getElementById('grace-inventory-pagination');
@@ -139,25 +143,30 @@ function QuotePageContent() {
       (paginationEl as HTMLElement).style.display = 'flex';
 
       const buttons = paginationEl.querySelectorAll<HTMLButtonElement>('.grace-page-btn');
-      buttons.forEach((btn) => {
-        // Remove old listeners by cloning
+      buttons.forEach((btn, index) => {
+        // Remove old listeners by cloning the node
         const fresh = btn.cloneNode(true) as HTMLButtonElement;
         btn.parentNode?.replaceChild(fresh, btn);
 
-        const dir = fresh.dataset.dir;
+        // Determine direction from data attribute; fall back to position (0=prev, last=next)
+        const dir = fresh.dataset.dir || (index === 0 ? 'prev' : 'next');
         const isPrev = dir === 'prev';
         const isNext = dir === 'next';
 
-        // Disable at boundaries
-        const atStart = currentPage <= 1;
-        const atEnd = currentPage >= pages;
+        const atStart = page <= 1;
+        const atEnd = page >= pages;
         fresh.disabled = isPrev ? atStart : isNext ? atEnd : false;
-        fresh.style.opacity = fresh.disabled ? '0.4' : '1';
+
+        // Apply branding colour programmatically — works regardless of stored HTML styles
+        fresh.style.borderColor = fresh.disabled ? '#d1d5db' : color;
+        fresh.style.color = fresh.disabled ? '#9ca3af' : color;
+        fresh.style.background = '#fff';
+        fresh.style.opacity = fresh.disabled ? '0.6' : '1';
         fresh.style.cursor = fresh.disabled ? 'not-allowed' : 'pointer';
 
         fresh.addEventListener('click', () => {
-          if (isPrev && currentPage > 1) setCurrentPage((p) => p - 1);
-          if (isNext && currentPage < pages) setCurrentPage((p) => p + 1);
+          if (isPrev && page > 1) setCurrentPage((p) => p - 1);
+          if (isNext && page < pages) setCurrentPage((p) => p + 1);
         });
       });
 
@@ -167,10 +176,10 @@ function QuotePageContent() {
         pageNumbersEl.innerHTML = '';
         const maxVisible = 5;
         const half = Math.floor(maxVisible / 2);
-        const startPage = Math.max(1, Math.min(currentPage - half, pages - maxVisible + 1));
+        const startPage = Math.max(1, Math.min(page - half, pages - maxVisible + 1));
         const endPage = Math.min(pages, startPage + maxVisible - 1);
         for (let p = startPage; p <= endPage; p++) {
-          const isActive = p === currentPage;
+          const isActive = p === page;
           const pageBtn = document.createElement('button');
           pageBtn.textContent = String(p);
           pageBtn.style.cssText = [
@@ -178,8 +187,8 @@ function QuotePageContent() {
             'font-weight:' + (isActive ? '700' : '400'),
             'cursor:' + (isActive ? 'default' : 'pointer'),
             'display:flex', 'align-items:center', 'justify-content:center', 'flex-shrink:0',
-            'border:1px solid ' + (isActive ? (primaryColor || '#e53e3e') : '#d1d5db'),
-            'background:' + (isActive ? (primaryColor || '#e53e3e') : '#fff'),
+            'border:1px solid ' + (isActive ? color : '#d1d5db'),
+            'background:' + (isActive ? color : '#fff'),
             'color:' + (isActive ? '#fff' : '#374151'),
             'transition:background 0.15s',
           ].join(';');
@@ -191,15 +200,15 @@ function QuotePageContent() {
       }
 
       // Update "Showing X–Y of Z items" info text
-      const from = (currentPage - 1) * itemsPerPage + 1;
-      const to = Math.min(currentPage * itemsPerPage, inventory.length);
+      const from = itemsPerPage === -1 ? 1 : (page - 1) * itemsPerPage + 1;
+      const to = itemsPerPage === -1 ? totalItems : Math.min(page * itemsPerPage, totalItems);
       const infoEl = document.getElementById('grace-page-info');
-      if (infoEl) infoEl.textContent = `Showing ${from} to ${to} of ${inventory.length} items`;
+      if (infoEl) infoEl.textContent = `Showing ${from} to ${to} of ${totalItems} items`;
     }, 100);
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout, currentPage, itemsPerPage, inventory.length]);
+  }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
   
   // Validation states
   const [errors, setErrors] = useState({
