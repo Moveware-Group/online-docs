@@ -62,11 +62,11 @@ export const GRACE_STATIC_LAYOUT = {
       html: `<!-- Full-width hero banner image -->
 <style>
   /* Fixed-height wrapper drives object-fit:cover correctly */
-  .grace-hero-wrap { height: {{config.desktopMaxHeight}}px; }
+  .grace-hero-wrap { height: {{config.desktopMaxHeight}}px; overflow: hidden; }
   @media (max-width: 1024px) { .grace-hero-wrap { height: {{config.tabletMaxHeight}}px; } }
   @media (max-width: 640px)  { .grace-hero-wrap { height: {{config.mobileMaxHeight}}px; } }
 </style>
-<div class="grace-hero-wrap" style="width:100vw;position:relative;left:50%;margin-left:-50vw;overflow:hidden;">
+<div class="grace-hero-wrap">
   <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner"
     style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
     onerror="this.src='/grace-assets/banner_1.png'" />
@@ -338,11 +338,11 @@ export const GRACE_STATIC_LAYOUT = {
       html: `<!-- Full-width footer banner image -->
 <style>
   /* Fixed-height wrapper drives object-fit:cover correctly */
-  .grace-footer-wrap { height: {{config.desktopMaxHeight}}px; }
+  .grace-footer-wrap { height: {{config.desktopMaxHeight}}px; overflow: hidden; }
   @media (max-width: 1024px) { .grace-footer-wrap { height: {{config.tabletMaxHeight}}px; } }
   @media (max-width: 640px)  { .grace-footer-wrap { height: {{config.mobileMaxHeight}}px; } }
 </style>
-<div class="grace-footer-wrap" style="width:100vw;position:relative;left:50%;margin-left:-50vw;overflow:hidden;">
+<div class="grace-footer-wrap">
   <img src="{{branding.footerImageUrl}}" alt="{{branding.companyName}} Footer"
     style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
     onerror="this.src='/grace-assets/banner_3.png'" />
