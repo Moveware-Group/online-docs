@@ -1589,6 +1589,7 @@ export default function SettingsPage() {
                               <li>• <strong>One company, unique layout</strong> → Company Layout</li>
                               <li>• <strong>Same structure across many companies</strong> → Template</li>
                               <li>• Promote a Company Layout to a Template using <strong>Save as Template</strong></li>
+                              <li>• Mark a template as <strong>🌐 Global Default</strong> to apply it to every company with no other layout</li>
                               <li>• Templates override a company&apos;s own layout when assigned</li>
                             </ul>
                           </div>
@@ -1789,6 +1790,36 @@ export default function SettingsPage() {
               </button>
             </div>
 
+            {/* Layout resolution order info panel */}
+            <div className="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                How layouts are resolved for each company (in order)
+              </p>
+              <ol className="space-y-1.5 text-xs text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                  <span><strong>Assigned Template</strong> — a specific template assigned to this company overrides everything else.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                  <span><strong>Company Layout</strong> — a layout built specifically for this company in the Layout Builder.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                  <span><strong>Global Default Template</strong> — the template marked <span className="font-semibold text-green-700">🌐 Global Default</span> below applies to ALL companies with no assigned template or custom layout. Edit it to change what every new client sees.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                  <span><strong>Built-in default</strong> — the hard-coded standard quote layout (no customisation applied).</span>
+                </li>
+              </ol>
+              <p className="text-xs text-blue-700 mt-3 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                To edit the default layout Crown Worldwide uses: create a template using <strong>&nbsp;&quot;Default Layout&quot;</strong> as the base, open it in the Layout Builder, then mark it as <strong>&nbsp;Global Default</strong>.
+              </p>
+            </div>
+
             {/* Create template form */}
             {creatingTemplate && (
               <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-4 space-y-3">
@@ -1921,7 +1952,7 @@ export default function SettingsPage() {
                                 <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
                                 <span className="text-xs text-gray-400 flex-shrink-0">v{template.version}</span>
                                 {!template.isActive && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Inactive</span>}
-                                {template.isDefault && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">Default for new companies</span>}
+                                {template.isDefault && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">🌐 Global Default</span>}
                               </div>
                               {template.description && <p className="text-xs text-gray-500 truncate">{template.description}</p>}
                               <div className="flex items-center gap-1 mt-1">
@@ -1952,7 +1983,7 @@ export default function SettingsPage() {
                                       ...t,
                                       isDefault: newValue ? t.id === template.id : false,
                                     })));
-                                    setSuccess(newValue ? `"${template.name}" will now be assigned to new companies automatically.` : 'Default cleared.');
+                                    setSuccess(newValue ? `"${template.name}" is now the Global Default — it will be used by all companies without a specific layout or assigned template.` : 'Global default cleared. Companies without an assigned layout will use the built-in default.');
                                     setTimeout(() => setSuccess(null), 4000);
                                   } else {
                                     setError(data.error || 'Failed to update');

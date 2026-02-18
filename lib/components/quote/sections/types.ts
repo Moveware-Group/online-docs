@@ -74,8 +74,22 @@ export interface QuotePageData {
   heroBannerUrl?: string;
   footerImageUrl?: string;
   primaryColor: string;
+  /** DD/MM/YYYY  */
   quoteDate: string;
+  /** Wednesday, February 18, 2026 */
+  quoteDateLong: string;
+  /** Wednesday, 18 February 2026  */
+  quoteDateFull: string;
+  /** 18 Feb 2026                  */
+  quoteDateMedium: string;
+  /** DD/MM/YYYY  */
   expiryDate: string;
+  /** Saturday, March 18, 2026     */
+  expiryDateLong: string;
+  /** Saturday, 18 March 2026      */
+  expiryDateFull: string;
+  /** 18 Mar 2026                  */
+  expiryDateMedium: string;
   totalCube: number;
   /** Pagination metadata for the inventory table (used by custom layout blocks) */
   inventoryFrom?: number;

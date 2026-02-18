@@ -668,16 +668,41 @@ function QuotePageContent() {
   const fontFamily = job.branding?.fontFamily || 'Inter';
   const totalCube = inventory.reduce((sum, item) => sum + (item.cube || 0), 0);
 
-  // Format date to DD/MM/YYYY (Australian format)
-  const formatDate = (date: Date) => {
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
+  // ── Date formatting helpers ────────────────────────────────────────────────
+  const WEEKDAYS    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  const quoteDate = formatDate(new Date());
-  const expiryDate = formatDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+  /** DD/MM/YYYY */
+  const formatDateShort = (d: Date) =>
+    `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+  /** Wednesday, February 18, 2026 */
+  const formatDateLongUS = (d: Date) =>
+    `${WEEKDAYS[d.getDay()]}, ${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+
+  /** Wednesday, 18 February 2026 */
+  const formatDateLongAU = (d: Date) =>
+    `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
+
+  /** 18 Feb 2026 */
+  const formatDateMedium = (d: Date) =>
+    `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+
+  const now    = new Date();
+  const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  const quoteDate        = formatDateShort(now);
+  const quoteDateLong    = formatDateLongUS(now);
+  const quoteDateFull    = formatDateLongAU(now);
+  const quoteDateMedium  = formatDateMedium(now);
+  const expiryDate       = formatDateShort(expiry);
+  const expiryDateLong   = formatDateLongUS(expiry);
+  const expiryDateFull   = formatDateLongAU(expiry);
+  const expiryDateMedium = formatDateMedium(expiry);
+
+  // Keep the old name for any code that still calls formatDate directly
+  const formatDate = formatDateShort;
 
   // Pagination logic for inventory
   const totalPages = itemsPerPage === -1 ? 1 : Math.ceil(inventory.length / itemsPerPage);
@@ -713,7 +738,13 @@ function QuotePageContent() {
       footerImageUrl: gs.footerImageUrl || footerImageUrl,
       primaryColor,
       quoteDate,
+      quoteDateLong,
+      quoteDateFull,
+      quoteDateMedium,
       expiryDate,
+      expiryDateLong,
+      expiryDateFull,
+      expiryDateMedium,
       totalCube,
       // Inventory pagination fields (resolved as {{inventoryFrom}} etc. in templates)
       inventoryFrom: invFrom,
