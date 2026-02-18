@@ -58,9 +58,26 @@ export const GRACE_STATIC_LAYOUT = {
       label: "Hero Banner",
       type: "custom_html",
       visible: true,
+      config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width hero banner image -->
-<div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;">
-  <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner" style="width:100%;height:auto;display:block;" onerror="this.src='/grace-assets/banner_1.png'" />
+<style>
+  .grace-hero-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: {{config.desktopMaxHeight}}px;
+    object-fit: cover;
+    object-position: center;
+  }
+  @media (max-width: 1024px) {
+    .grace-hero-img { max-height: {{config.tabletMaxHeight}}px; }
+  }
+  @media (max-width: 640px) {
+    .grace-hero-img { max-height: {{config.mobileMaxHeight}}px; }
+  }
+</style>
+<div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden;">
+  <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner" class="grace-hero-img" onerror="this.src='/grace-assets/banner_1.png'" />
 </div>`,
     },
 
@@ -318,21 +335,22 @@ export const GRACE_STATIC_LAYOUT = {
       label: "Footer Image",
       type: "custom_html",
       visible: true,
+      config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width footer banner image -->
 <style>
   .grace-footer-img {
     width: 100%;
     height: auto;
     display: block;
-    max-height: 550px;
+    max-height: {{config.desktopMaxHeight}}px;
     object-fit: cover;
     object-position: center;
   }
   @media (max-width: 1024px) {
-    .grace-footer-img { max-height: 350px; }
+    .grace-footer-img { max-height: {{config.tabletMaxHeight}}px; }
   }
   @media (max-width: 640px) {
-    .grace-footer-img { max-height: 200px; }
+    .grace-footer-img { max-height: {{config.mobileMaxHeight}}px; }
   }
 </style>
 <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden;margin-bottom:0;">

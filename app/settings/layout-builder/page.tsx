@@ -222,6 +222,8 @@ function LayoutBuilderContent() {
   const [copyFields, setCopyFields] = useState<CopyField[]>([]);
   const [markedHtml, setMarkedHtml] = useState('');
   const editBlockTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // Editable block config (e.g. image max-heights)
+  const [editingBlockConfig, setEditingBlockConfig] = useState<Record<string, unknown>>({});
 
   // Preview iframe ref
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -975,6 +977,7 @@ function LayoutBuilderContent() {
     const html = section.html || '';
     setEditingBlockIndex(index);
     setEditingBlockContent(html);
+    setEditingBlockConfig((section.config as Record<string, unknown>) || {});
     // Run copy extractor
     const { fields, markedHtml: mHtml } = extractCopyFields(html);
     setCopyFields(fields);
@@ -986,6 +989,7 @@ function LayoutBuilderContent() {
   const closeBlockEditor = () => {
     setEditingBlockIndex(null);
     setEditingBlockContent('');
+    setEditingBlockConfig({});
     setCopyFields([]);
     setMarkedHtml('');
   };
@@ -1000,7 +1004,9 @@ function LayoutBuilderContent() {
     if (editingBlockIndex === null || !layoutConfig) return;
     const finalHtml = getCurrentBlockHtml();
     const sections = layoutConfig.sections.map((s, i) =>
-      i === editingBlockIndex ? { ...s, html: finalHtml } : s
+      i === editingBlockIndex
+        ? { ...s, html: finalHtml, config: Object.keys(editingBlockConfig).length ? editingBlockConfig : s.config }
+        : s
     );
     const updated = { ...layoutConfig, sections };
     setLayoutConfig(updated);
@@ -1028,6 +1034,20 @@ function LayoutBuilderContent() {
       const newPos = start + token.length;
       textarea.setSelectionRange(newPos, newPos);
     }, 0);
+  };
+
+  /**
+   * Returns true when the block being edited has image max-height config keys
+   * (either already set, or when the block label / id suggests it is a banner).
+   */
+  const editingBlockIsImage = (): boolean => {
+    if (editingBlockIndex === null || !layoutConfig) return false;
+    const section = layoutConfig.sections[editingBlockIndex];
+    const hasKeys = 'desktopMaxHeight' in editingBlockConfig;
+    const nameHint = /banner|footer.?image|hero/i.test(
+      `${section.label || ''} ${section.id || ''}`,
+    );
+    return hasKeys || nameHint;
   };
 
   const addAssistantMessage = (content: string) => {
@@ -1613,6 +1633,43 @@ function LayoutBuilderContent() {
                     })}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── IMAGE HEIGHTS PANEL (shown for banner / hero / footer-image blocks) ── */}
+            {editingBlockIsImage() && (
+              <div className="border-t border-gray-200 bg-amber-50 px-4 py-3 flex-shrink-0">
+                <p className="text-[10px] font-semibold text-amber-800 uppercase tracking-wide mb-2 flex items-center gap-1">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 9 4-4 4 4 4-6 4 6"/></svg>
+                  Image max-height
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { key: 'desktopMaxHeight', label: 'Desktop', default: 500 },
+                    { key: 'tabletMaxHeight',  label: 'Tablet',  default: 350 },
+                    { key: 'mobileMaxHeight',  label: 'Mobile',  default: 250 },
+                  ] as const).map(({ key, label, default: def }) => (
+                    <div key={key}>
+                      <label className="block text-[9px] text-amber-700 font-medium mb-0.5">{label} (px)</label>
+                      <input
+                        type="number"
+                        min={50}
+                        max={1200}
+                        value={String(editingBlockConfig[key] ?? def)}
+                        onChange={(e) =>
+                          setEditingBlockConfig((prev) => ({
+                            ...prev,
+                            [key]: Number(e.target.value) || def,
+                          }))
+                        }
+                        className="w-full px-2 py-1 text-xs border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[9px] text-amber-600 mt-1.5">
+                  Controls <code className="bg-amber-100 px-0.5 rounded">{"{{config.desktopMaxHeight}}"}</code> etc. in the HTML template.
+                </p>
               </div>
             )}
 

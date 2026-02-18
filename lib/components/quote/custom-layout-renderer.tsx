@@ -58,11 +58,15 @@ function evaluateCondition(condition: SectionCondition, data: QuotePageData): bo
 
 /**
  * Simple Handlebars-like template resolver.
- * Supports: {{variable}}, {{#each array}} ... {{/each}}
+ * Supports: {{variable}}, {{#each array}} ... {{/each}}, {{config.key}}
+ *
+ * @param sectionConfig  Optional section-level config (stored on the LayoutSection).
+ *                       Each key becomes available as {{config.key}} in the HTML.
  */
 function resolveTemplate(
   html: string,
   data: QuotePageData,
+  sectionConfig?: Record<string, unknown>,
 ): string {
   let result = html;
 
@@ -159,6 +163,18 @@ function resolveTemplate(
 
   for (const [key, value] of Object.entries(vars)) {
     result = result.replace(new RegExp(`\\{\\{${key.replace(/\./g, '\\.')}\\}\\}`, 'g'), value);
+  }
+
+  // Resolve {{config.KEY}} from section-level config
+  if (sectionConfig) {
+    for (const [key, value] of Object.entries(sectionConfig)) {
+      if (value !== null && value !== undefined) {
+        result = result.replace(
+          new RegExp(`\\{\\{config\\.${key.replace(/\./g, '\\.')}\\}\\}`, 'g'),
+          String(value),
+        );
+      }
+    }
   }
 
   return result;
@@ -294,7 +310,11 @@ function RenderSection({
 }) {
   // ---- Custom HTML section ----
   if (section.type === 'custom_html') {
-    const rawHtml = resolveTemplate(section.html || '', data);
+    const rawHtml = resolveTemplate(
+      section.html || '',
+      data,
+      section.config as Record<string, unknown> | undefined,
+    );
     const cleanHtml = DOMPurify.sanitize(rawHtml, {
       ADD_TAGS: ['style'],
       ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror'],
