@@ -198,31 +198,55 @@ export function CustomLayoutRenderer({
       style={{
         fontFamily: globalStyles.fontFamily || 'Inter, sans-serif',
         backgroundColor: globalStyles.backgroundColor || '#f9fafb',
-        overflowX: 'hidden',
+        // No overflowX: 'hidden' here — that would clip the full-width breakout
+        // technique used in custom_html sections (position:relative; left:50%;
+        // margin-left:-50vw; width:100vw). Overflow is handled at the body level.
       }}
       className="min-h-screen"
     >
       {/* Global custom CSS */}
       {customCss && <style>{customCss}</style>}
 
-      <div style={{ maxWidth: globalStyles.maxWidth || '1152px' }} className="mx-auto">
-        {config.sections
-          .filter((s) => {
-            if (s.visible === false) return false;
-            // Evaluate optional display condition
-            if (s.condition) return evaluateCondition(s.condition, data);
-            return true;
-          })
-          .map((section) => (
-            <RenderSection
+      {config.sections
+        .filter((s) => {
+          if (s.visible === false) return false;
+          // Evaluate optional display condition
+          if (s.condition) return evaluateCondition(s.condition, data);
+          return true;
+        })
+        .map((section) => {
+          // custom_html sections manage their own full-width layout internally
+          // (header/hero/footer use the 100vw breakout technique), so they must
+          // render at the document root level — not inside a maxWidth container.
+          if (section.type === 'custom_html') {
+            return (
+              <RenderSection
+                key={section.id}
+                section={section}
+                data={data}
+                selectedCostingId={selectedCostingId}
+                onSelectCosting={onSelectCosting}
+              />
+            );
+          }
+
+          // Built-in component sections (HeaderSection, EstimateCard, etc.) are
+          // centred within the configured maxWidth.
+          return (
+            <div
               key={section.id}
-              section={section}
-              data={data}
-              selectedCostingId={selectedCostingId}
-              onSelectCosting={onSelectCosting}
-            />
-          ))}
-      </div>
+              style={{ maxWidth: globalStyles.maxWidth || '1152px' }}
+              className="mx-auto px-4"
+            >
+              <RenderSection
+                section={section}
+                data={data}
+                selectedCostingId={selectedCostingId}
+                onSelectCosting={onSelectCosting}
+              />
+            </div>
+          );
+        })}
     </div>
   );
 }

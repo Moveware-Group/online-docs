@@ -55,6 +55,9 @@
   }
   body {
     @apply bg-white text-gray-900;
+    /* Prevent horizontal scrollbar caused by 100vw full-width breakout
+       technique used in custom HTML layout sections. */
+    overflow-x: hidden;
   }
 }
 
