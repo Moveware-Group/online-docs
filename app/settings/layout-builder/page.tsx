@@ -10,6 +10,7 @@ import {
   Loader2,
   Upload,
   FileText,
+  Pencil,
   X,
   Bot,
   User,
@@ -1399,9 +1400,20 @@ function LayoutBuilderContent() {
             {/* How to edit hint */}
             {layoutConfig && layoutConfig.sections?.length > 0 && (
               <div className="mb-4 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-[11px] text-blue-800 space-y-1">
-                  <p><strong>✏️ To edit text / add placeholders:</strong></p>
-                  <p>Click the <span className="inline-flex items-center gap-0.5 font-semibold">pencil <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></span> icon on any block to open its editor. Use the <strong>Placeholders</strong> tab to find data fields like <code className="bg-blue-100 px-0.5 rounded">{"{{customer_name}}"}</code>.</p>
+                <div className="text-[11px] text-blue-800 space-y-1.5">
+                  <p className="font-semibold">How to use:</p>
+                  <p className="flex items-start gap-1">
+                    <GripVertical className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
+                    <span><strong>Drag</strong> the grip handle to reorder blocks</span>
+                  </p>
+                  <p className="flex items-start gap-1">
+                    <Pencil className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
+                    <span><strong>Click the pencil</strong> on any block to edit copy or add placeholders like <code className="bg-blue-100 px-0.5 rounded">{"{{customer_name}}"}</code></span>
+                  </p>
+                  <p className="flex items-start gap-1">
+                    <Eye className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
+                    <span><strong>Eye icon</strong> to show/hide a block</span>
+                  </p>
                 </div>
               </div>
             )}
@@ -1462,10 +1474,10 @@ function LayoutBuilderContent() {
                       {isEditable && (
                         <button
                           onClick={() => openBlockEditor(index)}
-                          title="Edit block content"
+                          title="Edit copy / add placeholders"
                           className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >
-                          <FileText className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
                       )}
 
