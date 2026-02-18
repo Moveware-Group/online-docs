@@ -742,6 +742,26 @@ export default function SettingsPage() {
   // Help popover for Custom Layouts tab
   const [showLayoutHelp, setShowLayoutHelp] = useState(false);
 
+  // Template company-assignment multi-select dropdown
+  const [assignDropdownOpen, setAssignDropdownOpen] = useState<string | null>(null); // templateId
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignPending, setAssignPending] = useState<Set<string>>(new Set()); // companyIds pending
+  const [assigningSaving, setAssigningSaving] = useState(false);
+  const assignDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (assignDropdownRef.current && !assignDropdownRef.current.contains(e.target as Node)) {
+        setAssignDropdownOpen(null);
+        setAssignSearch('');
+        setAssignPending(new Set());
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
   // Per-block HTML editor (Custom Layouts tab)
   // key: `${layoutId}:${blockIndex}`
   const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
@@ -1018,6 +1038,31 @@ export default function SettingsPage() {
       }
     } catch {
       setError('Failed to assign template');
+    }
+  };
+
+  /** Assign all pending companies in one go then close the dropdown */
+  const handleAssignMultiple = async (templateId: string) => {
+    if (assignPending.size === 0) return;
+    setAssigningSaving(true);
+    try {
+      for (const companyId of assignPending) {
+        await fetch(`/api/layout-templates/${templateId}/assign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId }),
+        });
+      }
+      await loadLayoutTemplates();
+      setSuccess(`Assigned to ${assignPending.size} compan${assignPending.size === 1 ? 'y' : 'ies'}.`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError('Failed to assign template to one or more companies');
+    } finally {
+      setAssignDropdownOpen(null);
+      setAssignSearch('');
+      setAssignPending(new Set());
+      setAssigningSaving(false);
     }
   };
 
@@ -1724,37 +1769,137 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        {/* Assign to company */}
-                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center gap-3 flex-wrap">
-                          <span className="text-xs text-gray-500 font-medium flex-shrink-0">Assign to:</span>
-                          <select
-                            defaultValue=""
-                            onChange={async (e) => {
-                              if (!e.target.value) return;
-                              await handleAssignTemplate(template.id, e.target.value);
-                              e.target.value = '';
-                            }}
-                            className="text-xs border border-gray-300 rounded px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-500 flex-1 max-w-xs"
-                          >
-                            <option value="">— select company —</option>
-                            {companies
-                              .filter((c) => !assignedCompanies.some((ac) => ac.id === c.id))
-                              .map((c) => (
-                                <option key={c.id} value={c.id}>{c.companyName}</option>
-                              ))}
-                          </select>
-                          {assignedCompanies.map((ac) => (
-                            <div key={ac.id} className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                              {ac.name}
+                        {/* Assign to company — searchable multi-select */}
+                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                          <div className="flex items-start gap-3 flex-wrap">
+                            <span className="text-xs text-gray-500 font-medium flex-shrink-0 pt-1.5">Assign to:</span>
+
+                            {/* Trigger button + dropdown */}
+                            <div
+                              ref={assignDropdownOpen === template.id ? assignDropdownRef : null}
+                              className="relative"
+                            >
                               <button
-                                onClick={() => handleAssignTemplate(template.id, ac.id, true)}
-                                className="ml-1 hover:text-red-600"
-                                title="Unassign"
+                                onClick={() => {
+                                  if (assignDropdownOpen === template.id) {
+                                    setAssignDropdownOpen(null);
+                                    setAssignSearch('');
+                                    setAssignPending(new Set());
+                                  } else {
+                                    setAssignDropdownOpen(template.id);
+                                    setAssignSearch('');
+                                    setAssignPending(new Set());
+                                  }
+                                }}
+                                className="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
                               >
-                                <X className="w-3 h-3" />
+                                <Plus className="w-3 h-3 text-gray-400" />
+                                Add companies
+                                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${assignDropdownOpen === template.id ? 'rotate-180' : ''}`} />
                               </button>
+
+                              {/* Dropdown panel */}
+                              {assignDropdownOpen === template.id && (
+                                <div className="absolute top-full left-0 mt-1 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                                  {/* Search */}
+                                  <div className="p-2 border-b border-gray-100">
+                                    <div className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                                      <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Search companies…"
+                                        value={assignSearch}
+                                        onChange={(e) => setAssignSearch(e.target.value)}
+                                        className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder-gray-400"
+                                      />
+                                      {assignSearch && (
+                                        <button onClick={() => setAssignSearch('')} className="text-gray-400 hover:text-gray-600">
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Company list */}
+                                  <div className="max-h-52 overflow-y-auto">
+                                    {(() => {
+                                      const unassigned = companies.filter(
+                                        (c) => !assignedCompanies.some((ac) => ac.id === c.id)
+                                      );
+                                      const filtered = assignSearch.trim()
+                                        ? unassigned.filter((c) =>
+                                            c.companyName.toLowerCase().includes(assignSearch.toLowerCase())
+                                          )
+                                        : unassigned;
+
+                                      if (filtered.length === 0) {
+                                        return (
+                                          <p className="text-xs text-gray-400 text-center py-6">
+                                            {unassigned.length === 0 ? 'All companies already assigned' : 'No matches found'}
+                                          </p>
+                                        );
+                                      }
+
+                                      return filtered.map((c) => {
+                                        const isSelected = assignPending.has(c.id);
+                                        return (
+                                          <button
+                                            key={c.id}
+                                            onClick={() => {
+                                              setAssignPending((prev) => {
+                                                const next = new Set(prev);
+                                                if (next.has(c.id)) next.delete(c.id);
+                                                else next.add(c.id);
+                                                return next;
+                                              });
+                                            }}
+                                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-blue-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}
+                                          >
+                                            <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                                              {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                            </div>
+                                            <span className="text-xs text-gray-700 truncate">{c.companyName}</span>
+                                          </button>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+
+                                  {/* Footer: selected count + Apply */}
+                                  <div className="border-t border-gray-100 px-3 py-2 bg-gray-50 flex items-center justify-between gap-2">
+                                    <span className="text-xs text-gray-500">
+                                      {assignPending.size === 0
+                                        ? 'Select companies above'
+                                        : `${assignPending.size} selected`}
+                                    </span>
+                                    <button
+                                      onClick={() => handleAssignMultiple(template.id)}
+                                      disabled={assignPending.size === 0 || assigningSaving}
+                                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      {assigningSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                      Assign
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          ))}
+
+                            {/* Assigned company pills */}
+                            {assignedCompanies.map((ac) => (
+                              <div key={ac.id} className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full">
+                                {ac.name}
+                                <button
+                                  onClick={() => handleAssignTemplate(template.id, ac.id, true)}
+                                  className="ml-0.5 hover:text-red-600 transition-colors"
+                                  title="Unassign"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         {/* Template blocks toggle */}
