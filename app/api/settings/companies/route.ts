@@ -34,22 +34,27 @@ export async function GET() {
       },
     });
 
-    const result = companies.map((company) => ({
-      id: company.id,
-      companyId: company.tenantId,
-      brandCode: company.brandCode,
-      companyName: company.name,
-      logoUrl: company.logoUrl || company.brandingSettings?.logoUrl || '',
-      heroBannerUrl: company.brandingSettings?.heroBannerUrl || '',
-      footerImageUrl: company.brandingSettings?.footerImageUrl || '',
-      primaryColor: company.primaryColor || company.brandingSettings?.primaryColor || '#cc0000',
-      secondaryColor: company.secondaryColor || company.brandingSettings?.secondaryColor || '#ffffff',
-      tertiaryColor: company.tertiaryColor || '#5a5a5a',
-      fontFamily: company.brandingSettings?.fontFamily || 'Inter',
-      // Moveware API credentials — password is never returned to the browser
-      mwUsername: company.brandingSettings?.mwUsername || '',
-      mwPasswordSet: !!(company.brandingSettings?.mwPassword),
-    }));
+    const result = companies.map((company) => {
+      // Cast to access mwUsername/mwPassword until `npx prisma generate` updates the client types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const bs = company.brandingSettings as any;
+      return {
+        id: company.id,
+        companyId: company.tenantId,
+        brandCode: company.brandCode,
+        companyName: company.name,
+        logoUrl: company.logoUrl || bs?.logoUrl || '',
+        heroBannerUrl: bs?.heroBannerUrl || '',
+        footerImageUrl: bs?.footerImageUrl || '',
+        primaryColor: company.primaryColor || bs?.primaryColor || '#cc0000',
+        secondaryColor: company.secondaryColor || bs?.secondaryColor || '#ffffff',
+        tertiaryColor: company.tertiaryColor || '#5a5a5a',
+        fontFamily: bs?.fontFamily || 'Inter',
+        // Moveware API credentials — password is never returned to the browser
+        mwUsername: bs?.mwUsername || '',
+        mwPasswordSet: !!(bs?.mwPassword),
+      };
+    });
 
     return NextResponse.json(result);
   } catch (error) {
@@ -141,7 +146,8 @@ export async function POST(request: NextRequest) {
       });
 
       // Upsert branding settings
-      // mwPassword is only updated when a non-empty value is sent (preserves existing)
+      // mwPassword is only updated when a non-empty value is sent (preserves existing).
+      // Cast credential fields until `npx prisma generate` updates client types.
       await prisma.brandingSettings.upsert({
         where: { companyId: company.id },
         update: {
@@ -151,8 +157,8 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
-          mwUsername: mwUsername?.trim() || null,
-          ...(mwPassword?.trim() ? { mwPassword: mwPassword.trim() } : {}),
+          ...({ mwUsername: mwUsername?.trim() || null } as never),
+          ...(mwPassword?.trim() ? ({ mwPassword: mwPassword.trim() } as never) : {}),
         },
         create: {
           companyId: company.id,
@@ -162,8 +168,7 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
-          mwUsername: mwUsername?.trim() || null,
-          mwPassword: mwPassword?.trim() || null,
+          ...({ mwUsername: mwUsername?.trim() || null, mwPassword: mwPassword?.trim() || null } as never),
         },
       });
     } else {
@@ -204,8 +209,7 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
-          mwUsername: mwUsername?.trim() || null,
-          mwPassword: mwPassword?.trim() || null,
+          ...({ mwUsername: mwUsername?.trim() || null, mwPassword: mwPassword?.trim() || null } as never),
           ...(defaultTemplateId ? ({ layoutTemplateId: defaultTemplateId } as never) : {}),
         },
       });

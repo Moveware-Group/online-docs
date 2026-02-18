@@ -40,19 +40,20 @@ export async function getMwCredentials(
       where: { tenantId: coId },
       select: {
         tenantId: true,
-        brandingSettings: {
-          select: { mwUsername: true, mwPassword: true },
-        },
+        // Select all branding settings fields; cast below for mwUsername/mwPassword
+        // which are not yet in generated types until `npx prisma generate` is run.
+        brandingSettings: true,
       },
     });
 
-    const s = company?.brandingSettings;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = company?.brandingSettings as any;
     if (!s?.mwUsername || !s?.mwPassword) return null;
 
     return {
       coId: company!.tenantId,
-      username: s.mwUsername,
-      password: s.mwPassword,
+      username: s.mwUsername as string,
+      password: s.mwPassword as string,
       baseUrl: DEFAULT_BASE_URL,
     };
   } catch (err) {
