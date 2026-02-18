@@ -30,6 +30,7 @@ import {
   EyeOff,
   Plus,
   Trash2,
+  CopyPlus,
   Image as ImageIcon,
   Type,
   Code2,
@@ -854,6 +855,26 @@ function LayoutBuilderContent() {
     setSaved(false);
   };
 
+  const handleDuplicateBlock = (index: number) => {
+    if (!layoutConfig) return;
+    const original = layoutConfig.sections[index];
+    const duplicate = {
+      ...original,
+      id: `${original.id}-copy-${Date.now()}`,
+      label: `${original.label || original.id} (copy)`,
+    };
+    const sections = [
+      ...layoutConfig.sections.slice(0, index + 1),
+      duplicate,
+      ...layoutConfig.sections.slice(index + 1),
+    ];
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setStatusMessage(`"${duplicate.label}" duplicated — it appears directly below the original.`);
+    setSaved(false);
+  };
+
   const handleToggleSectionVisibility = (index: number) => {
     if (!layoutConfig) return;
     const sections = layoutConfig.sections.map((s, i) =>
@@ -1556,7 +1577,7 @@ function LayoutBuilderContent() {
                   </p>
                   <p className="flex items-start gap-1">
                     <Eye className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
-                    <span><strong>Eye icon</strong> to show/hide a block</span>
+                    <span><strong>Eye icon</strong> to show/hide · <CopyPlus className="w-3 h-3 inline text-green-500" /> to duplicate · <Trash2 className="w-3 h-3 inline text-red-400" /> to delete</span>
                   </p>
                 </div>
               </div>
@@ -1634,6 +1655,15 @@ function LayoutBuilderContent() {
                         }`}
                       >
                         {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+
+                      {/* Duplicate button */}
+                      <button
+                        onClick={() => handleDuplicateBlock(index)}
+                        title="Duplicate block"
+                        className="p-1 rounded text-gray-300 hover:text-green-600 hover:bg-green-50 transition-colors"
+                      >
+                        <CopyPlus className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Delete button */}
