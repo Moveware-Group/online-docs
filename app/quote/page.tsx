@@ -154,6 +154,55 @@ function QuotePageContent() {
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customLayout]);
+
+  // Wire up custom-layout inventory pagination buttons.
+  // Re-runs whenever currentPage changes so the buttons always reflect the
+  // latest page state after React re-renders the HTML block.
+  useEffect(() => {
+    if (!customLayout) return;
+
+    const timer = setTimeout(() => {
+      const paginationEl = document.getElementById('grace-inventory-pagination');
+      if (!paginationEl) return;
+
+      // Hide pagination row entirely when all items fit on one page
+      if (totalPages <= 1) {
+        (paginationEl as HTMLElement).style.display = 'none';
+        return;
+      }
+      (paginationEl as HTMLElement).style.display = 'flex';
+
+      const buttons = paginationEl.querySelectorAll<HTMLButtonElement>('.grace-page-btn');
+      buttons.forEach((btn) => {
+        // Remove old listeners by cloning
+        const fresh = btn.cloneNode(true) as HTMLButtonElement;
+        btn.parentNode?.replaceChild(fresh, btn);
+
+        const dir = fresh.dataset.dir;
+        const isPrev = dir === 'prev';
+        const isNext = dir === 'next';
+
+        // Disable at boundaries
+        const atStart = currentPage <= 1;
+        const atEnd = currentPage >= totalPages;
+        fresh.disabled = isPrev ? atStart : isNext ? atEnd : false;
+        fresh.style.opacity = fresh.disabled ? '0.4' : '1';
+        fresh.style.cursor = fresh.disabled ? 'not-allowed' : 'pointer';
+
+        fresh.addEventListener('click', () => {
+          if (isPrev && currentPage > 1) setCurrentPage((p) => p - 1);
+          if (isNext && currentPage < totalPages) setCurrentPage((p) => p + 1);
+        });
+      });
+
+      // Update "X / Y" page indicator
+      const indicator = document.getElementById('grace-page-indicator');
+      if (indicator) indicator.textContent = `${currentPage} / ${totalPages}`;
+    }, 100);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout, currentPage, totalPages]);
   
   // Validation states
   const [errors, setErrors] = useState({
@@ -612,9 +661,15 @@ function QuotePageContent() {
     // globalStyles from the layout config take priority — this lets the Layout Builder
     // push live image/font updates via postMessage without a DB round-trip
     const gs = (customLayout.globalStyles || {}) as Record<string, string>;
+
+    // Pagination metadata for the inventory table in the custom layout
+    const invFrom = inventory.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+    const invTo = Math.min(currentPage * itemsPerPage, inventory.length);
+    const invTotalPages = totalPages;
+
     const pageData = {
       job,
-      inventory,
+      inventory: paginatedInventory,   // pass current page only
       costings,
       customerName,
       companyName,
@@ -625,6 +680,12 @@ function QuotePageContent() {
       quoteDate,
       expiryDate,
       totalCube,
+      // Inventory pagination fields (resolved as {{inventoryFrom}} etc. in templates)
+      inventoryFrom: invFrom,
+      inventoryTo: invTo,
+      inventoryTotal: inventory.length,
+      inventoryCurrentPage: currentPage,
+      inventoryTotalPages: invTotalPages,
     };
 
     return (

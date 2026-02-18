@@ -366,8 +366,27 @@ export const GRACE_STATIC_LAYOUT = {
         {{/each}}
       </tbody>
     </table>
-    <div style="text-align:right;padding-top:12px;font-size:13px;font-weight:700;color:#333;">
-      Total volume: {{totalCube}} m³
+    <!-- Totals row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #e9e9e9;margin-top:4px;">
+      <span style="font-size:13px;color:#666;">Total volume</span>
+      <span style="font-size:13px;font-weight:700;color:#333;">{{totalCube}} m³</span>
+    </div>
+    <!-- Pagination — hidden by JS when there is only one page -->
+    <div id="grace-inventory-pagination" style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #e9e9e9;margin-top:12px;">
+      <span style="font-size:12px;color:#666;">Showing {{inventoryFrom}}–{{inventoryTo}} of {{inventoryTotal}} items</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="grace-page-btn" data-dir="prev"
+          style="padding:5px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;cursor:pointer;background:#fff;color:#333;">
+          Previous
+        </button>
+        <span id="grace-page-indicator" style="font-size:12px;color:#666;padding:0 6px;">
+          {{inventoryCurrentPage}} / {{inventoryTotalPages}}
+        </span>
+        <button class="grace-page-btn" data-dir="next"
+          style="padding:5px 12px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;cursor:pointer;background:#fff;color:#333;">
+          Next
+        </button>
+      </div>
     </div>
   </div>
 </div>`,

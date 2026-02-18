@@ -76,6 +76,12 @@ export interface QuotePageData {
   quoteDate: string;
   expiryDate: string;
   totalCube: number;
+  /** Pagination metadata for the inventory table (used by custom layout blocks) */
+  inventoryFrom?: number;
+  inventoryTo?: number;
+  inventoryTotal?: number;
+  inventoryCurrentPage?: number;
+  inventoryTotalPages?: number;
 }
 
 export interface SectionConfig {

@@ -108,6 +108,12 @@ function resolveTemplate(
     expiryDate: data.expiryDate,
     totalCube: data.totalCube.toFixed(2),
     primaryColor: data.primaryColor,
+    // Inventory pagination
+    inventoryFrom: String(data.inventoryFrom ?? 1),
+    inventoryTo: String(data.inventoryTo ?? data.inventory.length),
+    inventoryTotal: String(data.inventoryTotal ?? data.inventory.length),
+    inventoryCurrentPage: String(data.inventoryCurrentPage ?? 1),
+    inventoryTotalPages: String(data.inventoryTotalPages ?? 1),
   };
 
   for (const [key, value] of Object.entries(vars)) {
