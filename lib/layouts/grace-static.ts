@@ -23,7 +23,7 @@ export const GRACE_STATIC_LAYOUT = {
   globalStyles: {
     fontFamily: "Arial, Helvetica, sans-serif",
     backgroundColor: "#e9e9e9",
-    maxWidth: "980px",
+    maxWidth: "1152px",
   },
   sections: [
     // ──────────────────────────────────────────────────────────
@@ -36,14 +36,14 @@ export const GRACE_STATIC_LAYOUT = {
       visible: true,
       html: `<!-- Full-width white bar: logo + customer greeting -->
 <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#ffffff;border-bottom:1px solid #e5e7eb;">
-  <div style="max-width:980px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">
+  <div style="max-width:1152px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;">
     <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="height:40px;width:auto;display:block;" onerror="this.src='/grace-assets/logo.png'" />
     <div style="background:{{branding.primaryColor}};color:#ffffff;padding:8px 20px;border-radius:8px;font-size:16px;font-weight:600;">Hi {{customerName}}</div>
   </div>
 </div>
 <!-- Full-width red bar: title + date -->
 <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:{{branding.primaryColor}};color:#ffffff;">
-  <div style="max-width:980px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
+  <div style="max-width:1152px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;">
     <span style="font-size:20px;font-weight:700;">Moving Proposal</span>
     <span style="font-size:14px;font-weight:400;">{{quoteDate}}</span>
   </div>
@@ -90,7 +90,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Thank you section — overlaps the hero banner (margin-top: -80px) -->
-<div style="max-width:980px;margin:0 auto;padding:0 32px;">
+<div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-top:-80px;position:relative;z-index:1;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
     <!-- Heading with border below -->
     <h2 style="font-size:22px;font-weight:700;color:{{branding.primaryColor}};margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Thank you for considering {{branding.companyName}}</h2>
@@ -137,7 +137,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Moving locations block -->
-<div style="max-width:980px;margin:0 auto;padding:0 32px;">
+<div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;border:1px solid #e9e9e9;padding:28px 24px;margin-bottom:50px;border-radius:20px;">
     <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Moving locations</h3>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:20px;">
@@ -178,7 +178,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- GraceCover insurance block -->
-<div style="max-width:980px;margin:0 auto;padding:0 32px;">
+<div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;padding:28px 24px;margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;">
     <h3 style="font-size:22px;font-weight:700;font-style:italic;color:{{branding.primaryColor}};margin:0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">GraceCover</h3>
     <div style="font-size:14px;color:#555;line-height:1.7;margin-top:20px;">
@@ -202,7 +202,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Pricing options — one card per costing line -->
-<div style="max-width:980px;margin:0 auto;padding:0 32px;">
+<div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   {{#each costings}}
   <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;overflow:hidden;">
     <!-- Card header: option name + total price -->
@@ -278,7 +278,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Included items / inventory table -->
-<div style="max-width:980px;margin:0 auto;padding:0 32px;">
+<div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   <div style="margin-bottom:50px;background:#ffffff;border:1px solid #e9e9e9;padding:24px;border-radius:20px;">
     <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Included items</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
@@ -368,7 +368,7 @@ export const GRACE_STATIC_LAYOUT = {
       visible: true,
       html: `<!-- Dark footer bar — full width -->
 <div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;background:#2e3642;color:#ffffff;">
-  <div style="max-width:980px;margin:0 auto;padding:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
+  <div style="max-width:1152px;margin:0 auto;padding:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:24px;">
     <!-- Left: logo + copyright + powered-by -->
     <div style="display:flex;flex-direction:column;gap:10px;">
       <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="height:36px;max-width:180px;width:auto;object-fit:contain;object-position:left center;display:block;" onerror="this.style.display='none'" />
