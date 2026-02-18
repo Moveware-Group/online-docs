@@ -121,98 +121,129 @@ function QuotePageContent() {
   // Safe to read before job loads because job may be null at that point (defaults apply).
   const primaryColor = job?.branding?.primaryColor || '#1E40AF';
 
-  // Wire up custom-layout inventory pagination buttons.
-  // Re-runs whenever currentPage, inventory, itemsPerPage, or primaryColor changes so the
-  // buttons always reflect the latest page state and branding after React re-renders the HTML block.
-  // NOTE: primaryColor and inventory.length are the only external values captured; all others
-  // are local to the effect so no additional deps are needed.
+  // Completely rebuild the Grace inventory pagination UI via DOM JavaScript.
+  // This approach is independent of whatever HTML is stored in the DB — it finds
+  // the #grace-inventory-pagination container and replaces its entire content,
+  // so it works correctly regardless of which version of the template was saved.
   useEffect(() => {
     if (!customLayout) return;
 
-    // Snapshot the values we need so the closure stays stable
     const color = primaryColor || '#e53e3e';
     const totalItems = inventory.length;
     const pages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
     const page = currentPage;
+    const from = itemsPerPage === -1 ? 1 : (page - 1) * itemsPerPage + 1;
+    const to   = itemsPerPage === -1 ? totalItems : Math.min(page * itemsPerPage, totalItems);
+
+    const btnStyle = (disabled: boolean) => [
+      'padding:6px 14px',
+      'border-radius:6px',
+      'font-size:13px',
+      'font-weight:500',
+      'cursor:' + (disabled ? 'not-allowed' : 'pointer'),
+      'background:#fff',
+      'border:1px solid ' + (disabled ? '#d1d5db' : color),
+      'color:' + (disabled ? '#9ca3af' : color),
+      'opacity:' + (disabled ? '0.6' : '1'),
+    ].join(';');
 
     const timer = setTimeout(() => {
       const paginationEl = document.getElementById('grace-inventory-pagination');
       if (!paginationEl) return;
 
-      // Hide pagination row entirely when all items fit on one page
       if (pages <= 1) {
-        (paginationEl as HTMLElement).style.display = 'none';
+        paginationEl.style.display = 'none';
         return;
       }
-      (paginationEl as HTMLElement).style.display = 'flex';
 
-      const buttons = paginationEl.querySelectorAll<HTMLButtonElement>('.grace-page-btn');
-      buttons.forEach((btn, index) => {
-        // Remove old listeners by cloning the node
-        const fresh = btn.cloneNode(true) as HTMLButtonElement;
-        btn.parentNode?.replaceChild(fresh, btn);
+      // Rebuild the entire pagination UI from scratch — no dependency on stored HTML structure
+      paginationEl.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding-top:16px;border-top:1px solid #e9e9e9;margin-top:4px;';
 
-        // Determine direction from data attribute; fall back to position (0=prev, last=next)
-        const dir = fresh.dataset.dir || (index === 0 ? 'prev' : 'next');
-        const isPrev = dir === 'prev';
-        const isNext = dir === 'next';
+      // Build the new inner HTML
+      const prevDisabled = page <= 1;
+      const nextDisabled = page >= pages;
 
-        const atStart = page <= 1;
-        const atEnd = page >= pages;
-        fresh.disabled = isPrev ? atStart : isNext ? atEnd : false;
+      // Compute visible page range (max 5 at a time)
+      const maxVisible = 5;
+      const half = Math.floor(maxVisible / 2);
+      const startPage = Math.max(1, Math.min(page - half, pages - maxVisible + 1));
+      const endPage = Math.min(pages, startPage + maxVisible - 1);
 
-        // Apply branding colour programmatically — works regardless of stored HTML styles
-        fresh.style.borderColor = fresh.disabled ? '#d1d5db' : color;
-        fresh.style.color = fresh.disabled ? '#9ca3af' : color;
-        fresh.style.background = '#fff';
-        fresh.style.opacity = fresh.disabled ? '0.6' : '1';
-        fresh.style.cursor = fresh.disabled ? 'not-allowed' : 'pointer';
-
-        fresh.addEventListener('click', () => {
-          if (isPrev && page > 1) setCurrentPage((p) => p - 1);
-          if (isNext && page < pages) setCurrentPage((p) => p + 1);
-        });
-      });
-
-      // Populate branded page-number circles
-      const pageNumbersEl = document.getElementById('grace-page-numbers');
-      if (pageNumbersEl) {
-        pageNumbersEl.innerHTML = '';
-        const maxVisible = 5;
-        const half = Math.floor(maxVisible / 2);
-        const startPage = Math.max(1, Math.min(page - half, pages - maxVisible + 1));
-        const endPage = Math.min(pages, startPage + maxVisible - 1);
-        for (let p = startPage; p <= endPage; p++) {
-          const isActive = p === page;
-          const pageBtn = document.createElement('button');
-          pageBtn.textContent = String(p);
-          pageBtn.style.cssText = [
-            'width:32px', 'height:32px', 'border-radius:50%', 'font-size:13px',
-            'font-weight:' + (isActive ? '700' : '400'),
-            'cursor:' + (isActive ? 'default' : 'pointer'),
-            'display:flex', 'align-items:center', 'justify-content:center', 'flex-shrink:0',
-            'border:1px solid ' + (isActive ? color : '#d1d5db'),
-            'background:' + (isActive ? color : '#fff'),
-            'color:' + (isActive ? '#fff' : '#374151'),
-            'transition:background 0.15s',
-          ].join(';');
-          if (!isActive) {
-            pageBtn.addEventListener('click', () => setCurrentPage(p));
-          }
-          pageNumbersEl.appendChild(pageBtn);
-        }
+      // Page number buttons HTML
+      let pageNumHtml = '';
+      for (let p = startPage; p <= endPage; p++) {
+        const active = p === page;
+        pageNumHtml += `<button data-pgnum="${p}" style="width:32px;height:32px;border-radius:50%;font-size:13px;font-weight:${active ? 700 : 400};cursor:${active ? 'default' : 'pointer'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid ${active ? color : '#d1d5db'};background:${active ? color : '#fff'};color:${active ? '#fff' : '#374151'};">${p}</button>`;
       }
 
-      // Update "Showing X–Y of Z items" info text
-      const from = itemsPerPage === -1 ? 1 : (page - 1) * itemsPerPage + 1;
-      const to = itemsPerPage === -1 ? totalItems : Math.min(page * itemsPerPage, totalItems);
-      const infoEl = document.getElementById('grace-page-info');
-      if (infoEl) infoEl.textContent = `Showing ${from} to ${to} of ${totalItems} items`;
+      paginationEl.innerHTML = `
+        <span style="font-size:13px;color:#666;">Showing ${from} to ${to} of ${totalItems} items</span>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button data-pgdir="prev" ${prevDisabled ? 'disabled' : ''} style="${btnStyle(prevDisabled)}">Previous</button>
+          <div style="display:flex;gap:4px;align-items:center;margin:0 4px;">${pageNumHtml}</div>
+          <button data-pgdir="next" ${nextDisabled ? 'disabled' : ''} style="${btnStyle(nextDisabled)}">Next</button>
+        </div>
+      `;
+
+      // Attach click handlers to the freshly-created buttons
+      paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgdir="prev"]').forEach((btn) => {
+        btn.addEventListener('click', () => { if (page > 1) setCurrentPage((p) => p - 1); });
+      });
+      paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgdir="next"]').forEach((btn) => {
+        btn.addEventListener('click', () => { if (page < pages) setCurrentPage((p) => p + 1); });
+      });
+      paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgnum]').forEach((btn) => {
+        const p = Number(btn.dataset.pgnum);
+        if (p !== page) btn.addEventListener('click', () => setCurrentPage(p));
+      });
     }, 100);
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
+
+  // Fix Grace banner dimensions directly via DOM JavaScript.
+  // This runs after the custom layout renders and directly sets the correct
+  // height, overflow, full-width breakout, and object-fit on the banner wrap
+  // elements — bypassing whatever CSS was stored in the template HTML.
+  useEffect(() => {
+    if (!customLayout) return;
+
+    // Read heights from the section configs stored in the layout
+    const heroSec  = customLayout.sections?.find((s) => s.id === 'grace-hero');
+    const footSec  = customLayout.sections?.find((s) => s.id === 'grace-footer-image');
+    if (!heroSec && !footSec) return;
+
+    const hD = Number((heroSec?.config as Record<string,unknown>)?.desktopMaxHeight  || 500);
+    const fD = Number((footSec?.config as Record<string,unknown>)?.desktopMaxHeight  || 500);
+
+    const applyWrap = (el: HTMLElement, heightPx: number) => {
+      el.style.width         = '100vw';
+      el.style.position      = 'relative';
+      el.style.left          = '50%';
+      el.style.marginLeft    = '-50vw';
+      el.style.height        = `${heightPx}px`;
+      el.style.maxHeight     = 'none';
+      el.style.overflow      = 'hidden';
+      el.style.display       = 'block';
+      const img = el.querySelector<HTMLImageElement>('img');
+      if (img) {
+        img.style.width          = '100%';
+        img.style.height         = '100%';
+        img.style.objectFit      = 'cover';
+        img.style.objectPosition = 'center';
+        img.style.display        = 'block';
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.querySelectorAll<HTMLElement>('.grace-hero-wrap').forEach((el) => applyWrap(el, hD));
+      document.querySelectorAll<HTMLElement>('.grace-footer-wrap').forEach((el) => applyWrap(el, fD));
+    }, 50);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout]);
   
   // Validation states
   const [errors, setErrors] = useState({
