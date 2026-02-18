@@ -245,54 +245,54 @@ export function CustomLayoutRenderer({
     const fM = Number(footC.mobileMaxHeight   || 250);
 
     return `
-      /* Grace banner — corrective override (render-time, beats stored HTML styles).
-         margin-right: -50vw is required alongside margin-left: -50vw so that
-         body { overflow-x: hidden } does not clip the right half of the banner. */
+      /* Grace banner CSS fallback — overrides styles stored in the DB template.
+         No !important here: the useLayoutEffect DOM manipulation in page.tsx
+         uses setProperty(...,'important') which takes final precedence. */
       .grace-hero-wrap {
-        width: 100vw !important;
-        position: relative !important;
-        left: 50% !important;
-        right: 50% !important;
-        margin-left: -50vw !important;
-        margin-right: -50vw !important;
-        height: ${hD}px !important;
-        max-height: none !important;
-        overflow: hidden !important;
-        display: block !important;
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        height: ${hD}px;
+        max-height: none;
+        overflow: hidden;
+        display: block;
       }
       .grace-hero-wrap img {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        object-position: center !important;
-        display: block !important;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
       }
       .grace-footer-wrap {
-        width: 100vw !important;
-        position: relative !important;
-        left: 50% !important;
-        right: 50% !important;
-        margin-left: -50vw !important;
-        margin-right: -50vw !important;
-        height: ${fD}px !important;
-        max-height: none !important;
-        overflow: hidden !important;
-        display: block !important;
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        height: ${fD}px;
+        max-height: none;
+        overflow: hidden;
+        display: block;
       }
       .grace-footer-wrap img {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        object-position: center !important;
-        display: block !important;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
       }
       @media (max-width: 1024px) {
-        .grace-hero-wrap   { height: ${hT}px !important; }
-        .grace-footer-wrap { height: ${fT}px !important; }
+        .grace-hero-wrap   { height: ${hT}px; }
+        .grace-footer-wrap { height: ${fT}px; }
       }
       @media (max-width: 640px) {
-        .grace-hero-wrap   { height: ${hM}px !important; }
-        .grace-footer-wrap { height: ${fM}px !important; }
+        .grace-hero-wrap   { height: ${hM}px; }
+        .grace-footer-wrap { height: ${fM}px; }
       }
     `;
   // eslint-disable-next-line react-hooks/exhaustive-deps
