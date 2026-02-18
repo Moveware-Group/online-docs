@@ -61,14 +61,13 @@ export const GRACE_STATIC_LAYOUT = {
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width hero banner image -->
 <style>
-  /* Fixed-height wrapper drives object-fit:cover correctly */
-  .grace-hero-wrap { height: {{config.desktopMaxHeight}}px; overflow: hidden; }
-  @media (max-width: 1024px) { .grace-hero-wrap { height: {{config.tabletMaxHeight}}px; } }
-  @media (max-width: 640px)  { .grace-hero-wrap { height: {{config.mobileMaxHeight}}px; } }
+  .grace-hero-wrap { max-height: {{config.desktopMaxHeight}}px; overflow: hidden; width:100vw; position:relative; left:50%; margin-left:-50vw; }
+  @media (max-width: 1024px) { .grace-hero-wrap { max-height: {{config.tabletMaxHeight}}px; } }
+  @media (max-width: 640px)  { .grace-hero-wrap { max-height: {{config.mobileMaxHeight}}px; } }
 </style>
 <div class="grace-hero-wrap">
   <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner"
-    style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
+    style="width:100%;display:block;"
     onerror="this.src='/grace-assets/banner_1.png'" />
 </div>`,
     },
@@ -312,12 +311,12 @@ export const GRACE_STATIC_LAYOUT = {
       <span id="grace-page-info" style="font-size:13px;color:#666;">Showing {{inventoryFrom}}–{{inventoryTo}} of {{inventoryTotal}} items</span>
       <div style="display:flex;gap:4px;align-items:center;">
         <button class="grace-page-btn" data-dir="prev"
-          style="padding:6px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;background:#fff;color:#374151;font-weight:500;">
+          style="padding:6px 14px;border:1px solid {{branding.primaryColor}};border-radius:6px;font-size:13px;cursor:pointer;background:#fff;color:{{branding.primaryColor}};font-weight:500;">
           Previous
         </button>
         <div id="grace-page-numbers" style="display:flex;gap:4px;align-items:center;margin:0 4px;"></div>
         <button class="grace-page-btn" data-dir="next"
-          style="padding:6px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;cursor:pointer;background:#fff;color:#374151;font-weight:500;">
+          style="padding:6px 14px;border:1px solid {{branding.primaryColor}};border-radius:6px;font-size:13px;cursor:pointer;background:#fff;color:{{branding.primaryColor}};font-weight:500;">
           Next
         </button>
       </div>
@@ -337,14 +336,13 @@ export const GRACE_STATIC_LAYOUT = {
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width footer banner image -->
 <style>
-  /* Fixed-height wrapper drives object-fit:cover correctly */
-  .grace-footer-wrap { height: {{config.desktopMaxHeight}}px; overflow: hidden; }
-  @media (max-width: 1024px) { .grace-footer-wrap { height: {{config.tabletMaxHeight}}px; } }
-  @media (max-width: 640px)  { .grace-footer-wrap { height: {{config.mobileMaxHeight}}px; } }
+  .grace-footer-wrap { max-height: {{config.desktopMaxHeight}}px; overflow: hidden; width:100vw; position:relative; left:50%; margin-left:-50vw; }
+  @media (max-width: 1024px) { .grace-footer-wrap { max-height: {{config.tabletMaxHeight}}px; } }
+  @media (max-width: 640px)  { .grace-footer-wrap { max-height: {{config.mobileMaxHeight}}px; } }
 </style>
 <div class="grace-footer-wrap">
   <img src="{{branding.footerImageUrl}}" alt="{{branding.companyName}} Footer"
-    style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
+    style="width:100%;display:block;"
     onerror="this.src='/grace-assets/banner_3.png'" />
 </div>`,
     },

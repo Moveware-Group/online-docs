@@ -317,7 +317,7 @@ function RenderSection({
     );
     const cleanHtml = DOMPurify.sanitize(rawHtml, {
       ADD_TAGS: ['style'],
-      ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror'],
+      ADD_ATTR: ['style', 'class', 'id', 'for', 'type', 'placeholder', 'href', 'target', 'onerror', 'data-dir', 'data-costing-id'],
     });
 
     // custom_html sections manage their own spacing via inline styles

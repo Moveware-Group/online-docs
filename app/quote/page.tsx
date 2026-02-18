@@ -223,8 +223,7 @@ function QuotePageContent() {
 
   // Intersection Observer for steps animation - only set up after content loads
   useEffect(() => {
-    // Don't set up observer if still loading or no job data
-    if (loading || !job) {
+    if (loading || !job || customLayout) {
       return;
     }
 
@@ -258,7 +257,7 @@ function QuotePageContent() {
         observer.unobserve(nextStepsRef.current);
       }
     };
-  }, [loading, job]);
+  }, [loading, job, customLayout]);
 
   useEffect(() => {
     if (jobId && companyId) {
