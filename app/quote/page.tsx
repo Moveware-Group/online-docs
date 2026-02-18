@@ -156,17 +156,21 @@ function QuotePageContent() {
   }, [customLayout]);
 
   // Wire up custom-layout inventory pagination buttons.
-  // Re-runs whenever currentPage changes so the buttons always reflect the
-  // latest page state after React re-renders the HTML block.
+  // Re-runs whenever currentPage or inventory/itemsPerPage changes so the
+  // buttons always reflect the latest page state after React re-renders the HTML block.
   useEffect(() => {
     if (!customLayout) return;
+
+    // Compute totalPages here to avoid a forward-reference to the variable
+    // declared later in the render body (after the early-return guards).
+    const pages = itemsPerPage === -1 ? 1 : Math.ceil(inventory.length / itemsPerPage);
 
     const timer = setTimeout(() => {
       const paginationEl = document.getElementById('grace-inventory-pagination');
       if (!paginationEl) return;
 
       // Hide pagination row entirely when all items fit on one page
-      if (totalPages <= 1) {
+      if (pages <= 1) {
         (paginationEl as HTMLElement).style.display = 'none';
         return;
       }
@@ -184,25 +188,25 @@ function QuotePageContent() {
 
         // Disable at boundaries
         const atStart = currentPage <= 1;
-        const atEnd = currentPage >= totalPages;
+        const atEnd = currentPage >= pages;
         fresh.disabled = isPrev ? atStart : isNext ? atEnd : false;
         fresh.style.opacity = fresh.disabled ? '0.4' : '1';
         fresh.style.cursor = fresh.disabled ? 'not-allowed' : 'pointer';
 
         fresh.addEventListener('click', () => {
           if (isPrev && currentPage > 1) setCurrentPage((p) => p - 1);
-          if (isNext && currentPage < totalPages) setCurrentPage((p) => p + 1);
+          if (isNext && currentPage < pages) setCurrentPage((p) => p + 1);
         });
       });
 
       // Update "X / Y" page indicator
       const indicator = document.getElementById('grace-page-indicator');
-      if (indicator) indicator.textContent = `${currentPage} / ${totalPages}`;
+      if (indicator) indicator.textContent = `${currentPage} / ${pages}`;
     }, 100);
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout, currentPage, totalPages]);
+  }, [customLayout, currentPage, itemsPerPage, inventory.length]);
   
   // Validation states
   const [errors, setErrors] = useState({
