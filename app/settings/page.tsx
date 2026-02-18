@@ -1730,8 +1730,8 @@ export default function SettingsPage() {
                   .map((template) => {
                     const assignedCompanies = template.brandingSettings?.map((bs) => bs.company) || [];
                     return (
-                      <div key={template.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="flex items-center justify-between p-4 bg-white hover:bg-gray-50">
+                      <div key={template.id} className="border border-gray-200 rounded-lg overflow-visible">
+                        <div className="flex items-center justify-between p-4 bg-white hover:bg-gray-50 rounded-t-lg">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${template.isActive ? 'bg-green-100' : 'bg-gray-100'}`}>
                               <Layout className={`w-4 h-4 ${template.isActive ? 'text-green-600' : 'text-gray-400'}`} />
@@ -1770,7 +1770,7 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Assign to company — searchable multi-select */}
-                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 rounded-b-lg">
                           <div className="flex items-start gap-3 flex-wrap">
                             <span className="text-xs text-gray-500 font-medium flex-shrink-0 pt-1.5">Assign to:</span>
 
