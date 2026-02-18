@@ -1842,15 +1842,15 @@ export default function SettingsPage() {
                                       }
 
                                       return filtered.map((c) => {
-                                        const isSelected = assignPending.has(c.id);
+                                        const isSelected = assignPending.has(c.id ?? '');
                                         return (
                                           <button
                                             key={c.id}
                                             onClick={() => {
                                               setAssignPending((prev) => {
                                                 const next = new Set(prev);
-                                                if (next.has(c.id)) next.delete(c.id);
-                                                else next.add(c.id);
+                                                if (next.has(c.id ?? '')) next.delete(c.id ?? '');
+                                                else next.add(c.id ?? '');
                                                 return next;
                                               });
                                             }}
