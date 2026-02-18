@@ -61,23 +61,15 @@ export const GRACE_STATIC_LAYOUT = {
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width hero banner image -->
 <style>
-  .grace-hero-img {
-    width: 100%;
-    height: auto;
-    display: block;
-    max-height: {{config.desktopMaxHeight}}px;
-    object-fit: cover;
-    object-position: center;
-  }
-  @media (max-width: 1024px) {
-    .grace-hero-img { max-height: {{config.tabletMaxHeight}}px; }
-  }
-  @media (max-width: 640px) {
-    .grace-hero-img { max-height: {{config.mobileMaxHeight}}px; }
-  }
+  /* Fixed-height wrapper drives object-fit:cover correctly */
+  .grace-hero-wrap { height: {{config.desktopMaxHeight}}px; }
+  @media (max-width: 1024px) { .grace-hero-wrap { height: {{config.tabletMaxHeight}}px; } }
+  @media (max-width: 640px)  { .grace-hero-wrap { height: {{config.mobileMaxHeight}}px; } }
 </style>
-<div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden;">
-  <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner" class="grace-hero-img" onerror="this.src='/grace-assets/banner_1.png'" />
+<div class="grace-hero-wrap" style="width:100vw;position:relative;left:50%;margin-left:-50vw;overflow:hidden;">
+  <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner"
+    style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
+    onerror="this.src='/grace-assets/banner_1.png'" />
 </div>`,
     },
 
@@ -338,23 +330,15 @@ export const GRACE_STATIC_LAYOUT = {
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width footer banner image -->
 <style>
-  .grace-footer-img {
-    width: 100%;
-    height: auto;
-    display: block;
-    max-height: {{config.desktopMaxHeight}}px;
-    object-fit: cover;
-    object-position: center;
-  }
-  @media (max-width: 1024px) {
-    .grace-footer-img { max-height: {{config.tabletMaxHeight}}px; }
-  }
-  @media (max-width: 640px) {
-    .grace-footer-img { max-height: {{config.mobileMaxHeight}}px; }
-  }
+  /* Fixed-height wrapper drives object-fit:cover correctly */
+  .grace-footer-wrap { height: {{config.desktopMaxHeight}}px; }
+  @media (max-width: 1024px) { .grace-footer-wrap { height: {{config.tabletMaxHeight}}px; } }
+  @media (max-width: 640px)  { .grace-footer-wrap { height: {{config.mobileMaxHeight}}px; } }
 </style>
-<div style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;overflow:hidden;margin-bottom:0;">
-  <img src="{{branding.footerImageUrl}}" alt="{{branding.companyName}} Footer" class="grace-footer-img" onerror="this.src='/grace-assets/banner_3.png'" />
+<div class="grace-footer-wrap" style="width:100vw;position:relative;left:50%;margin-left:-50vw;overflow:hidden;">
+  <img src="{{branding.footerImageUrl}}" alt="{{branding.companyName}} Footer"
+    style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
+    onerror="this.src='/grace-assets/banner_3.png'" />
 </div>`,
     },
 
