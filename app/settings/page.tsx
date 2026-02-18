@@ -1362,40 +1362,41 @@ export default function SettingsPage() {
                       key={company.id}
                       className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
                           {company.logoUrl && (
                             <img
                               src={company.logoUrl}
                               alt={company.companyName}
-                              className="h-12 w-auto object-contain"
+                              className="h-12 w-auto object-contain flex-shrink-0"
                             />
                           )}
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{company.companyName}</h3>
-                            <p className="text-sm text-gray-600">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-gray-900 truncate">{company.companyName}</h3>
+                            <p className="text-sm text-gray-600 truncate">
                               Company ID: {company.companyId} | Brand Code: {company.brandCode}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2 ml-4">
-                            <div
-                              className="w-6 h-6 rounded-full border border-gray-300"
-                              style={{ backgroundColor: isValidHex(company.primaryColor) ? expandHex(company.primaryColor) : company.primaryColor }}
-                              title={`Primary: ${company.primaryColor}`}
-                            />
-                            <div
-                              className="w-6 h-6 rounded-full border border-gray-300"
-                              style={{ backgroundColor: isValidHex(company.secondaryColor) ? expandHex(company.secondaryColor) : company.secondaryColor }}
-                              title={`Secondary: ${company.secondaryColor}`}
-                            />
-                            <div
-                              className="w-6 h-6 rounded-full border border-gray-300"
-                              style={{ backgroundColor: isValidHex(company.tertiaryColor) ? expandHex(company.tertiaryColor) : company.tertiaryColor }}
-                              title={`Tertiary: ${company.tertiaryColor}`}
-                            />
-                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        {/* Brand colours — fixed-width column so they always align vertically */}
+                        <div className="flex items-center gap-2 flex-shrink-0 w-20 justify-end">
+                          <div
+                            className="w-6 h-6 rounded-full border border-gray-300"
+                            style={{ backgroundColor: isValidHex(company.primaryColor) ? expandHex(company.primaryColor) : company.primaryColor }}
+                            title={`Primary: ${company.primaryColor}`}
+                          />
+                          <div
+                            className="w-6 h-6 rounded-full border border-gray-300"
+                            style={{ backgroundColor: isValidHex(company.secondaryColor) ? expandHex(company.secondaryColor) : company.secondaryColor }}
+                            title={`Secondary: ${company.secondaryColor}`}
+                          />
+                          <div
+                            className="w-6 h-6 rounded-full border border-gray-300"
+                            style={{ backgroundColor: isValidHex(company.tertiaryColor) ? expandHex(company.tertiaryColor) : company.tertiaryColor }}
+                            title={`Tertiary: ${company.tertiaryColor}`}
+                          />
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
                           <a
                             href={`/settings/layout-builder?companyId=${company.id}`}
                             className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
