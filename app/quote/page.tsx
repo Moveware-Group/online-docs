@@ -199,7 +199,7 @@ function QuotePageContent() {
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
+  }, [customLayout, currentPage, itemsPerPage, inventory.length]);
   
   // Validation states
   const [errors, setErrors] = useState({
