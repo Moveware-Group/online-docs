@@ -1379,8 +1379,8 @@ export default function SettingsPage() {
                             </p>
                           </div>
                         </div>
-                        {/* Brand colours — fixed-width column so they always align vertically */}
-                        <div className="flex items-center gap-2 flex-shrink-0 w-20 justify-end">
+                        {/* Brand colours — exact fixed width: 3×24px circles + 2×8px gaps = 88px */}
+                        <div className="flex items-center gap-2 flex-shrink-0 w-[88px]">
                           <div
                             className="w-6 h-6 rounded-full border border-gray-300"
                             style={{ backgroundColor: isValidHex(company.primaryColor) ? expandHex(company.primaryColor) : company.primaryColor }}
@@ -1397,7 +1397,8 @@ export default function SettingsPage() {
                             title={`Tertiary: ${company.tertiaryColor}`}
                           />
                         </div>
-                        <div className="flex gap-2 flex-shrink-0">
+                        {/* Actions — fixed width so variable label ("Create"/"Edit" Layout) never shifts colours */}
+                        <div className="flex gap-2 flex-shrink-0 w-[196px] justify-end">
                           <a
                             href={`/settings/layout-builder?companyId=${company.id}`}
                             className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
