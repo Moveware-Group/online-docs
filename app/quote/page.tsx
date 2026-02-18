@@ -263,6 +263,32 @@ function QuotePageContent() {
     }
   }, [costings, selectedCostingId]);
 
+  // Wire up grace pricing "Select Option" / "✓ Selected" buttons.
+  // Re-runs after each render so button state always reflects selectedCostingId.
+  useEffect(() => {
+    if (!customLayout) return;
+    const timer = setTimeout(() => {
+      const buttons = document.querySelectorAll<HTMLButtonElement>('.grace-select-btn');
+      buttons.forEach((btn) => {
+        const fresh = btn.cloneNode(true) as HTMLButtonElement;
+        btn.parentNode?.replaceChild(fresh, btn);
+
+        const costingId = fresh.dataset.costingId;
+        const isSelected = costingId === selectedCostingId;
+
+        fresh.textContent = isSelected ? '✓ Selected' : 'Select Option';
+        fresh.style.opacity = isSelected ? '0.85' : '1';
+        fresh.style.outline = isSelected ? '3px solid rgba(255,255,255,0.6)' : 'none';
+
+        fresh.addEventListener('click', () => {
+          if (costingId) setSelectedCostingId(costingId);
+        });
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout, selectedCostingId]);
+
   // Reset to page 1 when inventory changes
   useEffect(() => {
     setCurrentPage(1);
@@ -402,6 +428,19 @@ function QuotePageContent() {
     }
   };
 
+  // Derive which acceptance form fields are visible from the layout config.
+  // When there is no custom layout (base template) all fields are shown by default.
+  const acceptanceCfg = (() => {
+    if (!customLayout) return {} as Record<string, unknown>;
+    const sec = customLayout.sections?.find((s) => s.component === 'AcceptanceForm');
+    return ((sec as { config?: Record<string, unknown> })?.config || {}) as Record<string, unknown>;
+  })();
+  const acShowSignatureName        = acceptanceCfg.showSignatureName        !== false;
+  const acShowReloFromDate         = acceptanceCfg.showReloFromDate         !== false;
+  const acShowInsuredValue         = acceptanceCfg.showInsuredValue         !== false;
+  const acShowPurchaseOrderNumber  = acceptanceCfg.showPurchaseOrderNumber  !== false;
+  const acShowSpecialRequirements  = acceptanceCfg.showSpecialRequirements  !== false;
+
   const validateForm = () => {
     const newErrors = {
       signatureName: '',
@@ -412,42 +451,36 @@ function QuotePageContent() {
       selectedCosting: '',
     };
 
-    if (!signatureName.trim()) {
+    if (acShowSignatureName && !signatureName.trim()) {
       newErrors.signatureName = 'Signature name is required';
     }
-
-    if (!reloFromDate) {
+    if (acShowReloFromDate && !reloFromDate) {
       newErrors.reloFromDate = 'Move date is required';
     }
-
-    if (!insuredValue.trim()) {
+    if (acShowInsuredValue && !insuredValue.trim()) {
       newErrors.insuredValue = 'Insured value is required';
     }
-
-    if (!purchaseOrderNumber.trim()) {
+    if (acShowPurchaseOrderNumber && !purchaseOrderNumber.trim()) {
       newErrors.purchaseOrderNumber = 'Purchase order number is required';
     }
-
     if (!signature) {
       newErrors.signature = 'Signature is required';
     }
-
     if (!selectedCostingId) {
       newErrors.selectedCosting = 'Please select a pricing option';
     }
 
     setErrors(newErrors);
-    
     return !Object.values(newErrors).some(error => error !== '');
   };
 
   const isFormValid = () => {
-    return signatureName.trim() && 
-           reloFromDate && 
-           insuredValue.trim() && 
-           purchaseOrderNumber.trim() && 
-           signature && 
-           selectedCostingId && 
+    return (!acShowSignatureName       || signatureName.trim()) &&
+           (!acShowReloFromDate        || reloFromDate) &&
+           (!acShowInsuredValue        || insuredValue.trim()) &&
+           (!acShowPurchaseOrderNumber || purchaseOrderNumber.trim()) &&
+           signature &&
+           selectedCostingId &&
            agreedToTerms;
   };
 
@@ -671,85 +704,101 @@ function QuotePageContent() {
             </div>
           )}
 
-          {/* Form fields */}
-          <div className="space-y-4 mb-6">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Signature Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={signatureName}
-                  onChange={(e) => { setSignatureName(e.target.value); if (errors.signatureName) setErrors({ ...errors, signatureName: '' }); }}
-                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.signatureName ? 'border-red-500' : 'border-gray-300'}`}
-                  style={{ outlineColor: primaryColor }}
-                />
-                {errors.signatureName && <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
-                </label>
-                <DatePicker
-                  selected={reloFromDate}
-                  onChange={(date: Date | null) => { setReloFromDate(date); if (errors.reloFromDate) setErrors({ ...errors, reloFromDate: '' }); }}
-                  dateFormat="dd/MM/yyyy"
-                  placeholderText="Select move date"
-                  minDate={new Date()}
-                  showPopperArrow={false}
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode="select"
-                  yearDropdownItemNumber={15}
-                  scrollableYearDropdown
-                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.reloFromDate ? 'border-red-500' : 'border-gray-300'}`}
-                  wrapperClassName="w-full"
-                />
-                {errors.reloFromDate && <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>}
-              </div>
+          {/* Form fields — visibility driven by acceptanceCfg */}
+          {(acShowSignatureName || acShowReloFromDate || acShowInsuredValue || acShowPurchaseOrderNumber || acShowSpecialRequirements) && (
+            <div className="space-y-4 mb-6">
+              {(acShowSignatureName || acShowReloFromDate) && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {acShowSignatureName && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Signature Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={signatureName}
+                        onChange={(e) => { setSignatureName(e.target.value); if (errors.signatureName) setErrors({ ...errors, signatureName: '' }); }}
+                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.signatureName ? 'border-red-500' : 'border-gray-300'}`}
+                        style={{ outlineColor: primaryColor }}
+                      />
+                      {errors.signatureName && <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>}
+                    </div>
+                  )}
+                  {acShowReloFromDate && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
+                      </label>
+                      <DatePicker
+                        selected={reloFromDate}
+                        onChange={(date: Date | null) => { setReloFromDate(date); if (errors.reloFromDate) setErrors({ ...errors, reloFromDate: '' }); }}
+                        dateFormat="dd/MM/yyyy"
+                        placeholderText="Select move date"
+                        minDate={new Date()}
+                        showPopperArrow={false}
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                        yearDropdownItemNumber={15}
+                        scrollableYearDropdown
+                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.reloFromDate ? 'border-red-500' : 'border-gray-300'}`}
+                        wrapperClassName="w-full"
+                      />
+                      {errors.reloFromDate && <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+              {(acShowInsuredValue || acShowPurchaseOrderNumber) && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {acShowInsuredValue && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Insured value <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={insuredValue}
+                        onChange={(e) => { setInsuredValue(e.target.value); if (errors.insuredValue) setErrors({ ...errors, insuredValue: '' }); }}
+                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.insuredValue ? 'border-red-500' : 'border-gray-300'}`}
+                        style={{ outlineColor: primaryColor }}
+                      />
+                      {errors.insuredValue && <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>}
+                    </div>
+                  )}
+                  {acShowPurchaseOrderNumber && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Purchase order number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={purchaseOrderNumber}
+                        onChange={(e) => { setPurchaseOrderNumber(e.target.value); if (errors.purchaseOrderNumber) setErrors({ ...errors, purchaseOrderNumber: '' }); }}
+                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'}`}
+                        style={{ outlineColor: primaryColor }}
+                      />
+                      {errors.purchaseOrderNumber && <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+              {acShowSpecialRequirements && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Add any special requirements here
+                  </label>
+                  <textarea
+                    value={specialRequirements}
+                    onChange={(e) => setSpecialRequirements(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                    style={{ outlineColor: primaryColor }}
+                  />
+                </div>
+              )}
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Insured value <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={insuredValue}
-                  onChange={(e) => { setInsuredValue(e.target.value); if (errors.insuredValue) setErrors({ ...errors, insuredValue: '' }); }}
-                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.insuredValue ? 'border-red-500' : 'border-gray-300'}`}
-                  style={{ outlineColor: primaryColor }}
-                />
-                {errors.insuredValue && <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Purchase order number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={purchaseOrderNumber}
-                  onChange={(e) => { setPurchaseOrderNumber(e.target.value); if (errors.purchaseOrderNumber) setErrors({ ...errors, purchaseOrderNumber: '' }); }}
-                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'}`}
-                  style={{ outlineColor: primaryColor }}
-                />
-                {errors.purchaseOrderNumber && <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Add any special requirements here
-              </label>
-              <textarea
-                value={specialRequirements}
-                onChange={(e) => setSpecialRequirements(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
-                style={{ outlineColor: primaryColor }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Signature Canvas */}
           <div className="mb-6">

@@ -242,7 +242,7 @@ export const GRACE_STATIC_LAYOUT = {
         <div style="color:#888;font-size:12px;">Tax Included</div>
       </div>
       <div style="display:flex;justify-content:flex-end;">
-        <button style="background:{{branding.primaryColor}};color:#fff;border:none;padding:12px 32px;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Select Option</button>
+        <button class="grace-select-btn" data-costing-id="{{this.id}}" style="background:{{branding.primaryColor}};color:#fff;border:none;padding:12px 32px;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Select Option</button>
       </div>
     </div>
   </div>
@@ -259,6 +259,15 @@ export const GRACE_STATIC_LAYOUT = {
       type: "built_in",
       component: "AcceptanceForm",
       visible: true,
+      // Field visibility config — set to false to hide optional fields from the form.
+      // The signature, terms checkbox, and action buttons are always shown.
+      config: {
+        showSignatureName: false,
+        showReloFromDate: false,
+        showInsuredValue: false,
+        showPurchaseOrderNumber: false,
+        showSpecialRequirements: false,
+      },
     },
 
     // ──────────────────────────────────────────────────────────
