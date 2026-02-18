@@ -500,7 +500,7 @@ function TemplateSectionBlockEditor({
   onSaveBlock: (templateId: string, idx: number) => void;
   onToggleCat: (c: PlaceholderCategory) => void;
   onInsertPlaceholder: (key: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const [sections, setSections] = useState<LayoutSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -586,7 +586,7 @@ function BlockHtmlEditor({
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   expandedCats: Set<PlaceholderCategory>;
   onToggleCat: (c: PlaceholderCategory) => void;
   onInsertPlaceholder: (key: string) => void;
