@@ -5,6 +5,7 @@ import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image 
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
+import { GRACE_STATIC_LAYOUT } from '@/lib/layouts/grace-static';
 
 /** Popular Google Fonts for the company branding font selector */
 const GOOGLE_FONTS = [
@@ -733,6 +734,7 @@ export default function SettingsPage() {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [promoteCompanyId, setPromoteCompanyId] = useState('');
   const [promotingTemplate, setPromotingTemplate] = useState(false);
+  const [createFromBase, setCreateFromBase] = useState(false);
 
   // Company-specific layout records (for Custom Layouts tab)
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
@@ -978,20 +980,33 @@ export default function SettingsPage() {
   };
 
   const handlePromoteToTemplate = async () => {
-    if (!newTemplateName.trim() || !promoteCompanyId) return;
+    if (!newTemplateName.trim()) return;
+    if (!createFromBase && !promoteCompanyId) return;
     setPromotingTemplate(true);
     try {
-      const res = await fetch('/api/layout-templates/promote', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId: promoteCompanyId, name: newTemplateName, description: newTemplateDesc }),
-      });
+      let res: Response;
+      if (createFromBase) {
+        // Create directly from the current grace-static.ts base layout
+        res = await fetch('/api/layout-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: GRACE_STATIC_LAYOUT }),
+        });
+      } else {
+        // Promote an existing company layout to a template
+        res = await fetch('/api/layout-templates/promote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyId: promoteCompanyId, name: newTemplateName, description: newTemplateDesc }),
+        });
+      }
       const data = await res.json();
       if (data.success) {
         setLayoutTemplates((prev) => [data.data, ...prev]);
         setNewTemplateName('');
         setNewTemplateDesc('');
         setPromoteCompanyId('');
+        setCreateFromBase(false);
         setCreatingTemplate(false);
         setSuccess(`Template "${data.data.name}" created!`);
         setTimeout(() => setSuccess(null), 3000);
@@ -1544,7 +1559,12 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                           <button
                             onClick={async () => {
-                              if (!confirm(`Remove the saved custom layout for "${record.company.name}"?\n\nThe Layout Template assigned to this company will then be used automatically. Any block-level customisations made in the Layout Builder will be lost.`)) return;
+                              const matchedCompany = companies.find((c) => c.id === record.companyId || c.companyId === record.company.tenantId);
+                              const hasTemplate = !!matchedCompany?.layoutTemplateId;
+                              const confirmMsg = hasTemplate
+                                ? `Remove the saved custom layout for "${record.company.name}"?\n\nThe Layout Template assigned to this company will be used automatically. Any block-level edits made in the Layout Builder will be lost.`
+                                : `Remove the saved custom layout for "${record.company.name}"?\n\n⚠️ WARNING: This company has no Layout Template assigned. Removing the saved layout will cause the default quote layout to be shown instead.\n\nAssign a Layout Template to this company first, then reset.`;
+                              if (!confirm(confirmMsg)) return;
                               setSyncingLayoutId(record.companyId);
                               try {
                                 const res = await fetch('/api/layouts/reset', {
@@ -1703,29 +1723,53 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Create from company layout <span className="text-gray-400">(source)</span></label>
-                  <select
-                    value={promoteCompanyId}
-                    onChange={(e) => setPromoteCompanyId(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">— Select a company to use as source —</option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">The company&apos;s existing layout config will be copied into this template.</p>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">Layout source <span className="text-red-500">*</span></label>
+                  <div className="flex gap-3 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => { setCreateFromBase(false); setPromoteCompanyId(''); }}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${!createFromBase ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      From a company&apos;s saved layout
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCreateFromBase(true); setPromoteCompanyId(''); }}
+                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      From Grace Base Layout <span className="ml-1 text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">latest</span>
+                    </button>
+                  </div>
+                  {!createFromBase ? (
+                    <>
+                      <select
+                        value={promoteCompanyId}
+                        onChange={(e) => setPromoteCompanyId(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">— Select a company to use as source —</option>
+                        {companies.map((c) => (
+                          <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">The company&apos;s existing saved layout will be copied into this template.</p>
+                    </>
+                  ) : (
+                    <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
+                      Creates the template from the current built-in Grace base layout (<code>grace-static.ts</code>). Use this to seed a fresh, up-to-date Grace layout that you can then assign to companies.
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handlePromoteToTemplate}
-                    disabled={!newTemplateName.trim() || !promoteCompanyId || promotingTemplate}
+                    disabled={!newTemplateName.trim() || (!createFromBase && !promoteCompanyId) || promotingTemplate}
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>

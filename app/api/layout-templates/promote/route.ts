@@ -1,14 +1,16 @@
 /**
  * POST /api/layout-templates/promote
- * Promotes a company's existing CustomLayout (or the Grace static layout)
- * into a reusable LayoutTemplate.
+ * Promotes a company's existing saved CustomLayout into a reusable LayoutTemplate.
  *
  * Body: { companyId: string, name: string, description?: string }
+ *
+ * Requires the company to already have a saved CustomLayout in the database.
+ * To create a template from a built-in base layout use POST /api/layout-templates
+ * directly with the desired layoutConfig.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { GRACE_STATIC_LAYOUT } from '@/lib/layouts/grace-static';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,45 +23,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find the company's existing layout
-    let layoutConfig: string | null = null;
-
     const existingLayout = await prisma.customLayout.findUnique({
       where: { companyId },
     });
 
-    if (existingLayout) {
-      layoutConfig = existingLayout.layoutConfig;
-    } else {
-      // Fall back to Grace static layout if it's a Grace company
-      const company = await prisma.company.findUnique({
-        where: { id: companyId },
-        select: { name: true, brandCode: true, tenantId: true },
-      });
-      const isGrace =
-        company?.tenantId === '555' ||
-        company?.brandCode?.toLowerCase().includes('grace') ||
-        company?.name?.toLowerCase().includes('grace');
-
-      if (isGrace) {
-        layoutConfig = JSON.stringify(GRACE_STATIC_LAYOUT);
-      }
-    }
-
-    if (!layoutConfig) {
+    if (!existingLayout) {
       return NextResponse.json(
-        { success: false, error: 'No layout found for this company to promote' },
+        { success: false, error: 'No saved layout found for this company. Open the Layout Builder and save the layout first.' },
         { status: 404 },
       );
     }
 
-    // Create the template
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const template = await (prisma as any).layoutTemplate.create({
       data: {
         name: name.trim(),
         description: description || null,
-        layoutConfig,
+        layoutConfig: existingLayout.layoutConfig,
       },
     });
 
