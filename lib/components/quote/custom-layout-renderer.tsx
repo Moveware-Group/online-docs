@@ -11,7 +11,46 @@ import {
   TermsSection,
 } from './sections';
 import type { QuotePageData, CostingItem } from './sections/types';
-import type { LayoutConfig, LayoutSection } from '@/lib/services/llm-service';
+import type { LayoutConfig, LayoutSection, SectionCondition } from '@/lib/services/llm-service';
+
+// ---------------------------------------------------------------------------
+// Condition evaluator
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve a dot-notation field path (e.g. "job.brandCode") against QuotePageData.
+ * Returns undefined when the path does not exist.
+ */
+function resolveFieldValue(field: string, data: QuotePageData): unknown {
+  const parts = field.split('.');
+  let current: unknown = data;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+/**
+ * Evaluate a SectionCondition against live QuotePageData.
+ * Returns true when the condition is satisfied (block should be shown).
+ */
+function evaluateCondition(condition: SectionCondition, data: QuotePageData): boolean {
+  const raw = resolveFieldValue(condition.field, data);
+  const fieldStr = (raw ?? '').toString().toLowerCase().trim();
+  const testValue = (condition.value ?? '').toLowerCase().trim();
+
+  switch (condition.operator) {
+    case '==':          return fieldStr === testValue;
+    case '!=':          return fieldStr !== testValue;
+    case 'contains':    return fieldStr.includes(testValue);
+    case 'startsWith':  return fieldStr.startsWith(testValue);
+    case 'endsWith':    return fieldStr.endsWith(testValue);
+    case 'isBlank':     return fieldStr === '';
+    case 'isNotBlank':  return fieldStr !== '';
+    default:            return true;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Template variable resolver
@@ -101,6 +140,8 @@ function resolveTemplate(
     'branding.secondaryColor': data.job.branding?.secondaryColor || '',
     // Staff
     moveManager: data.job.moveManager || '',
+    'job.moveType': data.job.moveType || '',
+    moveType: data.job.moveType || '',
     // Derived
     customerName: data.customerName,
     companyName: data.companyName,
@@ -166,7 +207,12 @@ export function CustomLayoutRenderer({
 
       <div style={{ maxWidth: globalStyles.maxWidth || '1152px' }} className="mx-auto">
         {config.sections
-          .filter((s) => s.visible !== false)
+          .filter((s) => {
+            if (s.visible === false) return false;
+            // Evaluate optional display condition
+            if (s.condition) return evaluateCondition(s.condition, data);
+            return true;
+          })
           .map((section) => (
             <RenderSection
               key={section.id}

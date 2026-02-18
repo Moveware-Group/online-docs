@@ -19,6 +19,7 @@ const MOCK_JOBS: Record<
     firstName: string;
     lastName: string;
     moveManager: string;
+    moveType: string;
     estimatedDeliveryDetails: string;
     jobValue: number;
     brandCode: string;
@@ -45,6 +46,7 @@ const MOCK_JOBS: Record<
     firstName: "Leigh",
     lastName: "Morrow",
     moveManager: "Sarah Johnson",
+    moveType: "LR",
     estimatedDeliveryDetails: "27/02/2026",
     jobValue: 2675.0,
     brandCode: "MWB",

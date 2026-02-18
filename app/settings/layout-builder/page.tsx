@@ -37,6 +37,8 @@ import {
   Columns2,
   Columns3,
   LayoutTemplate,
+  Filter,
+  FilterX,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -44,7 +46,7 @@ import {
   CompanySearchDropdown,
   CompanyOption,
 } from '@/lib/components/forms/company-search-dropdown';
-import type { LayoutConfig } from '@/lib/services/llm-service';
+import type { LayoutConfig, SectionCondition } from '@/lib/services/llm-service';
 import { LayoutBuilderChatWidget } from '@/lib/components/chat/layout-builder-chat-widget';
 import {
   PLACEHOLDER_REGISTRY,
@@ -209,6 +211,10 @@ function LayoutBuilderContent() {
 
   // Add-block modal
   const [showAddBlockModal, setShowAddBlockModal] = useState(false);
+
+  // Condition editor state — tracks which block row has the inline editor open
+  const [conditionEditorIndex, setConditionEditorIndex] = useState<number | null>(null);
+  const [conditionDraft, setConditionDraft] = useState<SectionCondition>({ field: 'job.moveType', operator: '==', value: '' });
 
   // Block editor state
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
@@ -748,6 +754,84 @@ function LayoutBuilderContent() {
   const handleDragEndBlock = () => {
     setDraggingIndex(null);
     setDragOverIndex(null);
+  };
+
+  // ---- Conditional visibility ----
+
+  /** Fields available for block conditions — mirrors QuotePageData dot-paths */
+  const CONDITION_FIELDS = [
+    { value: 'job.moveType',          label: 'Move Type',           example: 'EX, LR, IM, ST' },
+    { value: 'job.brandCode',         label: 'Brand Code',          example: 'MWB, GRC' },
+    { value: 'job.branchCode',        label: 'Branch Code',         example: 'MEL, SYD' },
+    { value: 'job.upliftCountry',     label: 'Origin Country',      example: 'Australia, NZ' },
+    { value: 'job.deliveryCountry',   label: 'Destination Country', example: 'Australia, UK' },
+    { value: 'job.upliftState',       label: 'Origin State',        example: 'VIC, NSW' },
+    { value: 'job.deliveryState',     label: 'Destination State',   example: 'VIC, NSW' },
+    { value: 'job.upliftCity',        label: 'Origin City',         example: 'Melbourne' },
+    { value: 'job.deliveryCity',      label: 'Destination City',    example: 'Sydney' },
+  ] as const;
+
+  const CONDITION_OPERATORS = [
+    { value: '==',         label: 'equals' },
+    { value: '!=',         label: 'does not equal' },
+    { value: 'contains',   label: 'contains' },
+    { value: 'startsWith', label: 'starts with' },
+    { value: 'endsWith',   label: 'ends with' },
+    { value: 'isBlank',    label: 'is blank' },
+    { value: 'isNotBlank', label: 'is not blank' },
+  ] as const;
+
+  const needsValue = (op: string) => op !== 'isBlank' && op !== 'isNotBlank';
+
+  const openConditionEditor = (index: number) => {
+    if (!layoutConfig) return;
+    // If the editor is already open for this block, close it
+    if (conditionEditorIndex === index) {
+      setConditionEditorIndex(null);
+      return;
+    }
+    const existing = layoutConfig.sections[index]?.condition;
+    setConditionDraft(existing ?? { field: 'job.moveType', operator: '==', value: '' });
+    setConditionEditorIndex(index);
+  };
+
+  const saveCondition = (index: number) => {
+    if (!layoutConfig) return;
+    const condition: SectionCondition = {
+      field: conditionDraft.field,
+      operator: conditionDraft.operator,
+      value: needsValue(conditionDraft.operator) ? conditionDraft.value : undefined,
+    };
+    const sections = layoutConfig.sections.map((s, i) =>
+      i === index ? { ...s, condition } : s
+    );
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setConditionEditorIndex(null);
+    const fieldLabel = CONDITION_FIELDS.find(f => f.value === condition.field)?.label ?? condition.field;
+    const opLabel = CONDITION_OPERATORS.find(o => o.value === condition.operator)?.label ?? condition.operator;
+    const summary = needsValue(condition.operator)
+      ? `"${fieldLabel}" ${opLabel} "${condition.value}"`
+      : `"${fieldLabel}" ${opLabel}`;
+    setStatusMessage(`Condition set: show block when ${summary}.`);
+    setSaved(false);
+  };
+
+  const clearCondition = (index: number) => {
+    if (!layoutConfig) return;
+    const sections = layoutConfig.sections.map((s, i) => {
+      if (i !== index) return s;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { condition: _removed, ...rest } = s;
+      return rest;
+    });
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+    setConditionEditorIndex(null);
+    setStatusMessage('Condition removed — block will always be shown.');
+    setSaved(false);
   };
 
   // ---- Add / delete blocks ----
@@ -1579,6 +1663,10 @@ function LayoutBuilderContent() {
                     <Eye className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
                     <span><strong>Eye icon</strong> to show/hide · <CopyPlus className="w-3 h-3 inline text-green-500" /> to duplicate · <Trash2 className="w-3 h-3 inline text-red-400" /> to delete</span>
                   </p>
+                  <p className="flex items-start gap-1">
+                    <Filter className="w-3 h-3 mt-0.5 flex-shrink-0 text-amber-500" />
+                    <span><strong>Filter icon</strong> to set a <strong>conditional visibility rule</strong> — e.g. only show when Move Type = EX</span>
+                  </p>
                 </div>
               </div>
             )}
@@ -1605,22 +1693,27 @@ function LayoutBuilderContent() {
                   const typeTag = section.type === 'custom_html' ? 'HTML' : (section.component || section.type || 'block');
                   const isEditable = section.type === 'custom_html';
 
+                  const hasCondition = !!section.condition;
+                  const condEditorOpen = conditionEditorIndex === index;
+
                   return (
+                    <div key={section.id || index} className="rounded-lg overflow-hidden">
                     <div
-                      key={section.id || index}
                       draggable
                       onDragStart={() => handleDragStartBlock(index)}
                       onDragOver={(e) => handleDragOverBlock(e, index)}
                       onDrop={() => handleDropBlock(index)}
                       onDragEnd={handleDragEndBlock}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all select-none ${
+                      className={`flex items-center gap-2 px-3 py-2.5 border transition-all select-none ${
                         isDraggingThis
                           ? 'opacity-40 border-blue-400 bg-blue-50'
                           : isOver
                             ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : isHidden
-                              ? 'border-gray-200 bg-gray-50 opacity-60'
-                              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                            : condEditorOpen
+                              ? 'border-amber-300 bg-amber-50 border-b-0 rounded-t-lg'
+                              : isHidden
+                                ? 'border-gray-200 bg-gray-50 opacity-60 rounded-lg'
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm rounded-lg'
                       }`}
                     >
                       {/* Drag handle */}
@@ -1666,6 +1759,22 @@ function LayoutBuilderContent() {
                         <CopyPlus className="w-3.5 h-3.5" />
                       </button>
 
+                      {/* Condition button */}
+                      <button
+                        onClick={() => openConditionEditor(index)}
+                        title={hasCondition ? `Condition: ${section.condition?.field} ${section.condition?.operator} "${section.condition?.value ?? ''}"` : 'Add display condition'}
+                        className={`relative p-1 rounded transition-colors ${
+                          hasCondition
+                            ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+                            : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
+                        } ${condEditorOpen ? 'bg-amber-100 text-amber-600' : ''}`}
+                      >
+                        {hasCondition ? <Filter className="w-3.5 h-3.5" /> : <Filter className="w-3.5 h-3.5" />}
+                        {hasCondition && (
+                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                        )}
+                      </button>
+
                       {/* Delete button */}
                       <button
                         onClick={() => handleDeleteBlock(index)}
@@ -1674,6 +1783,90 @@ function LayoutBuilderContent() {
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+
+                    {/* ── Inline condition editor panel ── */}
+                    {condEditorOpen && (
+                      <div className="border border-amber-300 border-t-0 rounded-b-lg bg-amber-50 px-3 pt-3 pb-3 space-y-2">
+                        <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1">
+                          <Filter className="w-3 h-3" />
+                          Show this block only when…
+                        </p>
+
+                        {/* Field selector */}
+                        <div>
+                          <label className="block text-[10px] text-amber-700 mb-0.5 font-medium">Data field</label>
+                          <select
+                            value={conditionDraft.field}
+                            onChange={(e) => setConditionDraft((d) => ({ ...d, field: e.target.value }))}
+                            className="w-full text-xs px-2 py-1.5 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          >
+                            {CONDITION_FIELDS.map((f) => (
+                              <option key={f.value} value={f.value}>
+                                {f.label} ({f.value})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="text-[9px] text-amber-500 mt-0.5">
+                            e.g. {CONDITION_FIELDS.find(f => f.value === conditionDraft.field)?.example}
+                          </p>
+                        </div>
+
+                        {/* Operator selector */}
+                        <div>
+                          <label className="block text-[10px] text-amber-700 mb-0.5 font-medium">Operator</label>
+                          <select
+                            value={conditionDraft.operator}
+                            onChange={(e) => setConditionDraft((d) => ({ ...d, operator: e.target.value as SectionCondition['operator'] }))}
+                            className="w-full text-xs px-2 py-1.5 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          >
+                            {CONDITION_OPERATORS.map((op) => (
+                              <option key={op.value} value={op.value}>{op.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Value input — hidden for isBlank / isNotBlank */}
+                        {needsValue(conditionDraft.operator) && (
+                          <div>
+                            <label className="block text-[10px] text-amber-700 mb-0.5 font-medium">Value</label>
+                            <input
+                              type="text"
+                              value={conditionDraft.value ?? ''}
+                              onChange={(e) => setConditionDraft((d) => ({ ...d, value: e.target.value }))}
+                              placeholder="e.g. EX"
+                              className="w-full text-xs px-2 py-1.5 border border-amber-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                            <p className="text-[9px] text-amber-500 mt-0.5">Comparison is case-insensitive</p>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => saveCondition(index)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
+                          >
+                            Apply
+                          </button>
+                          <button
+                            onClick={() => setConditionEditorIndex(null)}
+                            className="px-3 py-1.5 text-xs text-amber-700 hover:text-amber-900 border border-amber-300 rounded-lg hover:bg-amber-100 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          {hasCondition && (
+                            <button
+                              onClick={() => clearCondition(index)}
+                              className="ml-auto flex items-center gap-1 px-2 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <FilterX className="w-3 h-3" />
+                              Remove condition
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     </div>
                   );
                 })}

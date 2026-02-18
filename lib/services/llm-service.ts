@@ -12,6 +12,18 @@ import OpenAI from "openai";
 // Types
 // ---------------------------------------------------------------------------
 
+/**
+ * Optional condition that controls whether a block is rendered.
+ * The block is shown only when the condition evaluates to true.
+ * Field paths follow the QuotePageData structure, e.g. "job.brandCode".
+ */
+export interface SectionCondition {
+  field: string;
+  operator: '==' | '!=' | 'contains' | 'startsWith' | 'endsWith' | 'isBlank' | 'isNotBlank';
+  /** Comparison value — not required for isBlank / isNotBlank operators */
+  value?: string;
+}
+
 export interface LayoutSection {
   id: string;
   /** Human-readable display name shown in the Blocks panel */
@@ -32,6 +44,8 @@ export interface LayoutSection {
     | "TermsSection";
   visible?: boolean;
   config?: Record<string, unknown>;
+  /** Optional display condition — block hidden when condition is not met */
+  condition?: SectionCondition;
 }
 
 export interface LayoutConfig {
