@@ -117,6 +117,10 @@ function QuotePageContent() {
   const pdfContentRef = useRef<HTMLDivElement>(null);
   const nextStepsRef = useRef<HTMLDivElement>(null);
 
+  // Derived from job branding — declared early so it's available in all effects below.
+  // Safe to read before job loads because job may be null at that point (defaults apply).
+  const primaryColor = job?.branding?.primaryColor || '#1E40AF';
+
   // Wire up custom-layout inventory pagination buttons.
   // Re-runs whenever currentPage, inventory, itemsPerPage, or primaryColor changes so the
   // buttons always reflect the latest page state and branding after React re-renders the HTML block.
@@ -664,7 +668,6 @@ function QuotePageContent() {
   const logoUrl = job.branding?.logoUrl;
   const heroBannerUrl = job.branding?.heroBannerUrl;
   const footerImageUrl = job.branding?.footerImageUrl;
-  const primaryColor = job.branding?.primaryColor || '#1E40AF';
   const fontFamily = job.branding?.fontFamily || 'Inter';
   const totalCube = inventory.reduce((sum, item) => sum + (item.cube || 0), 0);
 
