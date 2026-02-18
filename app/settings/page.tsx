@@ -823,6 +823,7 @@ export default function SettingsPage() {
   const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default'>('company');
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
   const [createAsGlobalDefault, setCreateAsGlobalDefault] = useState(false);
+  const [cloningTemplateToLayoutId, setCloningTemplateToLayoutId] = useState<string | null>(null);
 
   // Company-specific layout records (for Custom Layouts tab)
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
@@ -1685,6 +1686,51 @@ export default function SettingsPage() {
                               : <RefreshCw className="w-3.5 h-3.5" />}
                             Reset to Template
                           </button>
+                          {/* Clone assigned template → this company's custom layout */}
+                          {(() => {
+                            const matchedCo = companies.find((c) => c.id === record.companyId || c.companyId === record.company?.tenantId);
+                            const assignedTemplateId = matchedCo?.layoutTemplateId;
+                            const assignedTemplate = layoutTemplates.find((t) => t.id === assignedTemplateId);
+                            if (!assignedTemplate) return null;
+                            return (
+                              <button
+                                disabled={cloningTemplateToLayoutId === record.companyId}
+                                onClick={async () => {
+                                  if (!confirm(`Replace the company layout for "${record.company.name}" with the content of template "${assignedTemplate.name}"?\n\nThis creates an editable company-specific copy of the template. The template itself is not changed.`)) return;
+                                  setCloningTemplateToLayoutId(record.companyId);
+                                  try {
+                                    // Fetch full template config
+                                    const tmplRes = await fetch(`/api/layout-templates/${assignedTemplateId}`);
+                                    const tmplData = await tmplRes.json();
+                                    if (!tmplData.success) { alert('Failed to load template: ' + (tmplData.error || 'unknown error')); return; }
+                                    // Save as company layout
+                                    const saveRes = await fetch(`/api/layouts/${record.companyId}`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ layoutConfig: tmplData.data.layoutConfig, isActive: true, description: `Cloned from template: ${assignedTemplate.name}` }),
+                                    });
+                                    const saveData = await saveRes.json();
+                                    if (saveData.success) {
+                                      await loadCompanyLayouts();
+                                      setSuccess(`Company layout for "${record.company.name}" updated from template "${assignedTemplate.name}".`);
+                                      setTimeout(() => setSuccess(null), 4000);
+                                    } else {
+                                      alert('Failed to save: ' + (saveData.error || 'unknown error'));
+                                    }
+                                  } finally {
+                                    setCloningTemplateToLayoutId(null);
+                                  }
+                                }}
+                                className="px-3 py-1.5 text-xs text-green-700 hover:bg-green-50 rounded-lg flex items-center gap-1 transition-colors border border-green-300 disabled:opacity-50"
+                                title={`Copy template "${assignedTemplate.name}" into this company's editable layout`}
+                              >
+                                {cloningTemplateToLayoutId === record.companyId
+                                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  : <Copy className="w-3.5 h-3.5" />}
+                                Clone from Template
+                              </button>
+                            );
+                          })()}
                           <button
                             onClick={() => {
                               handlePromoteToTemplate();

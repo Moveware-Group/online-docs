@@ -223,6 +223,73 @@ export function CustomLayoutRenderer({
     return globalStyles.customCss || '';
   }, [globalStyles.customCss]);
 
+  // ---------------------------------------------------------------------------
+  // Grace banner corrective CSS
+  // Injected at render-time so it overrides whatever CSS is stored in the DB
+  // for the grace-hero-wrap / grace-footer-wrap classes. This lets old stored
+  // template versions display correctly without a DB migration.
+  // ---------------------------------------------------------------------------
+  const graceBannerCss = useMemo(() => {
+    const heroSection = config.sections.find((s) => s.id === 'grace-hero');
+    const footerSection = config.sections.find((s) => s.id === 'grace-footer-image');
+    if (!heroSection && !footerSection) return '';
+
+    const heroC = (heroSection?.config || {}) as Record<string, unknown>;
+    const footC = (footerSection?.config || {}) as Record<string, unknown>;
+
+    const hD = Number(heroC.desktopMaxHeight  || 500);
+    const hT = Number(heroC.tabletMaxHeight   || 350);
+    const hM = Number(heroC.mobileMaxHeight   || 250);
+    const fD = Number(footC.desktopMaxHeight  || 500);
+    const fT = Number(footC.tabletMaxHeight   || 350);
+    const fM = Number(footC.mobileMaxHeight   || 250);
+
+    return `
+      /* Grace banner — corrective override (render-time, beats stored HTML styles) */
+      .grace-hero-wrap {
+        width: 100vw !important;
+        position: relative !important;
+        left: 50% !important;
+        margin-left: -50vw !important;
+        height: ${hD}px !important;
+        max-height: none !important;
+        overflow: hidden !important;
+      }
+      .grace-hero-wrap img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        display: block !important;
+      }
+      .grace-footer-wrap {
+        width: 100vw !important;
+        position: relative !important;
+        left: 50% !important;
+        margin-left: -50vw !important;
+        height: ${fD}px !important;
+        max-height: none !important;
+        overflow: hidden !important;
+      }
+      .grace-footer-wrap img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        display: block !important;
+      }
+      @media (max-width: 1024px) {
+        .grace-hero-wrap   { height: ${hT}px !important; }
+        .grace-footer-wrap { height: ${fT}px !important; }
+      }
+      @media (max-width: 640px) {
+        .grace-hero-wrap   { height: ${hM}px !important; }
+        .grace-footer-wrap { height: ${fM}px !important; }
+      }
+    `;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.sections]);
+
   return (
     <div
       style={{
@@ -236,6 +303,8 @@ export function CustomLayoutRenderer({
     >
       {/* Global custom CSS */}
       {customCss && <style>{customCss}</style>}
+      {/* Grace banner corrective CSS — overrides stale stored styles */}
+      {graceBannerCss && <style>{graceBannerCss}</style>}
 
       {config.sections
         .filter((s) => {
