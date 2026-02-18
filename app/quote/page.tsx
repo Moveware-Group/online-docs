@@ -148,8 +148,25 @@ function QuotePageContent() {
     ].join(';');
 
     const timer = setTimeout(() => {
-      const paginationEl = document.getElementById('grace-inventory-pagination');
+      // Try ID lookup first (current template). Fall back to finding the container
+      // of any .grace-page-btn button (old stored templates that lack the ID).
+      let paginationEl = document.getElementById('grace-inventory-pagination');
+      if (!paginationEl) {
+        const firstBtn = document.querySelector<HTMLElement>('.grace-page-btn');
+        if (firstBtn) {
+          // Walk up max 4 levels to find a block container
+          let p: HTMLElement | null = firstBtn.parentElement;
+          for (let i = 0; i < 4 && p && p.tagName !== 'TABLE'; i++) {
+            if (p.style.display === 'flex' || p.style.justifyContent) { paginationEl = p; break; }
+            p = p.parentElement;
+          }
+          // If we still haven't found a suitable container, use the direct parent
+          if (!paginationEl && firstBtn.parentElement) paginationEl = firstBtn.parentElement;
+        }
+      }
       if (!paginationEl) return;
+      // Tag it so subsequent renders find it instantly
+      if (!paginationEl.id) paginationEl.id = 'grace-inventory-pagination';
 
       if (pages <= 1) {
         paginationEl.style.display = 'none';
@@ -217,11 +234,15 @@ function QuotePageContent() {
     const hD = Number((heroSec?.config as Record<string,unknown>)?.desktopMaxHeight  || 500);
     const fD = Number((footSec?.config as Record<string,unknown>)?.desktopMaxHeight  || 500);
 
+    // margin-right: -50vw is required alongside margin-left: -50vw so that
+    // body { overflow-x: hidden } does not clip the right side of the banner.
     const applyWrap = (el: HTMLElement, heightPx: number) => {
       el.style.width         = '100vw';
       el.style.position      = 'relative';
       el.style.left          = '50%';
+      el.style.right         = '50%';
       el.style.marginLeft    = '-50vw';
+      el.style.marginRight   = '-50vw';
       el.style.height        = `${heightPx}px`;
       el.style.maxHeight     = 'none';
       el.style.overflow      = 'hidden';
@@ -239,7 +260,7 @@ function QuotePageContent() {
     const timer = setTimeout(() => {
       document.querySelectorAll<HTMLElement>('.grace-hero-wrap').forEach((el) => applyWrap(el, hD));
       document.querySelectorAll<HTMLElement>('.grace-footer-wrap').forEach((el) => applyWrap(el, fD));
-    }, 50);
+    }, 150);
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps

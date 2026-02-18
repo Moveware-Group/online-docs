@@ -60,12 +60,7 @@ export const GRACE_STATIC_LAYOUT = {
       visible: true,
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width hero banner image -->
-<style>
-  .grace-hero-wrap { height:{{config.desktopMaxHeight}}px; overflow:hidden; width:100vw; position:relative; left:50%; margin-left:-50vw; }
-  @media (max-width:1024px) { .grace-hero-wrap { height:{{config.tabletMaxHeight}}px; } }
-  @media (max-width:640px)  { .grace-hero-wrap { height:{{config.mobileMaxHeight}}px; } }
-</style>
-<div class="grace-hero-wrap">
+<div class="grace-hero-wrap" style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;height:{{config.desktopMaxHeight}}px;max-height:none;overflow:hidden;display:block;">
   <img src="{{branding.heroBannerUrl}}" alt="{{branding.companyName}} Banner"
     style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
     onerror="this.src='/grace-assets/banner_1.png'" />
@@ -335,12 +330,7 @@ export const GRACE_STATIC_LAYOUT = {
       visible: true,
       config: { desktopMaxHeight: 500, tabletMaxHeight: 350, mobileMaxHeight: 250 },
       html: `<!-- Full-width footer banner image -->
-<style>
-  .grace-footer-wrap { height:{{config.desktopMaxHeight}}px; overflow:hidden; width:100vw; position:relative; left:50%; margin-left:-50vw; }
-  @media (max-width:1024px) { .grace-footer-wrap { height:{{config.tabletMaxHeight}}px; } }
-  @media (max-width:640px)  { .grace-footer-wrap { height:{{config.mobileMaxHeight}}px; } }
-</style>
-<div class="grace-footer-wrap">
+<div class="grace-footer-wrap" style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;height:{{config.desktopMaxHeight}}px;max-height:none;overflow:hidden;display:block;">
   <img src="{{branding.footerImageUrl}}" alt="{{branding.companyName}} Footer"
     style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;"
     onerror="this.src='/grace-assets/banner_3.png'" />

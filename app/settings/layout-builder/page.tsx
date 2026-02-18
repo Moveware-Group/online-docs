@@ -38,6 +38,7 @@ import {
   LayoutTemplate,
   Filter,
   FilterX,
+  Settings2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -159,6 +160,7 @@ interface ChatMessage {
 function LayoutBuilderContent() {
   const searchParams = useSearchParams();
   const preselectedCompanyId = searchParams.get('companyId');
+  const preselectedTemplateId = searchParams.get('templateId');
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
@@ -182,6 +184,11 @@ function LayoutBuilderContent() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // When the builder is opened via ?templateId=..., we're editing a global template
+  // (not a company layout). This ID is used to route the Save call correctly.
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [editingTemplateName, setEditingTemplateName] = useState<string | null>(null);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -215,6 +222,8 @@ function LayoutBuilderContent() {
   const [conditionEditorIndex, setConditionEditorIndex] = useState<number | null>(null);
   const [conditionDraft, setConditionDraft] = useState<SectionCondition>({ field: 'job.moveType', operator: '==', value: '' });
 
+  const [formConfigEditorIndex, setFormConfigEditorIndex] = useState<number | null>(null);
+
   // Block editor state
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
   const [editingBlockContent, setEditingBlockContent] = useState('');
@@ -235,12 +244,48 @@ function LayoutBuilderContent() {
     }
   }, [preselectedCompanyId]);
 
-  // Load existing layout when company is selected
+  // Load template when templateId is in URL (template-edit mode)
   useEffect(() => {
-    if (selectedCompany?.id) {
+    if (!preselectedTemplateId) return;
+    const loadTemplate = async () => {
+      try {
+        const res = await fetch(`/api/layout-templates/${preselectedTemplateId}`);
+        const data = await res.json();
+        if (!res.ok || !data.success) return;
+        const tpl = data.data;
+        setEditingTemplateId(tpl.id);
+        setEditingTemplateName(tpl.name || 'Layout Template');
+        setLayoutConfig(tpl.layoutConfig as LayoutConfig);
+        // Pre-select the first assigned company so the preview iframe can load
+        const assignedCompany = tpl.brandingSettings?.[0];
+        if (assignedCompany?.company) {
+          const c = assignedCompany.company;
+          setSelectedCompany({
+            id: c.id,
+            tenantId: c.tenantId || c.id,
+            name: c.name,
+            brandCode: assignedCompany.brandCode || '',
+            primaryColor: assignedCompany.primaryColor || '#2563eb',
+            secondaryColor: assignedCompany.secondaryColor || '#ffffff',
+            logoUrl: assignedCompany.logoUrl || '',
+          });
+        }
+        // Jump straight to Blocks tab — no need for Setup when template is pre-loaded
+        setLeftPanelTab('blocks');
+      } catch (err) {
+        console.error('Failed to load template for editing:', err);
+      }
+    };
+    loadTemplate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedTemplateId]);
+
+  // Load existing layout when company is selected (only in company-layout mode)
+  useEffect(() => {
+    if (selectedCompany?.id && !editingTemplateId) {
       loadExistingLayout(selectedCompany.id);
     }
-  }, [selectedCompany?.id]);
+  }, [selectedCompany?.id, editingTemplateId]);
 
   const fetchCompanyById = async (id: string) => {
     try {
@@ -618,12 +663,29 @@ function LayoutBuilderContent() {
 
   // ---- Save Layout ----
   const handleSave = async () => {
-    if (!selectedCompany || !layoutConfig) return;
+    if (!layoutConfig) return;
 
     setSaving(true);
     setError(null);
 
     try {
+      // Template-edit mode: save back to the layout template
+      if (editingTemplateId) {
+        const res = await fetch(`/api/layout-templates/${editingTemplateId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ layoutConfig }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Save failed');
+        setSaved(true);
+        setStatusMessage(`Template "${editingTemplateName}" saved. All companies using this template will see the updated layout.`);
+        addAssistantMessage(`Template "${editingTemplateName}" saved successfully.`);
+        return;
+      }
+
+      // Company-layout mode: save to the company's custom layout
+      if (!selectedCompany) return;
       const res = await fetch(`/api/layouts/${selectedCompany.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -970,6 +1032,16 @@ function LayoutBuilderContent() {
     updatePreview(updated);
   };
 
+  const handleUpdateSectionConfig = (index: number, key: string, value: unknown) => {
+    if (!layoutConfig) return;
+    const sections = layoutConfig.sections.map((s, i) =>
+      i === index ? { ...s, config: { ...(s.config as Record<string, unknown> || {}), [key]: value } } : s
+    );
+    const updated = { ...layoutConfig, sections };
+    setLayoutConfig(updated);
+    updatePreview(updated);
+  };
+
   // ---- Block editor ----
   const openBlockEditor = (index: number) => {
     if (!layoutConfig) return;
@@ -1099,6 +1171,12 @@ function LayoutBuilderContent() {
             <Wand2 className="w-5 h-5 text-blue-600" />
             AI Layout Builder
           </h1>
+          {editingTemplateId && (
+            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
+              <LayoutTemplate className="w-3 h-3" />
+              Template: {editingTemplateName}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <a
@@ -1256,6 +1334,19 @@ function LayoutBuilderContent() {
             </div>
 
             <div className="space-y-3">
+              {/* Template-mode callout — company picker is for preview only */}
+              {editingTemplateId && (
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <LayoutTemplate className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-purple-800">
+                      <strong>Editing template: {editingTemplateName}</strong>
+                      <p className="mt-0.5 text-purple-700">Changes are saved to the template and applied to all assigned companies. Select a company below only to load a live preview.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Company Dropdown */}
               <CompanySearchDropdown
                 value={selectedCompany}
@@ -1751,6 +1842,8 @@ function LayoutBuilderContent() {
 
                   const hasCondition = !!section.condition;
                   const condEditorOpen = conditionEditorIndex === index;
+                  const isAcceptanceForm = section.component === 'AcceptanceForm';
+                  const formCfgOpen = formConfigEditorIndex === index;
 
                   return (
                     <div key={section.id || index} className="rounded-lg overflow-hidden">
@@ -1765,7 +1858,9 @@ function LayoutBuilderContent() {
                           ? 'opacity-40 border-blue-400 bg-blue-50'
                           : isOver
                             ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : condEditorOpen
+                            : formCfgOpen
+                              ? 'border-purple-300 bg-purple-50 border-b-0 rounded-t-lg'
+                              : condEditorOpen
                               ? 'border-amber-300 bg-amber-50 border-b-0 rounded-t-lg'
                               : isHidden
                                 ? 'border-gray-200 bg-gray-50 opacity-60 rounded-lg'
@@ -1792,6 +1887,21 @@ function LayoutBuilderContent() {
                           className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* Configure fields button (AcceptanceForm only) */}
+                      {isAcceptanceForm && (
+                        <button
+                          onClick={() => setFormConfigEditorIndex(formCfgOpen ? null : index)}
+                          title="Configure form fields"
+                          className={`p-1 rounded transition-colors ${
+                            formCfgOpen
+                              ? 'text-purple-600 bg-purple-100'
+                              : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                          }`}
+                        >
+                          <Settings2 className="w-4 h-4" />
                         </button>
                       )}
 
@@ -1840,6 +1950,54 @@ function LayoutBuilderContent() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
+
+                    {/* ── Inline acceptance form field config panel ── */}
+                    {formCfgOpen && isAcceptanceForm && (() => {
+                      const cfg = (section.config as Record<string, unknown>) || {};
+                      const fields: { key: string; label: string }[] = [
+                        { key: 'showSignatureName',       label: 'Signature Name' },
+                        { key: 'showReloFromDate',        label: 'Relo From Date' },
+                        { key: 'showInsuredValue',        label: 'Insured Value' },
+                        { key: 'showPurchaseOrderNumber', label: 'Purchase Order Number' },
+                        { key: 'showSpecialRequirements', label: 'Special Requirements' },
+                      ];
+                      return (
+                        <div className="border border-purple-300 border-t-0 rounded-b-lg bg-purple-50 px-3 pt-3 pb-3 space-y-2">
+                          <p className="text-[10px] font-semibold text-purple-700 uppercase tracking-wide flex items-center gap-1">
+                            <Settings2 className="w-3 h-3" />
+                            Acceptance form — visible fields
+                          </p>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {fields.map(({ key, label }) => {
+                              const isOn = cfg[key] !== false;
+                              return (
+                                <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isOn}
+                                    onClick={() => handleUpdateSectionConfig(index, key, !isOn)}
+                                    className={`relative inline-flex h-4 w-7 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                                      isOn ? 'bg-purple-500' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${
+                                        isOn ? 'translate-x-3' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                  <span className={`text-xs ${isOn ? 'text-purple-800 font-medium' : 'text-gray-400 line-through'}`}>
+                                    {label}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[9px] text-purple-500 pt-1">Changes apply immediately — save the layout to persist.</p>
+                        </div>
+                      );
+                    })()}
 
                     {/* ── Inline condition editor panel ── */}
                     {condEditorOpen && (

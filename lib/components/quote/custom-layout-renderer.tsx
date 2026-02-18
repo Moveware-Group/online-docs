@@ -245,15 +245,20 @@ export function CustomLayoutRenderer({
     const fM = Number(footC.mobileMaxHeight   || 250);
 
     return `
-      /* Grace banner — corrective override (render-time, beats stored HTML styles) */
+      /* Grace banner — corrective override (render-time, beats stored HTML styles).
+         margin-right: -50vw is required alongside margin-left: -50vw so that
+         body { overflow-x: hidden } does not clip the right half of the banner. */
       .grace-hero-wrap {
         width: 100vw !important;
         position: relative !important;
         left: 50% !important;
+        right: 50% !important;
         margin-left: -50vw !important;
+        margin-right: -50vw !important;
         height: ${hD}px !important;
         max-height: none !important;
         overflow: hidden !important;
+        display: block !important;
       }
       .grace-hero-wrap img {
         width: 100% !important;
@@ -266,10 +271,13 @@ export function CustomLayoutRenderer({
         width: 100vw !important;
         position: relative !important;
         left: 50% !important;
+        right: 50% !important;
         margin-left: -50vw !important;
+        margin-right: -50vw !important;
         height: ${fD}px !important;
         max-height: none !important;
         overflow: hidden !important;
+        display: block !important;
       }
       .grace-footer-wrap img {
         width: 100% !important;
