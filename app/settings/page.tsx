@@ -1413,7 +1413,7 @@ export default function SettingsPage() {
                           />
                         </div>
                         {/* Actions — fixed width so variable label ("Create"/"Edit" Layout) never shifts colours */}
-                        <div className="flex gap-2 flex-shrink-0 w-[246px] justify-end">
+                        <div className="flex gap-2 flex-shrink-0 w-[272px] justify-end">
                           <a
                             href={`/settings/layout-builder?companyId=${company.id}`}
                             className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
