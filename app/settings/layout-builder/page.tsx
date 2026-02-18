@@ -34,7 +34,6 @@ import {
   Image as ImageIcon,
   Type,
   Code2,
-  Columns2,
   Columns,
   LayoutTemplate,
   Filter,
@@ -1964,7 +1963,7 @@ function LayoutBuilderContent() {
                       className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
                     >
                       <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                        <Columns2 className="w-5 h-5 text-blue-600" />
+                        <Columns className="w-5 h-5 text-blue-600" />
                       </div>
                       <div className="text-center">
                         <div className="text-xs font-semibold text-gray-800 group-hover:text-blue-700">2 Columns</div>
