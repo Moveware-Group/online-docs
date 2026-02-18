@@ -4,24 +4,27 @@ import { prisma } from '@/lib/db';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    console.log('📝 Received quote acceptance request:', {
-      quoteNumber: body.quoteNumber,
-      signatureName: body.signatureName,
-    });
-    
-    const {
-      quoteNumber,
-      signatureName,
-      signatureData,
-      agreedToTerms,
-    } = body;
+
+    // Support both field name conventions:
+    //   quoteNumber  — legacy API field
+    //   jobId        — sent by the quote page (jobId from the URL = quote number)
+    // signatureName is optional when the layout hides the field; fall back to customerName.
+    const quoteNumber: string  = body.quoteNumber || body.jobId || '';
+    const signatureData: string = body.signatureData || '';
+    const signatureName: string = body.signatureName || body.customerName || 'Accepted';
+    const agreedToTerms: boolean = body.agreedToTerms;
+
+    console.log('📝 Received quote acceptance request:', { quoteNumber, signatureName });
 
     // Validate required fields
-    if (!quoteNumber || !signatureName || !signatureData) {
-      console.error('❌ Validation failed: Missing required fields');
+    if (!quoteNumber || !signatureData) {
+      const missing = [
+        !quoteNumber   && 'quoteNumber / jobId',
+        !signatureData && 'signatureData',
+      ].filter(Boolean).join(', ');
+      console.error('❌ Validation failed: Missing required fields:', missing);
       return NextResponse.json(
-        { error: 'Missing required fields: quoteNumber, signatureName, and signatureData' },
+        { error: `Missing required fields: ${missing}` },
         { status: 400 }
       );
     }

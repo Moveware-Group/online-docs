@@ -549,9 +549,11 @@ function QuotePageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          jobId: jobId,
+          jobId,
+          quoteNumber: jobId,          // API field alias — both are accepted
           costingItemId: selectedCostingId,
-          signatureName,
+          signatureName: signatureName || customerName,   // fallback when field is hidden
+          customerName,
           reloFromDate: formattedDate,
           insuredValue,
           purchaseOrderNumber,
