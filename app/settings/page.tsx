@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
@@ -739,6 +739,9 @@ export default function SettingsPage() {
   const [loadingCompanyLayouts, setLoadingCompanyLayouts] = useState(false);
   const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
 
+  // Help popover for Custom Layouts tab
+  const [showLayoutHelp, setShowLayoutHelp] = useState(false);
+
   // Per-block HTML editor (Custom Layouts tab)
   // key: `${layoutId}:${blockIndex}`
   const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
@@ -1391,6 +1394,54 @@ export default function SettingsPage() {
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                   <Wand2 className="w-5 h-5 text-purple-600" />
                   Company Layouts
+                  {/* Help button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLayoutHelp((v) => !v)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                      title="What are Company Layouts vs Layout Templates?"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                    {showLayoutHelp && (
+                      <div className="absolute left-0 top-7 z-50 w-80 bg-white border border-gray-200 rounded-xl shadow-xl p-4 text-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-semibold text-gray-900">Company Layouts vs Templates</span>
+                          <button onClick={() => setShowLayoutHelp(false)} className="text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+
+                        <div className="space-y-3 text-gray-700">
+                          <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+                            <p className="font-semibold text-purple-800 flex items-center gap-1.5 mb-1">
+                              <Wand2 className="w-3.5 h-3.5" /> Company Layout
+                            </p>
+                            <p className="text-xs leading-relaxed">
+                              A layout saved <strong>specifically for one company</strong>. Created and edited in the AI Layout Builder — this is where you drag blocks, edit copy, and upload banner/footer images. Each company has their own independent version.
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                            <p className="font-semibold text-blue-800 flex items-center gap-1.5 mb-1">
+                              <Layout className="w-3.5 h-3.5" /> Layout Template
+                            </p>
+                            <p className="text-xs leading-relaxed">
+                              A <strong>shared, reusable base</strong> that multiple companies can point to. All companies assigned to the template share the same block structure and copy, but each company&apos;s own banner image, footer image, and brand colors are applied on top.
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <p className="font-semibold text-gray-800 mb-1 text-xs">When to use which?</p>
+                            <ul className="text-xs space-y-1 text-gray-600">
+                              <li>• <strong>One company, unique layout</strong> → Company Layout</li>
+                              <li>• <strong>Same structure across many companies</strong> → Template</li>
+                              <li>• Promote a Company Layout to a Template using <strong>Save as Template</strong></li>
+                              <li>• Templates override a company&apos;s own layout when assigned</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
                   Custom layouts saved per company. Edit individual blocks here, or open the Layout Builder for the full visual editor.
