@@ -5,9 +5,11 @@
  * DELETE /api/layouts/[companyId] - Delete layout for a company
  *
  * Priority order for GET:
- *   1. Layout Template assigned to company via branding_settings.layoutTemplateId
- *   2. Company-specific CustomLayout saved in DB
- *   3. 404 — caller falls back to the default quote template
+ *   1. Layout Template assigned to this specific company (BrandingSettings.layoutTemplateId)
+ *   2. Company-specific CustomLayout saved in the DB
+ *   3. Global default LayoutTemplate (isDefault = true) — applies to ALL companies
+ *      that have no assigned template and no custom layout
+ *   4. 404 — caller falls back to the hard-coded default React quote template
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -153,6 +155,39 @@ export async function GET(
 
     // ── Priority 2: Company-specific CustomLayout saved in the DB ──
     if (!layout) {
+      // ── Priority 3: Global isDefault LayoutTemplate ──────────────────────
+      // Applies to all companies that have no assigned template and no custom
+      // layout — this is the "global default" that Moveware staff can customise.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const defaultTmpl = await (prisma as any).layoutTemplate.findFirst({
+          where: { isDefault: true, isActive: true },
+        });
+        if (defaultTmpl) {
+          let layoutConfig;
+          try { layoutConfig = JSON.parse(defaultTmpl.layoutConfig); } catch { layoutConfig = defaultTmpl.layoutConfig; }
+          const merged = await mergeCompanyBrandingIntoLayout(
+            resolvedCompany?.id ?? companyId,
+            layoutConfig,
+          );
+          return NextResponse.json({
+            success: true,
+            data: {
+              id: defaultTmpl.id,
+              companyId: resolvedCompany?.id ?? companyId,
+              layoutConfig: merged,
+              templateId: defaultTmpl.id,
+              templateName: defaultTmpl.name,
+              version: defaultTmpl.version,
+              isActive: defaultTmpl.isActive,
+              source: "default_template",
+            },
+          });
+        }
+      } catch {
+        // isDefault column may not exist yet (pre-migration) — fall through to 404
+      }
+
       return NextResponse.json(
         { success: false, error: "No custom layout found for this company" },
         { status: 404 },
