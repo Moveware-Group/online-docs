@@ -116,6 +116,44 @@ function QuotePageContent() {
   // Refs
   const pdfContentRef = useRef<HTMLDivElement>(null);
   const nextStepsRef = useRef<HTMLDivElement>(null);
+
+  // Keep a stable ref to the latest agreedToTerms so DOM event listeners
+  // don't capture a stale closure value
+  const agreedToTermsRef = useRef(agreedToTerms);
+  useEffect(() => { agreedToTermsRef.current = agreedToTerms; }, [agreedToTerms]);
+
+  // Keep a stable ref to handleAcceptQuote
+  const handleAcceptRef = useRef<() => Promise<void>>(async () => {});
+
+  // Wire up custom-layout acceptance controls (checkbox → state, buttons → handlers)
+  // Runs whenever a custom layout is loaded into the DOM
+  useEffect(() => {
+    if (!customLayout) return;
+
+    // Defer slightly to ensure dangerouslySetInnerHTML has flushed to DOM
+    const timer = setTimeout(() => {
+      // ── Terms checkbox → React state ──────────────────────────────────────
+      const checkbox = document.getElementById('grace-terms-checkbox') as HTMLInputElement | null;
+      if (checkbox) {
+        const onCheck = (e: Event) => setAgreedToTerms((e.target as HTMLInputElement).checked);
+        checkbox.addEventListener('change', onCheck);
+        // Sync initial value in case the DOM was re-hydrated
+        if (checkbox.checked !== agreedToTermsRef.current) {
+          checkbox.checked = agreedToTermsRef.current;
+        }
+      }
+
+      // ── Accept button → handleAcceptQuote ─────────────────────────────────
+      const acceptBtn = document.querySelector('.grace-accept-btn') as HTMLButtonElement | null;
+      if (acceptBtn) {
+        const onClick = () => { if (agreedToTermsRef.current) handleAcceptRef.current(); };
+        acceptBtn.addEventListener('click', onClick);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout]);
   
   // Validation states
   const [errors, setErrors] = useState({
@@ -450,6 +488,7 @@ function QuotePageContent() {
       return;
     }
 
+
     try {
       setSubmitting(true);
       
@@ -496,6 +535,12 @@ function QuotePageContent() {
       setSubmitting(false);
     }
   };
+
+  // Keep handleAcceptRef always pointing at the latest handleAcceptQuote
+  // so DOM event listeners added by the custom-layout useEffect can call it
+  // without stale closure issues.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { handleAcceptRef.current = handleAcceptQuote; });
 
   if (loading) {
     return (
@@ -584,12 +629,110 @@ function QuotePageContent() {
 
     return (
       <PageShell includeHeader={false}>
-        <CustomLayoutRenderer
-          config={customLayout}
-          data={pageData}
-          selectedCostingId={selectedCostingId}
-          onSelectCosting={(id: string) => setSelectedCostingId(id)}
-        />
+        {/*
+          Inject acceptance CSS as a real React <style> element (NOT inside
+          dangerouslySetInnerHTML) so that the CSS sibling selector reliably
+          fires in all browsers. The primaryColor is resolved server-side.
+        */}
+        <style>{`
+          #grace-terms-checkbox {
+            accent-color: ${primaryColor};
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+          }
+          /* Accept button — disabled (grey) by default */
+          .grace-accept-btn {
+            background: #f0f0f0 !important;
+            color: #aaa !important;
+            border: none;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: not-allowed !important;
+            transition: background 0.2s, color 0.2s;
+            width: 100%;
+            display: block;
+          }
+          /* Accept button — enabled (primary colour) once T&C checkbox is ticked */
+          #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn {
+            background: ${primaryColor} !important;
+            color: #ffffff !important;
+            cursor: pointer !important;
+          }
+          #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn:hover {
+            opacity: 0.88;
+          }
+        `}</style>
+
+        <div ref={pdfContentRef}>
+          <CustomLayoutRenderer
+            config={customLayout}
+            data={pageData}
+            selectedCostingId={selectedCostingId}
+            onSelectCosting={(id: string) => setSelectedCostingId(id)}
+          />
+        </div>
+
+        {/* Floating Print PDF button — visible when not in preview mode */}
+        {!isPreviewMode && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: '24px',
+              right: '24px',
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              alignItems: 'flex-end',
+            }}
+          >
+            <button
+              onClick={generatePDF}
+              disabled={generatingPdf}
+              style={{
+                background: generatingPdf ? '#9ca3af' : primaryColor,
+                color: '#ffffff',
+                border: 'none',
+                padding: '12px 20px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '700',
+                cursor: generatingPdf ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'opacity 0.2s',
+              }}
+              title="Download quote as PDF"
+            >
+              {generatingPdf ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                  </svg>
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Print / Save PDF
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Spinner keyframe for the PDF button */}
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </PageShell>
     );
   }
