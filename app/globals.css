@@ -61,8 +61,34 @@
   }
 }
 
-/* Grace banner image fill — position:absolute so the img fills the 100vw
-   .grace-*-wrap div regardless of any intermediate max-width containers.
+/* Grace banner WRAPPERS — full-viewport-width breakout applied globally so
+   every stored layout version (old DB snapshots included) renders correctly.
+   !important overrides inline styles that old stored template HTML may carry.
+   Heights are defaults only; graceBannerCss in the renderer injects per-layout
+   values with !important to take final precedence. */
+.grace-hero-wrap,
+.grace-footer-wrap {
+  width: 100vw !important;
+  position: relative !important;
+  left: 50% !important;
+  right: 50% !important;
+  margin-left: -50vw !important;
+  margin-right: -50vw !important;
+  overflow: hidden !important;
+  display: block !important;
+  height: 500px; /* default — overridden by graceBannerCss */
+}
+@media (max-width: 1024px) {
+  .grace-hero-wrap,
+  .grace-footer-wrap { height: 350px; }
+}
+@media (max-width: 640px) {
+  .grace-hero-wrap,
+  .grace-footer-wrap { height: 250px; }
+}
+
+/* Grace banner IMAGES — position:absolute so the img fills its wrapper
+   regardless of any intermediate max-width containers.
    !important overrides Tailwind Preflight (img { height:auto; max-width:100% }) */
 .grace-hero-wrap img,
 .grace-footer-wrap img {

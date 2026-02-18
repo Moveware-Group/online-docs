@@ -224,10 +224,11 @@ export function CustomLayoutRenderer({
   }, [globalStyles.customCss]);
 
   // ---------------------------------------------------------------------------
-  // Grace banner corrective CSS
-  // Injected at render-time so it overrides whatever CSS is stored in the DB
-  // for the grace-hero-wrap / grace-footer-wrap classes. This lets old stored
-  // template versions display correctly without a DB migration.
+  // Grace banner height CSS
+  // Injects per-layout config heights with !important so they override the
+  // global defaults in globals.css.  Positioning is handled entirely by
+  // globals.css (.grace-hero-wrap / .grace-footer-wrap rules) so we only
+  // need to emit height overrides here.
   // ---------------------------------------------------------------------------
   const graceBannerCss = useMemo(() => {
     const heroSection = config.sections.find((s) => s.id === 'grace-hero');
@@ -245,66 +246,15 @@ export function CustomLayoutRenderer({
     const fM = Number(footC.mobileMaxHeight   || 250);
 
     return `
-      /* Grace banner CSS fallback — overrides styles stored in the DB template.
-         No !important here: the useLayoutEffect DOM manipulation in page.tsx
-         uses setProperty(...,'important') which takes final precedence. */
-      .grace-hero-wrap {
-        width: 100vw;
-        position: relative;
-        left: 50%;
-        right: 50%;
-        margin-left: -50vw;
-        margin-right: -50vw;
-        height: ${hD}px;
-        max-height: none;
-        overflow: hidden;
-        display: block;
-      }
-      .grace-hero-wrap img {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: none !important;
-        object-fit: cover !important;
-        object-position: center !important;
-        display: block !important;
-      }
-      .grace-footer-wrap {
-        width: 100vw;
-        position: relative;
-        left: 50%;
-        right: 50%;
-        margin-left: -50vw;
-        margin-right: -50vw;
-        height: ${fD}px;
-        max-height: none;
-        overflow: hidden;
-        display: block;
-      }
-      .grace-footer-wrap img {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        max-width: none !important;
-        object-fit: cover !important;
-        object-position: center !important;
-        display: block !important;
-      }
+      .grace-hero-wrap   { height: ${hD}px !important; }
+      .grace-footer-wrap { height: ${fD}px !important; }
       @media (max-width: 1024px) {
-        .grace-hero-wrap   { height: ${hT}px; }
-        .grace-footer-wrap { height: ${fT}px; }
+        .grace-hero-wrap   { height: ${hT}px !important; }
+        .grace-footer-wrap { height: ${fT}px !important; }
       }
       @media (max-width: 640px) {
-        .grace-hero-wrap   { height: ${hM}px; }
-        .grace-footer-wrap { height: ${fM}px; }
+        .grace-hero-wrap   { height: ${hM}px !important; }
+        .grace-footer-wrap { height: ${fM}px !important; }
       }
     `;
   // eslint-disable-next-line react-hooks/exhaustive-deps

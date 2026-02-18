@@ -121,18 +121,50 @@ function QuotePageContent() {
   // Safe to read before job loads because job may be null at that point (defaults apply).
   const primaryColor = job?.branding?.primaryColor || '#1E40AF';
 
-  // Completely rebuild the Grace inventory pagination UI.
-  // useLayoutEffect runs synchronously after React commits DOM (including dangerouslySetInnerHTML),
-  // before the browser paints — so no setTimeout race condition.
+  // ── Grace inventory pagination ────────────────────────────────────────────
+  // Refs let the document-level click handler always see the latest values
+  // without being recreated (avoids stale-closure bugs entirely).
+  const inventoryLengthRef = useRef(inventory.length);
+  const itemsPerPageRef    = useRef(itemsPerPage);
+  useEffect(() => { inventoryLengthRef.current = inventory.length; }, [inventory.length]);
+  useEffect(() => { itemsPerPageRef.current    = itemsPerPage;    }, [itemsPerPage]);
+
+  // Single document-level click handler — set up ONCE, uses refs for current
+  // values.  This is immune to dangerouslySetInnerHTML replacing the buttons
+  // (which would destroy per-element listeners) and to stale-closure issues.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const btn    = target.closest<HTMLElement>('[data-pgdir],[data-pgnum]');
+      if (!btn) return;
+      const dir = btn.getAttribute('data-pgdir');
+      const num = btn.getAttribute('data-pgnum');
+      const total = itemsPerPageRef.current === -1
+        ? 1
+        : Math.ceil(inventoryLengthRef.current / itemsPerPageRef.current);
+      if (dir === 'prev') setCurrentPage((p) => Math.max(1, p - 1));
+      if (dir === 'next') setCurrentPage((p) => Math.min(total, p + 1));
+      if (num !== null) setCurrentPage(Number(num));
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // empty — intentional; refs keep values current
+
+  // Rebuild the Grace inventory pagination UI each time the relevant state
+  // changes.  useLayoutEffect fires synchronously after React commits the DOM
+  // (including dangerouslySetInnerHTML), so buttons are ready before paint.
+  // Click handling is done by the document-level handler above.
   useLayoutEffect(() => {
     if (!customLayout) return;
 
-    const color = primaryColor || '#e53e3e';
+    const color      = primaryColor || '#e53e3e';
     const totalItems = inventory.length;
-    const pages = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
-    const page = currentPage;
-    const from = itemsPerPage === -1 ? 1 : (page - 1) * itemsPerPage + 1;
-    const to   = itemsPerPage === -1 ? totalItems : Math.min(page * itemsPerPage, totalItems);
+    const pages      = itemsPerPage === -1 ? 1 : Math.ceil(totalItems / itemsPerPage);
+    const page       = currentPage;
+    const from       = itemsPerPage === -1 ? 1 : (page - 1) * itemsPerPage + 1;
+    const to         = itemsPerPage === -1 ? totalItems : Math.min(page * itemsPerPage, totalItems);
 
     const btnStyle = (disabled: boolean) => [
       'padding:6px 14px',
@@ -146,30 +178,26 @@ function QuotePageContent() {
       'opacity:' + (disabled ? '0.6' : '1'),
     ].join(';');
 
-    // Try ID lookup first (current template). Also try data-dir attribute (old templates)
-    // and .grace-page-btn class as fallbacks.
+    // Find the pagination container — supports both the current template
+    // (id="grace-inventory-pagination") and old stored layout versions that
+    // used different structures or no id.
     let paginationEl = document.getElementById('grace-inventory-pagination');
     if (!paginationEl) {
-      // Try by data-dir attribute (present in both old and new stored templates)
       const firstBtn = document.querySelector<HTMLElement>('[data-dir="prev"], .grace-page-btn');
       if (firstBtn) {
-        // Walk up to find the flex container holding the whole pagination row
         let p: HTMLElement | null = firstBtn.parentElement;
         for (let i = 0; i < 5 && p; i++) {
           if (p.tagName === 'TABLE') break;
           const s = p.style;
           if (s.display === 'flex' && s.justifyContent && s.justifyContent !== '') {
-            paginationEl = p;
-            break;
+            paginationEl = p; break;
           }
           p = p.parentElement;
         }
-        // If still not found, climb up one more level from the first button
         if (!paginationEl) paginationEl = firstBtn.closest('div') || firstBtn.parentElement;
       }
     }
     if (!paginationEl) return;
-    // Tag it for instant lookup on subsequent renders
     if (!paginationEl.id) paginationEl.id = 'grace-inventory-pagination';
 
     if (pages <= 1) {
@@ -177,96 +205,37 @@ function QuotePageContent() {
       return;
     }
 
-    // Rebuild the entire pagination UI from scratch
-    paginationEl.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding-top:16px;border-top:1px solid #e9e9e9;margin-top:4px;';
+    paginationEl.style.cssText =
+      'display:flex;justify-content:space-between;align-items:center;' +
+      'padding-top:16px;border-top:1px solid #e9e9e9;margin-top:4px;';
 
     const prevDisabled = page <= 1;
     const nextDisabled = page >= pages;
 
-    // Compute visible page range (max 5 at a time)
     const maxVisible = 5;
-    const half = Math.floor(maxVisible / 2);
-    const startPage = Math.max(1, Math.min(page - half, pages - maxVisible + 1));
-    const endPage = Math.min(pages, startPage + maxVisible - 1);
+    const half       = Math.floor(maxVisible / 2);
+    const startPage  = Math.max(1, Math.min(page - half, pages - maxVisible + 1));
+    const endPage    = Math.min(pages, startPage + maxVisible - 1);
 
     let pageNumHtml = '';
-    for (let p = startPage; p <= endPage; p++) {
-      const active = p === page;
-      pageNumHtml += `<button data-pgnum="${p}" style="width:32px;height:32px;border-radius:50%;font-size:13px;font-weight:${active ? 700 : 400};cursor:${active ? 'default' : 'pointer'};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid ${active ? color : '#d1d5db'};background:${active ? color : '#fff'};color:${active ? '#fff' : '#374151'};">${p}</button>`;
+    for (let pg = startPage; pg <= endPage; pg++) {
+      const active = pg === page;
+      pageNumHtml += `<button data-pgnum="${pg}" style="width:32px;height:32px;border-radius:50%;` +
+        `font-size:13px;font-weight:${active ? 700 : 400};cursor:${active ? 'default' : 'pointer'};` +
+        `display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;` +
+        `border:1px solid ${active ? color : '#d1d5db'};background:${active ? color : '#fff'};` +
+        `color:${active ? '#fff' : '#374151'};">${pg}</button>`;
     }
 
-    paginationEl.innerHTML = `
-      <span style="font-size:13px;color:#666;">Showing ${from} to ${to} of ${totalItems} items</span>
-      <div style="display:flex;gap:4px;align-items:center;">
-        <button data-pgdir="prev" ${prevDisabled ? 'disabled' : ''} style="${btnStyle(prevDisabled)}">Previous</button>
-        <div style="display:flex;gap:4px;align-items:center;margin:0 4px;">${pageNumHtml}</div>
-        <button data-pgdir="next" ${nextDisabled ? 'disabled' : ''} style="${btnStyle(nextDisabled)}">Next</button>
-      </div>
-    `;
-
-    // Attach click handlers to the freshly-created buttons
-    paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgdir="prev"]').forEach((btn) => {
-      btn.addEventListener('click', () => { if (page > 1) setCurrentPage((p) => p - 1); });
-    });
-    paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgdir="next"]').forEach((btn) => {
-      btn.addEventListener('click', () => { if (page < pages) setCurrentPage((p) => p + 1); });
-    });
-    paginationEl.querySelectorAll<HTMLButtonElement>('[data-pgnum]').forEach((btn) => {
-      const p = Number(btn.dataset.pgnum);
-      if (p !== page) btn.addEventListener('click', () => setCurrentPage(p));
-    });
+    paginationEl.innerHTML =
+      `<span style="font-size:13px;color:#666;">Showing ${from} to ${to} of ${totalItems} items</span>` +
+      `<div style="display:flex;gap:4px;align-items:center;">` +
+      `<button data-pgdir="prev" ${prevDisabled ? 'disabled' : ''} style="${btnStyle(prevDisabled)}">Previous</button>` +
+      `<div style="display:flex;gap:4px;align-items:center;margin:0 4px;">${pageNumHtml}</div>` +
+      `<button data-pgdir="next" ${nextDisabled ? 'disabled' : ''} style="${btnStyle(nextDisabled)}">Next</button>` +
+      `</div>`;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customLayout, currentPage, itemsPerPage, inventory.length, primaryColor]);
-
-  // Fix Grace banner dimensions via DOM JavaScript.
-  // useLayoutEffect runs synchronously after React commits DOM updates (including
-  // dangerouslySetInnerHTML), before the browser paints — so no setTimeout needed.
-  // setProperty(..., 'important') ensures these inline styles beat any !important
-  // rules from injected <style> tags (inline !important has highest CSS priority).
-  useLayoutEffect(() => {
-    if (!customLayout) return;
-
-    const heroSec = customLayout.sections?.find((s) => s.id === 'grace-hero');
-    const footSec = customLayout.sections?.find((s) => s.id === 'grace-footer-image');
-    if (!heroSec && !footSec) return;
-
-    const hD = Number((heroSec?.config as Record<string,unknown>)?.desktopMaxHeight || 500);
-    const fD = Number((footSec?.config as Record<string,unknown>)?.desktopMaxHeight || 500);
-
-    const applyWrap = (el: HTMLElement, heightPx: number) => {
-      // Use setProperty with 'important' so these inline values beat any stylesheet
-      // !important rules (including graceBannerCss injected by the renderer).
-      el.style.setProperty('width',        '100vw',           'important');
-      el.style.setProperty('position',     'relative',        'important');
-      el.style.setProperty('left',         '50%',             'important');
-      el.style.setProperty('right',        '50%',             'important');
-      el.style.setProperty('margin-left',  '-50vw',           'important');
-      el.style.setProperty('margin-right', '-50vw',           'important');
-      el.style.setProperty('height',       `${heightPx}px`,   'important');
-      el.style.setProperty('max-height',   'none',            'important');
-      el.style.setProperty('overflow',     'hidden',          'important');
-      el.style.setProperty('display',      'block',           'important');
-      el.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
-        // position:absolute so the image fills .grace-*-wrap (its nearest
-        // positioned ancestor) regardless of any intermediate max-width containers.
-        img.style.setProperty('position',       'absolute', 'important');
-        img.style.setProperty('top',            '0',        'important');
-        img.style.setProperty('left',           '0',        'important');
-        img.style.setProperty('right',          '0',        'important');
-        img.style.setProperty('bottom',         '0',        'important');
-        img.style.setProperty('width',          '100%',     'important');
-        img.style.setProperty('height',         '100%',     'important');
-        img.style.setProperty('max-width',      'none',     'important');
-        img.style.setProperty('object-fit',     'cover',    'important');
-        img.style.setProperty('object-position','center',   'important');
-        img.style.setProperty('display',        'block',    'important');
-      });
-    };
-
-    document.querySelectorAll<HTMLElement>('.grace-hero-wrap').forEach((el) => applyWrap(el, hD));
-    document.querySelectorAll<HTMLElement>('.grace-footer-wrap').forEach((el) => applyWrap(el, fD));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout]);
   
   // Validation states
   const [errors, setErrors] = useState({
