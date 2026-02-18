@@ -99,6 +99,8 @@ function resolveTemplate(
     'branding.footerImageUrl': data.footerImageUrl || data.job.branding?.footerImageUrl || '',
     'branding.primaryColor': data.primaryColor,
     'branding.secondaryColor': data.job.branding?.secondaryColor || '',
+    // Staff
+    moveManager: data.job.moveManager || '',
     // Derived
     customerName: data.customerName,
     companyName: data.companyName,

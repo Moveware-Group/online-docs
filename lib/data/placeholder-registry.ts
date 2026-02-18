@@ -59,6 +59,13 @@ export const PLACEHOLDER_REGISTRY: PlaceholderDefinition[] = [
 
   // ── Job ───────────────────────────────────────────────────────────────────
   {
+    key: 'moveManager',
+    label: 'Move Manager Name',
+    category: 'Job',
+    example: 'Sarah Johnson',
+    description: 'The Moveware staff member managing this job',
+  },
+  {
     key: 'job.id',
     label: 'Job / Quote Number',
     category: 'Job',

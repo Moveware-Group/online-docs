@@ -89,10 +89,10 @@ export const GRACE_STATIC_LAYOUT = {
           <div style="font-weight:700;color:#111;margin-bottom:3px;">Proposal number</div>
           <div style="font-weight:400;color:#666;">#{{job.id}}</div>
         </div>
-        <!-- Consultant name pill -->
+        <!-- Move manager name pill -->
         <div style="margin-top:auto;padding-top:20px;">
           <div style="display:inline-block;background:#f3f3f3;padding:10px 18px;border-radius:6px;">
-            <span style="font-weight:700;color:{{branding.primaryColor}};font-size:14px;">{{customerName}}</span>
+            <span style="font-weight:700;color:{{branding.primaryColor}};font-size:14px;">{{moveManager}}</span>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@ export const GRACE_STATIC_LAYOUT = {
         <p style="margin:0 0 14px 0;">We appreciate that every move is unique. That's why we offer tailored, flexible services to meet your specific needs. Our team is dedicated to making your relocation as seamless and stress-free as possible.</p>
         <p style="margin:0 0 14px 0;">To accept, please review the service options, acknowledge the terms and conditions, and click the Acceptance button. If you have any questions or need assistance at all, please contact me directly.</p>
         <p style="margin:0 0 14px 0;">We look forward to taking care of your move.</p>
-        <p style="margin:0;color:#555;">{{customerName}}</p>
+        <p style="margin:0;color:#555;">{{moveManager}}</p>
       </div>
     </div>
   </div>

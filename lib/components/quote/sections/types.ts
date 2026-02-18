@@ -8,6 +8,7 @@ export interface Job {
   titleName?: string;
   firstName?: string;
   lastName?: string;
+  moveManager?: string;
   estimatedDeliveryDetails?: string;
   jobValue?: number;
   brandCode?: string;
