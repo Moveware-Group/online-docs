@@ -438,7 +438,7 @@ export const GRACE_STATIC_LAYOUT = {
       <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="height:36px;max-width:180px;width:auto;object-fit:contain;object-position:left center;display:block;" onerror="this.style.display='none'" />
       <div style="font-size:11px;color:#aab0bb;line-height:1.6;">
         <div>&copy;2026, {{branding.companyName}}, All rights reserved.</div>
-        <div>Powered by <a href="https://moveware.com" target="_blank" style="color:{{branding.primaryColor}};text-decoration:none;">Moveware</a></div>
+        <div>Powered by <a href="https://moveconnect.com" target="_blank" style="color:{{branding.primaryColor}};text-decoration:none;">Moveware</a></div>
       </div>
     </div>
     <!-- Right: address + contact -->
