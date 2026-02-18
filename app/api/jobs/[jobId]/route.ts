@@ -1,16 +1,25 @@
 /**
  * Job Details API
- * GET /api/jobs/[jobId]?coId=<companyId>
+ * GET /api/jobs/[jobId]?coId=<companyTenantId>
  *
- * Returns job details including customer info, addresses, measures, and branding.
- * Currently serves mock data for job 111505 (Leigh Morrow - Crown Worldwide).
- * TODO: Replace with live Moveware API integration once available.
+ * When Moveware API credentials are configured for the company (via Settings →
+ * Companies → API Credentials), this proxies:
+ *   GET https://rest.moveware-test.app/{coId}/api/jobs/{jobId}/quotations
+ * and maps the response to the internal job shape.
+ *
+ * Falls back to mock data when credentials are absent or the upstream call fails.
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import {
+  getMwCredentials,
+  fetchMwQuotation,
+  adaptMwQuotation,
+  type InternalBranding,
+} from '@/lib/services/moveware-api';
 
-/** Mock job record for demonstration / development */
+/** Mock job record — used when no live credentials are configured */
 const MOCK_JOBS: Record<
   string,
   {
@@ -40,33 +49,87 @@ const MOCK_JOBS: Record<
     measuresWeightGrossKg: number;
   }
 > = {
-  "111505": {
+  '111505': {
     id: 111505,
-    titleName: "Mr",
-    firstName: "Leigh",
-    lastName: "Morrow",
-    moveManager: "Sarah Johnson",
-    moveType: "LR",
-    estimatedDeliveryDetails: "27/02/2026",
+    titleName: 'Mr',
+    firstName: 'Leigh',
+    lastName: 'Morrow',
+    moveManager: 'Sarah Johnson',
+    moveType: 'LR',
+    estimatedDeliveryDetails: '27/02/2026',
     jobValue: 2675.0,
-    brandCode: "MWB",
-    branchCode: "MEL",
-    upliftLine1: "3 Spring Water Crescent",
-    upliftLine2: "",
-    upliftCity: "Cranbourne",
-    upliftState: "VIC",
-    upliftPostcode: "3977",
-    upliftCountry: "Australia",
-    deliveryLine1: "12 Cato Street",
-    deliveryLine2: "",
-    deliveryCity: "Hawthorn East",
-    deliveryState: "VIC",
-    deliveryPostcode: "3123",
-    deliveryCountry: "Australia",
+    brandCode: 'MWB',
+    branchCode: 'MEL',
+    upliftLine1: '3 Spring Water Crescent',
+    upliftLine2: '',
+    upliftCity: 'Cranbourne',
+    upliftState: 'VIC',
+    upliftPostcode: '3977',
+    upliftCountry: 'Australia',
+    deliveryLine1: '12 Cato Street',
+    deliveryLine2: '',
+    deliveryCity: 'Hawthorn East',
+    deliveryState: 'VIC',
+    deliveryPostcode: '3123',
+    deliveryCountry: 'Australia',
     measuresVolumeGrossM3: 0.622965,
     measuresWeightGrossKg: 70,
   },
 };
+
+/** Build the branding block from a DB company record. */
+async function resolveBranding(
+  coId: string | null,
+  fallbackBrandCode?: string,
+): Promise<InternalBranding> {
+  const defaults: InternalBranding = {
+    companyName: 'Moveware',
+    logoUrl: '',
+    heroBannerUrl: '',
+    footerImageUrl: '',
+    primaryColor: '#1E40AF',
+    secondaryColor: '#FFFFFF',
+    fontFamily: 'Inter',
+  };
+
+  try {
+    let company = null;
+    if (coId) {
+      company = await prisma.company.findFirst({
+        where: { tenantId: coId },
+        include: { brandingSettings: true },
+      });
+    }
+    if (!company && fallbackBrandCode) {
+      company = await prisma.company.findFirst({
+        where: { brandCode: fallbackBrandCode },
+        include: { brandingSettings: true },
+        orderBy: { createdAt: 'asc' },
+      });
+    }
+
+    if (!company) return defaults;
+
+    return {
+      companyName: company.name,
+      logoUrl: company.brandingSettings?.logoUrl ?? company.logoUrl ?? '',
+      heroBannerUrl: company.brandingSettings?.heroBannerUrl ?? '',
+      footerImageUrl: company.brandingSettings?.footerImageUrl ?? '',
+      primaryColor:
+        company.brandingSettings?.primaryColor ??
+        company.primaryColor ??
+        defaults.primaryColor,
+      secondaryColor:
+        company.brandingSettings?.secondaryColor ??
+        company.secondaryColor ??
+        defaults.secondaryColor,
+      fontFamily: company.brandingSettings?.fontFamily ?? defaults.fontFamily,
+    };
+  } catch (err) {
+    console.warn('[jobs/route] branding lookup failed:', err);
+    return defaults;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -74,105 +137,62 @@ export async function GET(
 ) {
   try {
     const { jobId } = await params;
-    const { searchParams } = new URL(request.url);
-    const coId = searchParams.get("coId");
+    const coId = new URL(request.url).searchParams.get('coId');
 
     if (!jobId) {
       return NextResponse.json(
-        { success: false, error: "Job ID is required" },
+        { success: false, error: 'Job ID is required' },
         { status: 400 },
       );
     }
 
-    // Look up mock data
-    const mockJob = MOCK_JOBS[jobId];
+    const branding = await resolveBranding(
+      coId,
+      MOCK_JOBS[jobId]?.brandCode,
+    );
 
-    if (!mockJob) {
+    // ── Live Moveware API path ─────────────────────────────────────────────
+    if (coId) {
+      const creds = await getMwCredentials(coId);
+      if (creds) {
+        try {
+          const raw = await fetchMwQuotation(creds, jobId);
+          const job = adaptMwQuotation(raw, branding);
+          return NextResponse.json({
+            success: true,
+            data: job,
+            source: 'moveware',
+          });
+        } catch (err) {
+          console.error(
+            '[jobs/route] Moveware API failed, falling back to mock:',
+            err,
+          );
+        }
+      }
+    }
+
+    // ── Mock fallback ──────────────────────────────────────────────────────
+    const mock = MOCK_JOBS[jobId];
+    if (!mock) {
       return NextResponse.json(
         {
           success: false,
-          error: `Job ${jobId} not found. Only mock job 111505 is available.`,
+          error: `Job ${jobId} not found. Only mock job 111505 is available when no API credentials are configured.`,
         },
         { status: 404 },
       );
     }
 
-    // Try to fetch branding from the database
-    let branding = {
-      companyName: "Moveware",
-      logoUrl: "",
-      heroBannerUrl: "",
-      footerImageUrl: "",
-      primaryColor: "#1E40AF",
-      secondaryColor: "#FFFFFF",
-      fontFamily: "Inter",
-    };
-
-    try {
-      // Look up company by coId (tenantId) first, then fall back to brandCode match
-      let company = null;
-      if (coId) {
-        company = await prisma.company.findFirst({
-          where: { tenantId: coId },
-          include: { brandingSettings: true },
-        });
-      }
-      if (!company) {
-        company = await prisma.company.findFirst({
-          where: {
-            OR: [
-              { brandCode: mockJob.brandCode },
-              { isActive: true },
-            ],
-          },
-          include: { brandingSettings: true },
-          orderBy: { createdAt: "asc" },
-        });
-      }
-
-      if (company) {
-        branding = {
-          companyName: company.name,
-          logoUrl:
-            company.brandingSettings?.logoUrl ||
-            company.logoUrl ||
-            branding.logoUrl,
-          heroBannerUrl:
-            company.brandingSettings?.heroBannerUrl ||
-            branding.heroBannerUrl,
-          footerImageUrl:
-            company.brandingSettings?.footerImageUrl ||
-            branding.footerImageUrl,
-          primaryColor:
-            company.brandingSettings?.primaryColor ||
-            company.primaryColor ||
-            branding.primaryColor,
-          secondaryColor:
-            company.brandingSettings?.secondaryColor ||
-            company.secondaryColor ||
-            branding.secondaryColor,
-          fontFamily:
-            company.brandingSettings?.fontFamily ||
-            branding.fontFamily,
-        };
-      }
-    } catch (dbError) {
-      // If DB lookup fails, continue with default branding
-      console.warn("Could not fetch branding from database:", dbError);
-    }
-
     return NextResponse.json({
       success: true,
-      data: {
-        ...mockJob,
-        branding,
-      },
-      source: "mock",
+      data: { ...mock, branding },
+      source: 'mock',
     });
   } catch (error) {
-    console.error("Error fetching job:", error);
+    console.error('Error fetching job:', error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch job details" },
+      { success: false, error: 'Failed to fetch job details' },
       { status: 500 },
     );
   }

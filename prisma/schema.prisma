@@ -103,6 +103,8 @@ model BrandingSettings {
   secondaryColor     String   @default("#1e40af") @map("secondary_color")
   fontFamily         String   @default("Inter") @map("font_family")
   layoutTemplateId   String?  @map("layout_template_id")
+  mwUsername         String?  @map("mw_username") @db.VarChar(255)
+  mwPassword         String?  @map("mw_password") @db.VarChar(500)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

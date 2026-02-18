@@ -55,6 +55,12 @@ interface CompanyBranding {
   tertiaryColor: string;
   fontFamily: string;
   layoutTemplateId?: string | null;
+  /** Moveware REST API username (read/write) */
+  mwUsername?: string;
+  /** True when a password is already stored — password itself is never returned from the API */
+  mwPasswordSet?: boolean;
+  /** Write-only: a new password entered by the user. Empty = keep existing. */
+  mwPassword?: string;
 }
 
 interface LayoutTemplate {
@@ -312,8 +318,12 @@ function CompanyForm({
       tertiaryColor: '#5a5a5a',
       fontFamily: 'Inter',
       layoutTemplateId: null,
+      mwUsername: '',
+      mwPasswordSet: false,
+      mwPassword: '',
     }
   );
+  const [showMwPassword, setShowMwPassword] = useState(false);
 
   return (
     <div className="border border-gray-300 rounded-lg p-6 bg-gray-50">
@@ -495,6 +505,80 @@ function CompanyForm({
               </p>
             )}
           </div>
+        </div>
+
+        {/* Moveware API Credentials */}
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            Moveware API Credentials
+          </p>
+          <p className="text-xs text-gray-500">
+            Used to fetch live job data from the Moveware REST API. The password is stored securely and never returned to the browser.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                API Username
+              </label>
+              <input
+                type="text"
+                value={formData.mwUsername || ''}
+                onChange={(e) => setFormData({ ...formData, mwUsername: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="tony.kent@moveconnect.com"
+                autoComplete="off"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                API Password
+                {formData.mwPasswordSet && !formData.mwPassword && (
+                  <span className="ml-1.5 text-green-600 font-normal">● saved</span>
+                )}
+              </label>
+              <div className="relative">
+                <input
+                  type={showMwPassword ? 'text' : 'password'}
+                  value={formData.mwPassword || ''}
+                  onChange={(e) => setFormData({ ...formData, mwPassword: e.target.value })}
+                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={formData.mwPasswordSet ? '(leave blank to keep current)' : 'Enter password'}
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMwPassword((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
+                >
+                  {showMwPassword ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {(formData.mwUsername || formData.mwPasswordSet) && (
+            <p className="text-xs text-blue-600 flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Live Moveware API calls are enabled for company ID {formData.companyId || '…'}.
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">

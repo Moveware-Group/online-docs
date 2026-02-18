@@ -46,6 +46,9 @@ export async function GET() {
       secondaryColor: company.secondaryColor || company.brandingSettings?.secondaryColor || '#ffffff',
       tertiaryColor: company.tertiaryColor || '#5a5a5a',
       fontFamily: company.brandingSettings?.fontFamily || 'Inter',
+      // Moveware API credentials — password is never returned to the browser
+      mwUsername: company.brandingSettings?.mwUsername || '',
+      mwPasswordSet: !!(company.brandingSettings?.mwPassword),
     }));
 
     return NextResponse.json(result);
@@ -91,6 +94,8 @@ export async function POST(request: NextRequest) {
       secondaryColor,
       tertiaryColor,
       fontFamily,
+      mwUsername,
+      mwPassword,
     } = body;
 
     // Validate required fields
@@ -136,6 +141,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Upsert branding settings
+      // mwPassword is only updated when a non-empty value is sent (preserves existing)
       await prisma.brandingSettings.upsert({
         where: { companyId: company.id },
         update: {
@@ -145,6 +151,8 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
+          mwUsername: mwUsername?.trim() || null,
+          ...(mwPassword?.trim() ? { mwPassword: mwPassword.trim() } : {}),
         },
         create: {
           companyId: company.id,
@@ -154,6 +162,8 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
+          mwUsername: mwUsername?.trim() || null,
+          mwPassword: mwPassword?.trim() || null,
         },
       });
     } else {
@@ -194,12 +204,15 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
+          mwUsername: mwUsername?.trim() || null,
+          mwPassword: mwPassword?.trim() || null,
           ...(defaultTemplateId ? ({ layoutTemplateId: defaultTemplateId } as never) : {}),
         },
       });
     }
 
     // Return response in the same shape the GET endpoint uses
+    // Password is never returned — only whether one is set
     const response = {
       id: company.id,
       companyId: company.tenantId,
@@ -212,6 +225,8 @@ export async function POST(request: NextRequest) {
       secondaryColor: company.secondaryColor,
       tertiaryColor: company.tertiaryColor,
       fontFamily: fontFamily || 'Inter',
+      mwUsername: mwUsername?.trim() || '',
+      mwPasswordSet: !!(mwPassword?.trim()),
     };
 
     return NextResponse.json(response);

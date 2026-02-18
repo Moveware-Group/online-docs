@@ -1,13 +1,20 @@
 /**
  * Job Costings API
- * GET /api/jobs/[jobId]/costings?coId=<companyId>
+ * GET /api/jobs/[jobId]/costings?coId=<companyTenantId>
  *
- * Returns costing / pricing options for a given job.
- * Currently serves mock data for job 111505.
- * TODO: Replace with live Moveware API integration once available.
+ * When Moveware API credentials are configured, proxies:
+ *   GET https://rest.moveware-test.app/{coId}/api/jobs/{jobId}/options?include=charges
+ * and maps the response to the internal costings shape.
+ *
+ * Falls back to mock data when credentials are absent or the upstream call fails.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  getMwCredentials,
+  fetchMwOptions,
+  adaptMwOptions,
+} from '@/lib/services/moveware-api';
 
 interface MockCostingItem {
   id: string;
@@ -19,46 +26,42 @@ interface MockCostingItem {
   netTotal: string;
   totalPrice: number;
   taxIncluded: boolean;
-  rawData: {
-    inclusions: string[];
-    exclusions: string[];
-  };
+  rawData: { inclusions: string[]; exclusions: string[] };
 }
 
-/** Mock costings for job 111505 */
 const MOCK_COSTINGS: Record<string, MockCostingItem[]> = {
-  "111505": [
+  '111505': [
     {
-      id: "cost-111505-01",
-      name: "Standard Domestic Move",
-      category: "Domestic",
+      id: 'cost-111505-01',
+      name: 'Standard Domestic Move',
+      category: 'Domestic',
       description:
-        "Full-service domestic move from Cranbourne to Hawthorn East. " +
-        "Includes professional packing, loading, transport, unloading, " +
-        "and placement at your new home.",
+        'Full-service domestic move from Cranbourne to Hawthorn East. ' +
+        'Includes professional packing, loading, transport, unloading, ' +
+        'and placement at your new home.',
       quantity: 1,
       rate: 2675.0,
-      netTotal: "2,431.82",
+      netTotal: '2,431.82',
       totalPrice: 2675.0,
       taxIncluded: true,
       rawData: {
         inclusions: [
-          "Professional packing of all household goods",
-          "Supply of packing materials (cartons, tape, bubble wrap)",
-          "Disassembly and reassembly of standard furniture",
-          "Loading and unloading by experienced crew",
-          "Transport from origin to destination",
-          "Placement of furniture in rooms of your choice",
-          "Basic transit insurance coverage",
-          "Floor and doorway protection at both addresses",
+          'Professional packing of all household goods',
+          'Supply of packing materials (cartons, tape, bubble wrap)',
+          'Disassembly and reassembly of standard furniture',
+          'Loading and unloading by experienced crew',
+          'Transport from origin to destination',
+          'Placement of furniture in rooms of your choice',
+          'Basic transit insurance coverage',
+          'Floor and doorway protection at both addresses',
         ],
         exclusions: [
-          "Storage services",
-          "Cleaning services at origin or destination",
-          "Disconnection / reconnection of appliances",
-          "Piano or specialty item moving (quoted separately)",
-          "Parking permits or access fees",
-          "Additional insurance above standard coverage",
+          'Storage services',
+          'Cleaning services at origin or destination',
+          'Disconnection / reconnection of appliances',
+          'Piano or specialty item moving (quoted separately)',
+          'Parking permits or access fees',
+          'Additional insurance above standard coverage',
         ],
       },
     },
@@ -71,21 +74,44 @@ export async function GET(
 ) {
   try {
     const { jobId } = await params;
+    const coId = new URL(request.url).searchParams.get('coId');
 
     if (!jobId) {
       return NextResponse.json(
-        { success: false, error: "Job ID is required" },
+        { success: false, error: 'Job ID is required' },
         { status: 400 },
       );
     }
 
-    const costings = MOCK_COSTINGS[jobId];
+    // ── Live Moveware API path ─────────────────────────────────────────────
+    if (coId) {
+      const creds = await getMwCredentials(coId);
+      if (creds) {
+        try {
+          const raw = await fetchMwOptions(creds, jobId);
+          const costings = adaptMwOptions(raw);
+          return NextResponse.json({
+            success: true,
+            data: costings,
+            count: costings.length,
+            source: 'moveware',
+          });
+        } catch (err) {
+          console.error(
+            '[costings/route] Moveware API failed, falling back to mock:',
+            err,
+          );
+        }
+      }
+    }
 
+    // ── Mock fallback ──────────────────────────────────────────────────────
+    const costings = MOCK_COSTINGS[jobId];
     if (!costings) {
       return NextResponse.json(
         {
           success: false,
-          error: `No costings found for job ${jobId}. Only mock job 111505 is available.`,
+          error: `No costings found for job ${jobId}. Only mock job 111505 is available when no API credentials are configured.`,
         },
         { status: 404 },
       );
@@ -95,12 +121,12 @@ export async function GET(
       success: true,
       data: costings,
       count: costings.length,
-      source: "mock",
+      source: 'mock',
     });
   } catch (error) {
-    console.error("Error fetching costings:", error);
+    console.error('Error fetching costings:', error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch costings" },
+      { success: false, error: 'Failed to fetch costings' },
       { status: 500 },
     );
   }
