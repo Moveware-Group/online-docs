@@ -145,31 +145,26 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Upsert branding settings
+      // Upsert branding settings.
       // mwPassword is only updated when a non-empty value is sent (preserves existing).
-      // Cast credential fields until `npx prisma generate` updates client types.
-      await prisma.brandingSettings.upsert({
+      // Build data objects as plain records so we can include the new mwUsername/mwPassword
+      // fields without Prisma-generated-type errors (run `npx prisma generate` to resolve).
+      const brandingBase: Record<string, unknown> = {
+        logoUrl: logoUrl || null,
+        heroBannerUrl: heroBannerUrl || null,
+        footerImageUrl: footerImageUrl || null,
+        primaryColor: normPrimary,
+        secondaryColor: normSecondary,
+        fontFamily: fontFamily || 'Inter',
+        mwUsername: mwUsername?.trim() || null,
+      };
+      if (mwPassword?.trim()) brandingBase.mwPassword = mwPassword.trim();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma.brandingSettings.upsert as any)({
         where: { companyId: company.id },
-        update: {
-          logoUrl: logoUrl || null,
-          heroBannerUrl: heroBannerUrl || null,
-          footerImageUrl: footerImageUrl || null,
-          primaryColor: normPrimary,
-          secondaryColor: normSecondary,
-          fontFamily: fontFamily || 'Inter',
-          ...({ mwUsername: mwUsername?.trim() || null } as never),
-          ...(mwPassword?.trim() ? ({ mwPassword: mwPassword.trim() } as never) : {}),
-        },
-        create: {
-          companyId: company.id,
-          logoUrl: logoUrl || null,
-          heroBannerUrl: heroBannerUrl || null,
-          footerImageUrl: footerImageUrl || null,
-          primaryColor: normPrimary,
-          secondaryColor: normSecondary,
-          fontFamily: fontFamily || 'Inter',
-          ...({ mwUsername: mwUsername?.trim() || null, mwPassword: mwPassword?.trim() || null } as never),
-        },
+        update: brandingBase,
+        create: { companyId: company.id, ...brandingBase },
       });
     } else {
       // ── Create new company ──
@@ -199,20 +194,21 @@ export async function POST(request: NextRequest) {
         // isDefault column may not exist yet (pre-migration) — proceed without it
       }
 
-      // Create branding settings, optionally wiring up the default template
-      await prisma.brandingSettings.create({
-        data: {
-          companyId: company.id,
-          logoUrl: logoUrl || null,
-          heroBannerUrl: heroBannerUrl || null,
-          footerImageUrl: footerImageUrl || null,
-          primaryColor: normPrimary,
-          secondaryColor: normSecondary,
-          fontFamily: fontFamily || 'Inter',
-          ...({ mwUsername: mwUsername?.trim() || null, mwPassword: mwPassword?.trim() || null } as never),
-          ...(defaultTemplateId ? ({ layoutTemplateId: defaultTemplateId } as never) : {}),
-        },
-      });
+      // Create branding settings, optionally wiring up the default template.
+      const newBrandingData: Record<string, unknown> = {
+        companyId: company.id,
+        logoUrl: logoUrl || null,
+        heroBannerUrl: heroBannerUrl || null,
+        footerImageUrl: footerImageUrl || null,
+        primaryColor: normPrimary,
+        secondaryColor: normSecondary,
+        fontFamily: fontFamily || 'Inter',
+        mwUsername: mwUsername?.trim() || null,
+        mwPassword: mwPassword?.trim() || null,
+        ...(defaultTemplateId ? { layoutTemplateId: defaultTemplateId } : {}),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma.brandingSettings.create as any)({ data: newBrandingData });
     }
 
     // Return response in the same shape the GET endpoint uses
