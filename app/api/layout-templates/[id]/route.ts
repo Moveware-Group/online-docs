@@ -43,7 +43,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, layoutConfig, isActive } = body;
+    const { name, description, layoutConfig, isActive, isDefault } = body;
 
     const updateData: Record<string, unknown> = { version: { increment: 1 } };
     if (name !== undefined) updateData.name = name.trim();
@@ -51,6 +51,15 @@ export async function PUT(
     if (isActive !== undefined) updateData.isActive = isActive;
     if (layoutConfig !== undefined) {
       updateData.layoutConfig = typeof layoutConfig === 'string' ? layoutConfig : JSON.stringify(layoutConfig);
+    }
+
+    // Setting a template as default → clear the flag on all others first
+    if (isDefault === true) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).layoutTemplate.updateMany({ data: { isDefault: false } });
+      updateData.isDefault = true;
+    } else if (isDefault === false) {
+      updateData.isDefault = false;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

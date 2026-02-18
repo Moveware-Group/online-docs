@@ -124,6 +124,7 @@ model LayoutTemplate {
   layoutConfig    String   @db.Text
   version         Int      @default(1)
   isActive        Boolean  @default(true) @map("is_active")
+  isDefault       Boolean  @default(false) @map("is_default")
   createdBy       String?  @map("created_by")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

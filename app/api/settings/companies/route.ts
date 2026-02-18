@@ -171,7 +171,20 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create branding settings
+      // Look up the default template (if one has been marked) to auto-assign
+      let defaultTemplateId: string | null = null;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const defaultTmpl = await (prisma as any).layoutTemplate.findFirst({
+          where: { isDefault: true, isActive: true },
+          select: { id: true },
+        });
+        defaultTemplateId = defaultTmpl?.id ?? null;
+      } catch {
+        // isDefault column may not exist yet (pre-migration) — proceed without it
+      }
+
+      // Create branding settings, optionally wiring up the default template
       await prisma.brandingSettings.create({
         data: {
           companyId: company.id,
@@ -181,6 +194,7 @@ export async function POST(request: NextRequest) {
           primaryColor: normPrimary,
           secondaryColor: normSecondary,
           fontFamily: fontFamily || 'Inter',
+          ...(defaultTemplateId ? ({ layoutTemplateId: defaultTemplateId } as never) : {}),
         },
       });
     }

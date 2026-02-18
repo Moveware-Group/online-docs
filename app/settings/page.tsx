@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
 import { GRACE_STATIC_LAYOUT } from '@/lib/layouts/grace-static';
+import { DEFAULT_STATIC_LAYOUT } from '@/lib/layouts/default-static';
 
 /** Popular Google Fonts for the company branding font selector */
 const GOOGLE_FONTS = [
@@ -62,6 +63,7 @@ interface LayoutTemplate {
   description?: string;
   version: number;
   isActive: boolean;
+  isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
   brandingSettings?: Array<{ company: { id: string; name: string; tenantId: string } }>;
@@ -734,7 +736,8 @@ export default function SettingsPage() {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [promoteCompanyId, setPromoteCompanyId] = useState('');
   const [promotingTemplate, setPromotingTemplate] = useState(false);
-  const [createFromBase, setCreateFromBase] = useState(false);
+  const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default'>('company');
+  const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
 
   // Company-specific layout records (for Custom Layouts tab)
   const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
@@ -981,19 +984,23 @@ export default function SettingsPage() {
 
   const handlePromoteToTemplate = async () => {
     if (!newTemplateName.trim()) return;
-    if (!createFromBase && !promoteCompanyId) return;
+    if (createFromBase === 'company' && !promoteCompanyId) return;
     setPromotingTemplate(true);
     try {
       let res: Response;
-      if (createFromBase) {
-        // Create directly from the current grace-static.ts base layout
+      if (createFromBase === 'grace') {
         res = await fetch('/api/layout-templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: GRACE_STATIC_LAYOUT }),
         });
+      } else if (createFromBase === 'default') {
+        res = await fetch('/api/layout-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT }),
+        });
       } else {
-        // Promote an existing company layout to a template
         res = await fetch('/api/layout-templates/promote', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1006,7 +1013,7 @@ export default function SettingsPage() {
         setNewTemplateName('');
         setNewTemplateDesc('');
         setPromoteCompanyId('');
-        setCreateFromBase(false);
+        setCreateFromBase('company');
         setCreatingTemplate(false);
         setSuccess(`Template "${data.data.name}" created!`);
         setTimeout(() => setSuccess(null), 3000);
@@ -1724,23 +1731,30 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Layout source <span className="text-red-500">*</span></label>
-                  <div className="flex gap-3 mb-3">
+                  <div className="flex gap-2 mb-3 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => { setCreateFromBase(false); setPromoteCompanyId(''); }}
-                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${!createFromBase ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => { setCreateFromBase('company'); setPromoteCompanyId(''); }}
+                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'company' ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                     >
                       From a company&apos;s saved layout
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setCreateFromBase(true); setPromoteCompanyId(''); }}
-                      className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                      onClick={() => { setCreateFromBase('default'); setPromoteCompanyId(''); }}
+                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'default' ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    >
+                      From Default Layout <span className="ml-1 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">built-in</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCreateFromBase('grace'); setPromoteCompanyId(''); }}
+                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'grace' ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                     >
                       From Grace Base Layout <span className="ml-1 text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">latest</span>
                     </button>
                   </div>
-                  {!createFromBase ? (
+                  {createFromBase === 'company' && (
                     <>
                       <select
                         value={promoteCompanyId}
@@ -1754,7 +1768,13 @@ export default function SettingsPage() {
                       </select>
                       <p className="text-xs text-gray-500 mt-1">The company&apos;s existing saved layout will be copied into this template.</p>
                     </>
-                  ) : (
+                  )}
+                  {createFromBase === 'default' && (
+                    <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                      Creates the template from the standard built-in quote layout (Header, Intro, Locations, Pricing, Inventory, Accept Quote). The same layout all companies use before any customisation is applied.
+                    </div>
+                  )}
+                  {createFromBase === 'grace' && (
                     <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
                       Creates the template from the current built-in Grace base layout (<code>grace-static.ts</code>). Use this to seed a fresh, up-to-date Grace layout that you can then assign to companies.
                     </div>
@@ -1763,13 +1783,13 @@ export default function SettingsPage() {
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handlePromoteToTemplate}
-                    disabled={!newTemplateName.trim() || (!createFromBase && !promoteCompanyId) || promotingTemplate}
+                    disabled={!newTemplateName.trim() || (createFromBase === 'company' && !promoteCompanyId) || promotingTemplate}
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('company'); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>
@@ -1817,6 +1837,7 @@ export default function SettingsPage() {
                                 <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
                                 <span className="text-xs text-gray-400 flex-shrink-0">v{template.version}</span>
                                 {!template.isActive && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Inactive</span>}
+                                {template.isDefault && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">Default for new companies</span>}
                               </div>
                               {template.description && <p className="text-xs text-gray-500 truncate">{template.description}</p>}
                               <div className="flex items-center gap-1 mt-1">
@@ -1830,6 +1851,41 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                            <button
+                              onClick={async () => {
+                                const newValue = !template.isDefault;
+                                setSettingDefaultTemplateId(template.id);
+                                try {
+                                  const res = await fetch(`/api/layout-templates/${template.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ isDefault: newValue }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    // Clear isDefault on all, then set on this one
+                                    setLayoutTemplates((prev) => prev.map((t) => ({
+                                      ...t,
+                                      isDefault: newValue ? t.id === template.id : false,
+                                    })));
+                                    setSuccess(newValue ? `"${template.name}" will now be assigned to new companies automatically.` : 'Default cleared.');
+                                    setTimeout(() => setSuccess(null), 4000);
+                                  } else {
+                                    setError(data.error || 'Failed to update');
+                                  }
+                                } finally {
+                                  setSettingDefaultTemplateId(null);
+                                }
+                              }}
+                              disabled={settingDefaultTemplateId === template.id}
+                              className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1 transition-colors border ${template.isDefault ? 'bg-green-50 border-green-300 text-green-700 hover:bg-red-50 hover:border-red-300 hover:text-red-600' : 'border-gray-200 text-gray-500 hover:bg-green-50 hover:border-green-300 hover:text-green-700'}`}
+                              title={template.isDefault ? 'Clear: stop assigning to new companies' : 'Set as default for new companies'}
+                            >
+                              {settingDefaultTemplateId === template.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <Check className={`w-3.5 h-3.5 ${template.isDefault ? 'text-green-600' : 'text-gray-400'}`} />}
+                              {template.isDefault ? 'Default' : 'Set as default'}
+                            </button>
                             <a
                               href={`/settings/layout-builder?templateId=${template.id}`}
                               className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1"
