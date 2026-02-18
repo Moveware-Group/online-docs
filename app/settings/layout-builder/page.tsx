@@ -43,6 +43,86 @@ import {
 } from '@/lib/data/placeholder-registry';
 
 // ---------------------------------------------------------------------------
+// Smart copy extractor — DOMParser-based text field extraction
+// ---------------------------------------------------------------------------
+
+interface CopyField {
+  id: string;
+  label: string;
+  value: string;
+  sentinel: string;
+}
+
+/** Labels inferred from a text node's parent element tag */
+const TAG_LABELS: Record<string, string> = {
+  h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Subheading',
+  h5: 'Subheading', h6: 'Subheading',
+  p: 'Paragraph', span: 'Text', a: 'Link', button: 'Button',
+  td: 'Table Cell', th: 'Table Header', li: 'List Item',
+  label: 'Label', div: 'Text Block',
+};
+
+/** Extract editable text fields from raw HTML. Returns fields + sentinelled HTML. */
+function extractCopyFields(html: string): { fields: CopyField[]; markedHtml: string } {
+  if (typeof window === 'undefined') return { fields: [], markedHtml: html };
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const fields: CopyField[] = [];
+  let counter = 0;
+
+  // Count by label to build distinct names
+  const labelCounts: Record<string, number> = {};
+
+  const getLabel = (node: Text): string => {
+    const parent = node.parentElement;
+    if (!parent) return 'Text';
+    return TAG_LABELS[parent.tagName.toLowerCase()] || 'Text';
+  };
+
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const textNode = node as Text;
+      const raw = textNode.textContent || '';
+      const trimmed = raw.trim();
+      if (trimmed.length < 2) return;
+      if (/^\s+$/.test(trimmed)) return;
+      // Skip pure placeholder tokens
+      if (/^\{\{[^}]+\}\}$/.test(trimmed)) return;
+      if (/^\{\{#/.test(trimmed) || /^\{\{\//.test(trimmed)) return;
+      // Skip CSS-like content inside <style>
+      const parentTag = (textNode.parentElement?.tagName || '').toUpperCase();
+      if (['STYLE', 'SCRIPT', 'INPUT', 'SELECT', 'TEXTAREA'].includes(parentTag)) return;
+
+      const baseLabel = getLabel(textNode);
+      labelCounts[baseLabel] = (labelCounts[baseLabel] || 0) + 1;
+      const label = `${baseLabel} ${labelCounts[baseLabel]}`;
+      const sentinel = `__COPY_${counter}__`;
+
+      fields.push({ id: String(counter), label, value: raw, sentinel });
+      textNode.textContent = sentinel;
+      counter++;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const skipTags = ['STYLE', 'SCRIPT', 'INPUT', 'SELECT', 'TEXTAREA'];
+      if (skipTags.includes((node as Element).tagName)) return;
+      for (const child of Array.from(node.childNodes)) walk(child);
+    }
+  };
+
+  walk(doc.body);
+  return { fields, markedHtml: doc.body.innerHTML };
+}
+
+/** Reconstruct HTML from copy fields, replacing sentinels with edited values */
+function reconstructFromCopyFields(markedHtml: string, fields: CopyField[]): string {
+  let result = markedHtml;
+  for (const f of fields) {
+    // escape for use as literal string replacement
+    result = result.replace(f.sentinel, () => f.value);
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -109,6 +189,9 @@ function LayoutBuilderContent() {
   // Block editor state
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
   const [editingBlockContent, setEditingBlockContent] = useState('');
+  const [showHtmlEditor, setShowHtmlEditor] = useState(false);
+  const [copyFields, setCopyFields] = useState<CopyField[]>([]);
+  const [markedHtml, setMarkedHtml] = useState('');
   const editBlockTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Preview iframe ref
@@ -633,24 +716,40 @@ function LayoutBuilderContent() {
   const openBlockEditor = (index: number) => {
     if (!layoutConfig) return;
     const section = layoutConfig.sections[index];
+    const html = section.html || '';
     setEditingBlockIndex(index);
-    setEditingBlockContent(section.html || '');
-    // Switch to blocks tab so the editor renders inside it
+    setEditingBlockContent(html);
+    // Run copy extractor
+    const { fields, markedHtml: mHtml } = extractCopyFields(html);
+    setCopyFields(fields);
+    setMarkedHtml(mHtml);
+    setShowHtmlEditor(false); // default: show copy fields
     setLeftPanelTab('blocks');
   };
 
   const closeBlockEditor = () => {
     setEditingBlockIndex(null);
     setEditingBlockContent('');
+    setCopyFields([]);
+    setMarkedHtml('');
+  };
+
+  /** Build the current HTML from either the HTML editor or the copy fields */
+  const getCurrentBlockHtml = (): string => {
+    if (showHtmlEditor) return editingBlockContent;
+    return reconstructFromCopyFields(markedHtml, copyFields);
   };
 
   const saveBlockEdit = () => {
     if (editingBlockIndex === null || !layoutConfig) return;
+    const finalHtml = getCurrentBlockHtml();
     const sections = layoutConfig.sections.map((s, i) =>
-      i === editingBlockIndex ? { ...s, html: editingBlockContent } : s
+      i === editingBlockIndex ? { ...s, html: finalHtml } : s
     );
     const updated = { ...layoutConfig, sections };
     setLayoutConfig(updated);
+    // Keep local textarea in sync
+    setEditingBlockContent(finalHtml);
     updatePreview(updated);
     closeBlockEditor();
     setStatusMessage('Block saved. Preview updated.');
@@ -1075,37 +1174,65 @@ function LayoutBuilderContent() {
                 Back
               </button>
               <span className="text-gray-300">|</span>
-              <span className="text-sm font-semibold text-gray-800 truncate">
+              <span className="text-sm font-semibold text-gray-800 truncate flex-1">
                 {layoutConfig.sections[editingBlockIndex]?.label ||
                  layoutConfig.sections[editingBlockIndex]?.id ||
                  `Block ${editingBlockIndex + 1}`}
               </span>
+              {/* HTML / Copy toggle */}
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+                <button
+                  onClick={() => setShowHtmlEditor(false)}
+                  className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${!showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                >
+                  Copy Fields
+                </button>
+                <button
+                  onClick={() => {
+                    // Sync HTML editor with latest copy fields before switching
+                    if (!showHtmlEditor) setEditingBlockContent(reconstructFromCopyFields(markedHtml, copyFields));
+                    setShowHtmlEditor(true);
+                  }}
+                  className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                >
+                  HTML
+                </button>
+              </div>
             </div>
 
-            {/* Two-column editor body */}
-            <div className="flex flex-1 overflow-hidden">
-              {/* Left: textarea */}
-              <div className="flex flex-col flex-1 overflow-hidden border-r border-gray-200">
-                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-                  <p className="text-xs text-gray-500">Edit the HTML for this block. Click a placeholder on the right to insert it at your cursor.</p>
+            {/* ── COPY FIELDS VIEW ── */}
+            {!showHtmlEditor && (
+              <div className="flex flex-1 overflow-hidden">
+                {/* Fields */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                  {copyFields.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p className="text-sm">No editable text found.</p>
+                      <p className="text-xs mt-1">Switch to HTML view to edit raw markup.</p>
+                    </div>
+                  ) : copyFields.map((field) => (
+                    <div key={field.id}>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{field.label}</label>
+                      <textarea
+                        value={field.value}
+                        onChange={(e) => {
+                          const updated = copyFields.map((f) =>
+                            f.id === field.id ? { ...f, value: e.target.value } : f
+                          );
+                          setCopyFields(updated);
+                        }}
+                        rows={field.value.length > 120 ? 4 : 2}
+                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <textarea
-                  ref={editBlockTextareaRef}
-                  value={editingBlockContent}
-                  onChange={(e) => setEditingBlockContent(e.target.value)}
-                  className="flex-1 w-full p-3 font-mono text-xs text-gray-800 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  spellCheck={false}
-                  placeholder="Enter HTML content for this block..."
-                />
-              </div>
-
-              {/* Right: placeholder picker */}
-              <div className="w-44 flex-shrink-0 overflow-y-auto bg-white">
-                <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Placeholders</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Click to insert</p>
-                </div>
-                <div className="divide-y divide-gray-100">
+                {/* Placeholder picker */}
+                <div className="w-40 flex-shrink-0 overflow-y-auto bg-gray-50 border-l border-gray-200">
+                  <div className="px-2 py-2 border-b border-gray-200 sticky top-0 bg-gray-50">
+                    <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Insert</p>
+                    <p className="text-[9px] text-gray-400">Click field first, then placeholder</p>
+                  </div>
                   {PLACEHOLDER_CATEGORIES.map((category) => {
                     const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
                     const isExpanded = expandedCategories.has(category);
@@ -1113,25 +1240,20 @@ function LayoutBuilderContent() {
                       <div key={category}>
                         <button
                           onClick={() => toggleCategory(category)}
-                          className="w-full flex items-center justify-between px-3 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                          className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-100 hover:bg-gray-200 transition-colors text-left"
                         >
-                          <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">{category}</span>
-                          {isExpanded
-                            ? <ChevronDown className="w-3 h-3 text-gray-400" />
-                            : <ChevronRight className="w-3 h-3 text-gray-400" />
-                          }
+                          <span className="text-[9px] font-semibold text-gray-600 uppercase">{category}</span>
+                          {isExpanded ? <ChevronDown className="w-2.5 h-2.5 text-gray-400" /> : <ChevronRight className="w-2.5 h-2.5 text-gray-400" />}
                         </button>
                         {isExpanded && items.map((p) => (
                           <button
                             key={p.key}
-                            onClick={() => insertPlaceholderInEditor(p.key)}
-                            title={p.description || p.label}
-                            className="w-full text-left px-3 py-1.5 hover:bg-blue-50 group transition-colors"
+                            onClick={() => handleCopyPlaceholder(p.key)}
+                            title={`Copy {{${p.key}}} to clipboard`}
+                            className="w-full text-left px-2 py-1 hover:bg-blue-50 transition-colors border-t border-gray-50"
                           >
-                            <div className="text-[10px] font-mono text-blue-700 truncate group-hover:text-blue-800">
-                              {`{{${p.key}}}`}
-                            </div>
-                            <div className="text-[10px] text-gray-400 truncate">{p.label}</div>
+                            <div className="text-[9px] font-mono text-blue-700 truncate">{`{{${p.key}}}`}</div>
+                            <div className="text-[9px] text-gray-400 truncate">{p.label}</div>
                           </button>
                         ))}
                       </div>
@@ -1139,7 +1261,59 @@ function LayoutBuilderContent() {
                   })}
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* ── HTML EDITOR VIEW ── */}
+            {showHtmlEditor && (
+              <div className="flex flex-1 overflow-hidden">
+                <div className="flex flex-col flex-1 overflow-hidden border-r border-gray-200">
+                  <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
+                    <p className="text-xs text-amber-700"><strong>Developer view</strong> — editing raw HTML. Click a placeholder on the right to insert at cursor.</p>
+                  </div>
+                  <textarea
+                    ref={editBlockTextareaRef}
+                    value={editingBlockContent}
+                    onChange={(e) => setEditingBlockContent(e.target.value)}
+                    className="flex-1 w-full p-3 font-mono text-xs text-gray-800 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    spellCheck={false}
+                  />
+                </div>
+                <div className="w-44 flex-shrink-0 overflow-y-auto bg-white">
+                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Placeholders</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Click to insert</p>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {PLACEHOLDER_CATEGORIES.map((category) => {
+                      const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
+                      const isExpanded = expandedCategories.has(category);
+                      return (
+                        <div key={category}>
+                          <button
+                            onClick={() => toggleCategory(category)}
+                            className="w-full flex items-center justify-between px-3 py-1.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                          >
+                            <span className="text-[10px] font-semibold text-gray-600 uppercase">{category}</span>
+                            {isExpanded ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
+                          </button>
+                          {isExpanded && items.map((p) => (
+                            <button
+                              key={p.key}
+                              onClick={() => insertPlaceholderInEditor(p.key)}
+                              title={p.description || p.label}
+                              className="w-full text-left px-3 py-1.5 hover:bg-blue-50 group transition-colors"
+                            >
+                              <div className="text-[10px] font-mono text-blue-700 truncate group-hover:text-blue-800">{`{{${p.key}}}`}</div>
+                              <div className="text-[10px] text-gray-400 truncate">{p.label}</div>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Editor footer: Save / Cancel */}
             <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 bg-white flex-shrink-0">

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, Users } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
+import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
 
 /** Popular Google Fonts for the company branding font selector */
 const GOOGLE_FONTS = [
@@ -63,6 +64,25 @@ interface LayoutTemplate {
   createdAt: string;
   updatedAt: string;
   brandingSettings?: Array<{ company: { id: string; name: string; tenantId: string } }>;
+}
+
+interface LayoutSection {
+  id: string;
+  label?: string;
+  type: string;
+  html?: string;
+  visible?: boolean;
+}
+
+interface CompanyLayoutRecord {
+  id: string;
+  companyId: string;
+  layoutConfig: { sections?: LayoutSection[]; globalStyles?: Record<string, string>; version?: number } | null;
+  version: number;
+  isActive: boolean;
+  updatedAt: string;
+  description?: string | null;
+  company: { id: string; name: string; brandCode: string; tenantId: string };
 }
 
 /**
@@ -452,6 +472,196 @@ function CompanyForm({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Template section block editor (fetches sections on first open, then edits inline)
+// ---------------------------------------------------------------------------
+function TemplateSectionBlockEditor({
+  templateId,
+  editingBlockKey,
+  editingBlockHtml,
+  savingBlock,
+  blockEditorExpandedCats,
+  onOpenBlock,
+  onCloseBlock,
+  onChangeHtml,
+  onSaveBlock,
+  onToggleCat,
+  onInsertPlaceholder,
+  textareaRef,
+}: {
+  templateId: string;
+  editingBlockKey: string | null;
+  editingBlockHtml: string;
+  savingBlock: boolean;
+  blockEditorExpandedCats: Set<PlaceholderCategory>;
+  onOpenBlock: (id: string, idx: number, html: string) => void;
+  onCloseBlock: () => void;
+  onChangeHtml: (v: string) => void;
+  onSaveBlock: (templateId: string, idx: number) => void;
+  onToggleCat: (c: PlaceholderCategory) => void;
+  onInsertPlaceholder: (key: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+}) {
+  const [sections, setSections] = useState<LayoutSection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/layout-templates/${templateId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data?.layoutConfig) {
+          const cfg = typeof d.data.layoutConfig === 'string'
+            ? JSON.parse(d.data.layoutConfig)
+            : d.data.layoutConfig;
+          setSections(cfg.sections || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [templateId]);
+
+  if (loading) return <div className="px-4 py-4 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-blue-500" /></div>;
+
+  return (
+    <div className="bg-gray-50 px-4 pb-4 pt-2 space-y-2">
+      <p className="text-xs text-gray-500 mb-2">Click <Pencil className="w-3 h-3 inline" /> to edit a block&apos;s HTML</p>
+      {sections.map((section, idx) => {
+        const blockKey = `${templateId}:${idx}`;
+        const isEditing = editingBlockKey === blockKey;
+        const label = section.label || section.id || `Block ${idx + 1}`;
+        return (
+          <div key={section.id || idx}>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border bg-white ${isEditing ? 'border-blue-400' : 'border-gray-200'}`}>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium text-gray-800 block truncate">{label}</span>
+                <span className="text-xs text-gray-400">{section.type === 'custom_html' ? 'HTML' : section.type}</span>
+              </div>
+              <span className="text-xs text-gray-400 font-mono w-5 text-center">{idx + 1}</span>
+              {section.type === 'custom_html' && (
+                <button
+                  onClick={() => isEditing ? onCloseBlock() : onOpenBlock(templateId, idx, section.html || '')}
+                  className={`p-1.5 rounded transition-colors ${isEditing ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {isEditing && (
+              <BlockHtmlEditor
+                html={editingBlockHtml}
+                onChange={onChangeHtml}
+                onSave={() => onSaveBlock(templateId, idx)}
+                onCancel={onCloseBlock}
+                saving={savingBlock}
+                textareaRef={textareaRef}
+                expandedCats={blockEditorExpandedCats}
+                onToggleCat={onToggleCat}
+                onInsertPlaceholder={onInsertPlaceholder}
+              />
+            )}
+          </div>
+        );
+      })}
+      {sections.length === 0 && <p className="text-xs text-gray-400 text-center py-2">No blocks found.</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline block HTML editor panel (used inside the Custom Layouts tab)
+// ---------------------------------------------------------------------------
+function BlockHtmlEditor({
+  html,
+  onChange,
+  onSave,
+  onCancel,
+  saving,
+  textareaRef,
+  expandedCats,
+  onToggleCat,
+  onInsertPlaceholder,
+}: {
+  html: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  expandedCats: Set<PlaceholderCategory>;
+  onToggleCat: (c: PlaceholderCategory) => void;
+  onInsertPlaceholder: (key: string) => void;
+}) {
+  return (
+    <div className="border border-blue-300 rounded-lg overflow-hidden bg-white shadow-sm mt-2">
+      <div className="flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-200">
+        <span className="text-xs font-semibold text-blue-800 flex items-center gap-1.5">
+          <Code2 className="w-3.5 h-3.5" />
+          Edit Block HTML
+        </span>
+        <p className="text-xs text-blue-600">Click a placeholder to insert it at your cursor</p>
+      </div>
+      <div className="flex" style={{ height: '360px' }}>
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={html}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 p-3 font-mono text-xs text-gray-800 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 border-r border-gray-200"
+          spellCheck={false}
+        />
+        {/* Placeholder picker */}
+        <div className="w-52 flex-shrink-0 overflow-y-auto bg-gray-50">
+          <div className="px-3 py-2 border-b border-gray-200 sticky top-0 bg-gray-50">
+            <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Placeholders</p>
+          </div>
+          {PLACEHOLDER_CATEGORIES.map((category) => {
+            const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
+            const isExp = expandedCats.has(category);
+            return (
+              <div key={category} className="border-b border-gray-100">
+                <button
+                  onClick={() => onToggleCat(category)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-gray-100 transition-colors text-left"
+                >
+                  <span className="text-[10px] font-semibold text-gray-600 uppercase">{category}</span>
+                  {isExp ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
+                </button>
+                {isExp && items.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => onInsertPlaceholder(p.key)}
+                    title={p.description || p.label}
+                    className="w-full text-left px-3 py-1.5 hover:bg-blue-50 transition-colors border-t border-gray-50"
+                  >
+                    <div className="text-[10px] font-mono text-blue-700 truncate">{`{{${p.key}}}`}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{p.label}</div>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-200 bg-gray-50">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <SaveIcon className="w-3.5 h-3.5" />}
+          {saving ? 'Saving…' : 'Save Block'}
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { isAuthenticated, isLoading: authLoading, user, logout } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -480,6 +690,21 @@ export default function SettingsPage() {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [promoteCompanyId, setPromoteCompanyId] = useState('');
   const [promotingTemplate, setPromotingTemplate] = useState(false);
+
+  // Company-specific layout records (for Custom Layouts tab)
+  const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
+  const [loadingCompanyLayouts, setLoadingCompanyLayouts] = useState(false);
+  const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
+
+  // Per-block HTML editor (Custom Layouts tab)
+  // key: `${layoutId}:${blockIndex}`
+  const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
+  const [editingBlockHtml, setEditingBlockHtml] = useState('');
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [blockEditorExpandedCats, setBlockEditorExpandedCats] = useState<Set<PlaceholderCategory>>(
+    new Set(['Customer', 'Job', 'Branding', 'Dates'])
+  );
+  const blockEditorTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load companies
   useEffect(() => {
@@ -548,6 +773,142 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAuthenticated) loadLayoutTemplates();
   }, [isAuthenticated]);
+
+  // Load all per-company custom layouts for the Custom Layouts tab
+  const loadCompanyLayouts = async () => {
+    setLoadingCompanyLayouts(true);
+    try {
+      const res = await fetch('/api/layouts/list');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) setCompanyLayoutsList(data.data || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingCompanyLayouts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) loadCompanyLayouts();
+  }, [isAuthenticated]);
+
+  // Toggle expand/collapse of a layout card
+  const toggleLayoutExpanded = (id: string) => {
+    setExpandedLayouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    // Close editor if we're collapsing this layout
+    if (expandedLayouts.has(id) && editingBlockKey?.startsWith(id)) {
+      setEditingBlockKey(null);
+    }
+  };
+
+  // Open block HTML editor
+  const openBlockEditor = (layoutId: string, blockIdx: number, currentHtml: string) => {
+    setEditingBlockKey(`${layoutId}:${blockIdx}`);
+    setEditingBlockHtml(currentHtml);
+    setTimeout(() => blockEditorTextareaRef.current?.focus(), 50);
+  };
+
+  const closeBlockEditor = () => {
+    setEditingBlockKey(null);
+    setEditingBlockHtml('');
+  };
+
+  // Insert placeholder at cursor in the block editor textarea
+  const insertPlaceholderInBlockEditor = (key: string) => {
+    const ta = blockEditorTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? editingBlockHtml.length;
+    const end = ta.selectionEnd ?? start;
+    const token = `{{${key}}}`;
+    const newHtml = editingBlockHtml.slice(0, start) + token + editingBlockHtml.slice(end);
+    setEditingBlockHtml(newHtml);
+    setTimeout(() => {
+      ta.focus();
+      const pos = start + token.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
+  // Save block HTML changes back to a company layout
+  const saveCompanyLayoutBlock = async (companyId: string, blockIdx: number) => {
+    const record = companyLayoutsList.find((l) => l.companyId === companyId);
+    if (!record || !record.layoutConfig?.sections) return;
+    setSavingBlock(true);
+    try {
+      const updatedSections = record.layoutConfig.sections.map((s, i) =>
+        i === blockIdx ? { ...s, html: editingBlockHtml } : s
+      );
+      const updatedConfig = { ...record.layoutConfig, sections: updatedSections };
+      const res = await fetch(`/api/layouts/${companyId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layoutConfig: updatedConfig }),
+      });
+      if (res.ok) {
+        setCompanyLayoutsList((prev) =>
+          prev.map((l) =>
+            l.companyId === companyId
+              ? { ...l, layoutConfig: updatedConfig }
+              : l
+          )
+        );
+        closeBlockEditor();
+        setSuccess('Block saved.');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError('Failed to save block.');
+      }
+    } catch {
+      setError('Failed to save block.');
+    } finally {
+      setSavingBlock(false);
+    }
+  };
+
+  // Save block HTML changes back to a shared template
+  const saveTemplateBlock = async (templateId: string, blockIdx: number) => {
+    const template = layoutTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+    setSavingBlock(true);
+    try {
+      // We need the full layoutConfig — fetch it first
+      const getRes = await fetch(`/api/layout-templates/${templateId}`);
+      if (!getRes.ok) throw new Error('Failed to fetch template');
+      const getData = await getRes.json();
+      const currentConfig = getData.data?.layoutConfig
+        ? (typeof getData.data.layoutConfig === 'string' ? JSON.parse(getData.data.layoutConfig) : getData.data.layoutConfig)
+        : {};
+      if (!currentConfig.sections) throw new Error('No sections found');
+      const updatedSections = currentConfig.sections.map((s: LayoutSection, i: number) =>
+        i === blockIdx ? { ...s, html: editingBlockHtml } : s
+      );
+      const updatedConfig = { ...currentConfig, sections: updatedSections };
+      const putRes = await fetch(`/api/layout-templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layoutConfig: updatedConfig, name: template.name }),
+      });
+      if (putRes.ok) {
+        closeBlockEditor();
+        setSuccess('Block saved to template.');
+        setTimeout(() => setSuccess(null), 3000);
+        await loadLayoutTemplates();
+      } else {
+        setError('Failed to save block.');
+      }
+    } catch {
+      setError('Failed to save block.');
+    } finally {
+      setSavingBlock(false);
+    }
+  };
 
   const handlePromoteToTemplate = async () => {
     if (!newTemplateName.trim() || !promoteCompanyId) return;
@@ -1044,7 +1405,153 @@ export default function SettingsPage() {
         {/* ── LAYOUT TEMPLATES TAB ── */}
         {activeTab === 'layouts' && (
         <div className="space-y-6">
-          {/* Header + create button */}
+
+          {/* ── COMPANY LAYOUTS SECTION ── */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Wand2 className="w-5 h-5 text-purple-600" />
+                  Company Layouts
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Custom layouts saved per company. Edit individual blocks here, or open the Layout Builder for the full visual editor.
+                </p>
+              </div>
+              <button
+                onClick={loadCompanyLayouts}
+                disabled={loadingCompanyLayouts}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {loadingCompanyLayouts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                Refresh
+              </button>
+            </div>
+
+            {loadingCompanyLayouts ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-purple-500" /></div>
+            ) : companyLayoutsList.length === 0 ? (
+              <div className="text-center py-10 text-gray-400">
+                <Wand2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="font-medium text-sm">No saved company layouts yet</p>
+                <p className="text-xs mt-1">Open the Layout Builder for any company and click &ldquo;Approve &amp; Save&rdquo; to create one.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {companyLayoutsList.map((record) => {
+                  const sections = record.layoutConfig?.sections || [];
+                  const isExpanded = expandedLayouts.has(record.companyId);
+                  return (
+                    <div key={record.companyId} className="border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Card header */}
+                      <div className="flex items-center justify-between p-4 bg-white hover:bg-gray-50">
+                        <button
+                          onClick={() => toggleLayoutExpanded(record.companyId)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          }
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                            <Wand2 className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-gray-900 truncate">{record.company.name}</div>
+                            <div className="text-xs text-gray-500">
+                              v{record.version} · {sections.length} block{sections.length !== 1 ? 's' : ''} · {record.isActive ? 'Active' : 'Inactive'}
+                              {record.description && ` · ${record.description}`}
+                            </div>
+                          </div>
+                        </button>
+                        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              handlePromoteToTemplate();
+                              setPromoteCompanyId(record.companyId);
+                              setCreatingTemplate(true);
+                            }}
+                            className="px-3 py-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg flex items-center gap-1 transition-colors border border-purple-200"
+                            title="Promote to shared template"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Save as Template
+                          </button>
+                          <a
+                            href={`/settings/layout-builder?companyId=${record.companyId}`}
+                            className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 transition-colors"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" />
+                            Edit in Builder
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Expanded: block list */}
+                      {isExpanded && (
+                        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-2">
+                          <p className="text-xs font-medium text-gray-600 mb-3">Blocks — click <Pencil className="w-3 h-3 inline" /> to edit HTML</p>
+                          {sections.map((section, idx) => {
+                            const blockKey = `${record.companyId}:${idx}`;
+                            const isEditing = editingBlockKey === blockKey;
+                            const label = section.label || section.id || `Block ${idx + 1}`;
+                            const isHidden = section.visible === false;
+                            return (
+                              <div key={section.id || idx}>
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border bg-white ${isEditing ? 'border-blue-400' : 'border-gray-200'}`}>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium text-gray-800 truncate block">{label}</span>
+                                    <span className="text-xs text-gray-400">
+                                      {section.type === 'custom_html' ? 'HTML' : section.type}
+                                      {isHidden && ' · hidden'}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-gray-400 font-mono w-5 text-center">{idx + 1}</span>
+                                  {section.type === 'custom_html' && (
+                                    <button
+                                      onClick={() =>
+                                        isEditing
+                                          ? closeBlockEditor()
+                                          : openBlockEditor(record.companyId, idx, section.html || '')
+                                      }
+                                      title={isEditing ? 'Close editor' : 'Edit HTML'}
+                                      className={`p-1.5 rounded transition-colors ${isEditing ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Inline block editor */}
+                                {isEditing && (
+                                  <BlockHtmlEditor
+                                    html={editingBlockHtml}
+                                    onChange={setEditingBlockHtml}
+                                    onSave={() => saveCompanyLayoutBlock(record.companyId, idx)}
+                                    onCancel={closeBlockEditor}
+                                    saving={savingBlock}
+                                    textareaRef={blockEditorTextareaRef}
+                                    expandedCats={blockEditorExpandedCats}
+                                    onToggleCat={(c) => setBlockEditorExpandedCats((prev) => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; })}
+                                    onInsertPlaceholder={insertPlaceholderInBlockEditor}
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                          {sections.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-2">No blocks found in this layout.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── SHARED LAYOUT TEMPLATES SECTION ── */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -1189,7 +1696,7 @@ export default function SettingsPage() {
                         </div>
 
                         {/* Assign to company */}
-                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center gap-3">
+                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 flex items-center gap-3 flex-wrap">
                           <span className="text-xs text-gray-500 font-medium flex-shrink-0">Assign to:</span>
                           <select
                             defaultValue=""
@@ -1220,6 +1727,43 @@ export default function SettingsPage() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Template blocks toggle */}
+                        {(() => {
+                          const tmplKey = `tmpl-${template.id}`;
+                          const isExpTmpl = expandedLayouts.has(tmplKey);
+                          return (
+                            <div className="border-t border-gray-100">
+                              <button
+                                onClick={() => toggleLayoutExpanded(tmplKey)}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 transition-colors text-left"
+                              >
+                                {isExpTmpl
+                                  ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                                  : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                                }
+                                <span className="text-xs font-medium text-gray-600">Edit Blocks</span>
+                                <Pencil className="w-3 h-3 text-gray-400" />
+                              </button>
+                              {isExpTmpl && (
+                                <TemplateSectionBlockEditor
+                                  templateId={template.id}
+                                  editingBlockKey={editingBlockKey}
+                                  editingBlockHtml={editingBlockHtml}
+                                  savingBlock={savingBlock}
+                                  blockEditorExpandedCats={blockEditorExpandedCats}
+                                  onOpenBlock={openBlockEditor}
+                                  onCloseBlock={closeBlockEditor}
+                                  onChangeHtml={setEditingBlockHtml}
+                                  onSaveBlock={saveTemplateBlock}
+                                  onToggleCat={(c) => setBlockEditorExpandedCats((prev) => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; })}
+                                  onInsertPlaceholder={insertPlaceholderInBlockEditor}
+                                  textareaRef={blockEditorTextareaRef}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}

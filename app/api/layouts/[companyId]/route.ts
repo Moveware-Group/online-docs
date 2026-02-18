@@ -170,10 +170,10 @@ export async function GET(
     }
 
     // ── Priority 2: Company-specific CustomLayout ──
-    // Temporary static fallback for Grace company while AI layout builder is being stabilised.
-    // Force static for known Grace coIds even if a custom AI layout exists.
-    const forceGraceStatic = companyId === "555" || isGraceCompany(resolvedCompany);
-    if (forceGraceStatic) {
+    // For Grace companies: use their saved layout if one exists in the DB;
+    // otherwise fall back to the built-in static template.
+    const isGrace = companyId === "555" || isGraceCompany(resolvedCompany);
+    if (isGrace && !layout) {
       const layoutConfig = buildGraceStaticLayoutConfig();
       const merged = await mergeCompanyBrandingIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
       return NextResponse.json({
