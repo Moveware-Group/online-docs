@@ -174,6 +174,13 @@ interface CustomLayoutRendererProps {
   // Interactive state for the acceptance form — passed through from parent
   selectedCostingId: string | null;
   onSelectCosting: (id: string) => void;
+  /**
+   * When the layout contains an AcceptanceForm built-in section this slot is
+   * rendered in its place.  This allows the parent page to inject the full
+   * React acceptance form (with SignatureCanvas, DatePicker, etc.) into the
+   * otherwise static custom layout.
+   */
+  acceptanceFormSlot?: React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +192,7 @@ export function CustomLayoutRenderer({
   data,
   selectedCostingId,
   onSelectCosting,
+  acceptanceFormSlot,
 }: CustomLayoutRendererProps) {
   const globalStyles = config.globalStyles || {};
 
@@ -226,12 +234,27 @@ export function CustomLayoutRenderer({
                 data={data}
                 selectedCostingId={selectedCostingId}
                 onSelectCosting={onSelectCosting}
+                acceptanceFormSlot={acceptanceFormSlot}
               />
             );
           }
 
           // Built-in component sections (HeaderSection, EstimateCard, etc.) are
           // centred within the configured maxWidth.
+          // AcceptanceForm is the exception — its slot manages its own wrapper.
+          if (section.component === 'AcceptanceForm' && acceptanceFormSlot) {
+            return (
+              <RenderSection
+                key={section.id}
+                section={section}
+                data={data}
+                selectedCostingId={selectedCostingId}
+                onSelectCosting={onSelectCosting}
+                acceptanceFormSlot={acceptanceFormSlot}
+              />
+            );
+          }
+
           return (
             <div
               key={section.id}
@@ -243,6 +266,7 @@ export function CustomLayoutRenderer({
                 data={data}
                 selectedCostingId={selectedCostingId}
                 onSelectCosting={onSelectCosting}
+                acceptanceFormSlot={acceptanceFormSlot}
               />
             </div>
           );
@@ -260,11 +284,13 @@ function RenderSection({
   data,
   selectedCostingId,
   onSelectCosting,
+  acceptanceFormSlot,
 }: {
   section: LayoutSection;
   data: QuotePageData;
   selectedCostingId: string | null;
   onSelectCosting: (id: string) => void;
+  acceptanceFormSlot?: React.ReactNode;
 }) {
   // ---- Custom HTML section ----
   if (section.type === 'custom_html') {
@@ -333,7 +359,7 @@ function RenderSection({
       return <div id="custom-layout-next-steps-slot" />;
 
     case 'AcceptanceForm':
-      return <div id="custom-layout-acceptance-slot" />;
+      return acceptanceFormSlot ? <>{acceptanceFormSlot}</> : <div id="custom-layout-acceptance-slot" />;
 
     default:
       return null;

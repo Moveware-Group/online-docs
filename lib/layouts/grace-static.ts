@@ -73,7 +73,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Thank you section — overlaps the hero banner (margin-top: -80px) -->
-<div style="padding:0 32px;">
+<div style="max-width:980px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;border:1px solid #e9e9e9;padding:24px;margin-top:-80px;position:relative;z-index:1;margin-bottom:50px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
     <!-- Heading with border below -->
     <h2 style="font-size:22px;font-weight:700;color:{{branding.primaryColor}};margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Thank you for considering {{branding.companyName}}</h2>
@@ -120,7 +120,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Moving locations block -->
-<div style="padding:0 32px;">
+<div style="max-width:980px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;border:1px solid #e9e9e9;padding:28px 24px;margin-bottom:50px;border-radius:20px;">
     <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Moving locations</h3>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:20px;">
@@ -161,7 +161,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- GraceCover insurance block -->
-<div style="padding:0 32px;">
+<div style="max-width:980px;margin:0 auto;padding:0 32px;">
   <div style="background:#ffffff;padding:28px 24px;margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;">
     <h3 style="font-size:22px;font-weight:700;font-style:italic;color:{{branding.primaryColor}};margin:0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">GraceCover</h3>
     <div style="font-size:14px;color:#555;line-height:1.7;margin-top:20px;">
@@ -185,7 +185,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Pricing options — one card per costing line -->
-<div style="padding:0 32px;">
+<div style="max-width:980px;margin:0 auto;padding:0 32px;">
   {{#each costings}}
   <div style="margin-bottom:50px;border:1px solid #e9e9e9;border-radius:20px;overflow:hidden;">
     <!-- Card header: option name + total price -->
@@ -247,91 +247,9 @@ export const GRACE_STATIC_LAYOUT = {
     {
       id: "grace-acceptance",
       label: "Accept Quote",
-      type: "custom_html",
+      type: "built_in",
+      component: "AcceptanceForm",
       visible: true,
-      html: `<!-- Accept quote section -->
-<style>
-  /* Checkbox ticked = company primary colour */
-  #grace-terms-checkbox {
-    accent-color: {{branding.primaryColor}};
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  /* Accept button — disabled (default) */
-  .grace-accept-btn {
-    background: #f0f0f0;
-    color: #aaa;
-    border: none;
-    padding: 14px;
-    font-size: 14px;
-    font-weight: 700;
-    border-radius: 6px;
-    cursor: not-allowed;
-    transition: background 0.2s, color 0.2s;
-    width: 100%;
-  }
-  /* Accept button — enabled after checkbox ticked (pure CSS sibling selector) */
-  #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn {
-    background: {{branding.primaryColor}};
-    color: #ffffff;
-    cursor: pointer;
-  }
-  #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn:hover {
-    opacity: 0.88;
-  }
-</style>
-<div style="padding:0 32px;">
-  <div style="margin-bottom:50px;background:#ffffff;border:1px solid #e9e9e9;border-radius:20px;padding:28px 24px;">
-    <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Accept quote</h3>
-
-    <!-- Selected options summary -->
-    <div style="margin-bottom:16px;font-size:13px;color:#333;">
-      <div style="font-weight:700;margin-bottom:4px;">Selected Options (AUD)</div>
-      <div style="color:#555;">Packing and removal charges: A\${{job.jobValue}}</div>
-      <div style="color:#555;">Total: A\${{job.jobValue}}</div>
-    </div>
-
-    <!-- Intro paragraph -->
-    <p style="font-size:13px;color:#777;line-height:1.7;margin:0 0 20px 0;">Please review the details of this proposal carefully to ensure everything is correct before accepting the quote for your move. By accepting the quote, you acknowledge and agree to the terms and conditions outlined at the bottom of this proposal. When you're ready, simply click "Accept." If you have any questions or notice anything unexpected, click the "Request Help" button, and a member of our team will get in touch with you as soon as possible.</p>
-
-    <!-- Signature box -->
-    <div style="border:1px solid #d1d5db;border-radius:6px;padding:40px 20px;background:#fafafa;margin-bottom:20px;position:relative;">
-      <div style="height:100px;display:flex;align-items:center;justify-content:center;">
-        <span style="font-family:'Brush Script MT',cursive;font-size:32px;color:#ccc;">Sign here</span>
-      </div>
-      <div style="border-top:1px solid #ccc;margin:20px 0 12px 0;padding-top:12px;">
-        <input type="text" placeholder="Type signature" style="width:100%;border:none;border-bottom:1px solid #ccc;padding:8px 0;font-size:14px;color:#999;background:transparent;outline:none;" />
-      </div>
-      <button style="width:100%;background:#666;color:#fff;border:none;padding:12px;font-size:14px;font-weight:600;border-radius:4px;cursor:pointer;margin-top:4px;">Clear</button>
-    </div>
-
-    <!-- Terms link -->
-    <div style="margin-bottom:12px;">
-      <a href="#" style="color:{{branding.primaryColor}};font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-        Read Terms &amp; Conditions here
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      </a>
-    </div>
-
-    <!--
-      IMPORTANT: The checkbox MUST precede the action buttons in the DOM so that
-      the CSS general sibling selector (#grace-terms-checkbox:checked ~ .grace-accept-row)
-      can toggle the Accept button state without any JavaScript.
-    -->
-    <input type="checkbox" id="grace-terms-checkbox" />
-    <label for="grace-terms-checkbox" style="display:flex;align-items:center;gap:10px;font-size:13px;color:#333;cursor:pointer;margin-bottom:24px;">
-      <span>I have read and agree to the Terms &amp; Conditions</span>
-    </label>
-
-    <!-- Action buttons (sibling of checkbox — required for :checked ~ selector) -->
-    <div class="grace-accept-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <button style="background:#555;color:#fff;border:none;padding:14px;font-size:14px;font-weight:700;border-radius:6px;cursor:pointer;">Request Help</button>
-      <button class="grace-accept-btn">Accept</button>
-    </div>
-  </div>
-</div>`,
     },
 
     // ──────────────────────────────────────────────────────────
@@ -343,7 +261,7 @@ export const GRACE_STATIC_LAYOUT = {
       type: "custom_html",
       visible: true,
       html: `<!-- Included items / inventory table -->
-<div style="padding:0 32px;">
+<div style="max-width:980px;margin:0 auto;padding:0 32px;">
   <div style="margin-bottom:50px;background:#ffffff;border:1px solid #e9e9e9;padding:24px;border-radius:20px;">
     <h3 style="color:{{branding.primaryColor}};font-size:22px;font-weight:700;margin:0 0 16px 0;padding-bottom:16px;border-bottom:1px solid #e0e0e0;">Included items</h3>
     <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">

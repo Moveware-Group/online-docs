@@ -117,44 +117,6 @@ function QuotePageContent() {
   const pdfContentRef = useRef<HTMLDivElement>(null);
   const nextStepsRef = useRef<HTMLDivElement>(null);
 
-  // Keep a stable ref to the latest agreedToTerms so DOM event listeners
-  // don't capture a stale closure value
-  const agreedToTermsRef = useRef(agreedToTerms);
-  useEffect(() => { agreedToTermsRef.current = agreedToTerms; }, [agreedToTerms]);
-
-  // Keep a stable ref to handleAcceptQuote
-  const handleAcceptRef = useRef<() => Promise<void>>(async () => {});
-
-  // Wire up custom-layout acceptance controls (checkbox → state, buttons → handlers)
-  // Runs whenever a custom layout is loaded into the DOM
-  useEffect(() => {
-    if (!customLayout) return;
-
-    // Defer slightly to ensure dangerouslySetInnerHTML has flushed to DOM
-    const timer = setTimeout(() => {
-      // ── Terms checkbox → React state ──────────────────────────────────────
-      const checkbox = document.getElementById('grace-terms-checkbox') as HTMLInputElement | null;
-      if (checkbox) {
-        const onCheck = (e: Event) => setAgreedToTerms((e.target as HTMLInputElement).checked);
-        checkbox.addEventListener('change', onCheck);
-        // Sync initial value in case the DOM was re-hydrated
-        if (checkbox.checked !== agreedToTermsRef.current) {
-          checkbox.checked = agreedToTermsRef.current;
-        }
-      }
-
-      // ── Accept button → handleAcceptQuote ─────────────────────────────────
-      const acceptBtn = document.querySelector('.grace-accept-btn') as HTMLButtonElement | null;
-      if (acceptBtn) {
-        const onClick = () => { if (agreedToTermsRef.current) handleAcceptRef.current(); };
-        acceptBtn.addEventListener('click', onClick);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout]);
-
   // Wire up custom-layout inventory pagination buttons.
   // Re-runs whenever currentPage or inventory/itemsPerPage changes so the
   // buttons always reflect the latest page state after React re-renders the HTML block.
@@ -589,11 +551,6 @@ function QuotePageContent() {
     }
   };
 
-  // Keep handleAcceptRef always pointing at the latest handleAcceptQuote
-  // so DOM event listeners added by the custom-layout useEffect can call it
-  // without stale closure issues.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { handleAcceptRef.current = handleAcceptQuote; });
 
   if (loading) {
     return (
@@ -692,96 +649,151 @@ function QuotePageContent() {
       inventoryTotalPages: invTotalPages,
     };
 
-    return (
-      <PageShell includeHeader={false}>
-        {/*
-          Inject acceptance CSS as a real React <style> element (NOT inside
-          dangerouslySetInnerHTML) so that the CSS sibling selector reliably
-          fires in all browsers. The primaryColor is resolved server-side.
-        */}
-        <style>{`
-          #grace-terms-checkbox {
-            accent-color: ${primaryColor};
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            flex-shrink: 0;
-          }
-          /* Accept button — disabled (grey) by default */
-          .grace-accept-btn {
-            background: #f0f0f0 !important;
-            color: #aaa !important;
-            border: none;
-            padding: 14px;
-            font-size: 14px;
-            font-weight: 700;
-            border-radius: 6px;
-            cursor: not-allowed !important;
-            transition: background 0.2s, color 0.2s;
-            width: 100%;
-            display: block;
-          }
-          /* Accept button — enabled (primary colour) once T&C checkbox is ticked */
-          #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn {
-            background: ${primaryColor} !important;
-            color: #ffffff !important;
-            cursor: pointer !important;
-          }
-          #grace-terms-checkbox:checked ~ .grace-accept-row .grace-accept-btn:hover {
-            opacity: 0.88;
-          }
-        `}</style>
+    // ── Acceptance form rendered as a React slot ──────────────────────────────
+    // This replaces the old custom HTML acceptance block so that SignatureCanvas,
+    // DatePicker and all form state work exactly as in the default template.
+    // It is styled to match the grace card pattern used by all other blocks.
+    const acceptanceFormSlot = (
+      <div style={{ maxWidth: '980px', margin: '0 auto', padding: '0 32px' }}>
+        <div style={{ marginBottom: '50px', background: '#ffffff', border: '1px solid #e9e9e9', borderRadius: '20px', padding: '28px 24px' }}>
+          <h3 style={{ color: primaryColor, fontSize: '22px', fontWeight: 700, margin: '0 0 16px 0', paddingBottom: '16px', borderBottom: '1px solid #e0e0e0' }}>
+            Accept quote
+          </h3>
 
-        <div ref={pdfContentRef}>
-          <CustomLayoutRenderer
-            config={customLayout}
-            data={pageData}
-            selectedCostingId={selectedCostingId}
-            onSelectCosting={(id: string) => setSelectedCostingId(id)}
-          />
-        </div>
+          <p style={{ fontSize: '13px', color: '#777', lineHeight: '1.7', margin: '0 0 20px 0' }}>
+            Please review the details of this proposal carefully before accepting. By accepting the quote you acknowledge and agree to the terms and conditions outlined in this proposal.
+          </p>
 
-        {/* Floating Print PDF button — visible when not in preview mode */}
-        {!isPreviewMode && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: '24px',
-              right: '24px',
-              zIndex: 100,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              alignItems: 'flex-end',
-            }}
-          >
+          {/* Validation error */}
+          {errors.selectedCosting && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+              {errors.selectedCosting}
+            </div>
+          )}
+
+          {/* Form fields */}
+          <div className="space-y-4 mb-6">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Signature Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={signatureName}
+                  onChange={(e) => { setSignatureName(e.target.value); if (errors.signatureName) setErrors({ ...errors, signatureName: '' }); }}
+                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.signatureName ? 'border-red-500' : 'border-gray-300'}`}
+                  style={{ outlineColor: primaryColor }}
+                />
+                {errors.signatureName && <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
+                </label>
+                <DatePicker
+                  selected={reloFromDate}
+                  onChange={(date: Date | null) => { setReloFromDate(date); if (errors.reloFromDate) setErrors({ ...errors, reloFromDate: '' }); }}
+                  dateFormat="dd/MM/yyyy"
+                  placeholderText="Select move date"
+                  minDate={new Date()}
+                  showPopperArrow={false}
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  yearDropdownItemNumber={15}
+                  scrollableYearDropdown
+                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.reloFromDate ? 'border-red-500' : 'border-gray-300'}`}
+                  wrapperClassName="w-full"
+                />
+                {errors.reloFromDate && <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>}
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Insured value <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={insuredValue}
+                  onChange={(e) => { setInsuredValue(e.target.value); if (errors.insuredValue) setErrors({ ...errors, insuredValue: '' }); }}
+                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.insuredValue ? 'border-red-500' : 'border-gray-300'}`}
+                  style={{ outlineColor: primaryColor }}
+                />
+                {errors.insuredValue && <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Purchase order number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={purchaseOrderNumber}
+                  onChange={(e) => { setPurchaseOrderNumber(e.target.value); if (errors.purchaseOrderNumber) setErrors({ ...errors, purchaseOrderNumber: '' }); }}
+                  className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'}`}
+                  style={{ outlineColor: primaryColor }}
+                />
+                {errors.purchaseOrderNumber && <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Add any special requirements here
+              </label>
+              <textarea
+                value={specialRequirements}
+                onChange={(e) => setSpecialRequirements(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                style={{ outlineColor: primaryColor }}
+              />
+            </div>
+          </div>
+
+          {/* Signature Canvas */}
+          <div className="mb-6">
+            <SignatureCanvas
+              value={signature}
+              onChange={(sig) => { setSignature(sig); if (errors.signature) setErrors({ ...errors, signature: '' }); }}
+              error={errors.signature}
+            />
+            {errors.signature && <p className="mt-1 text-sm text-red-600">{errors.signature}</p>}
+          </div>
+
+          {/* Terms & Conditions */}
+          <div className="mb-6">
+            <a href="#" className="hover:underline text-sm inline-flex items-center gap-1 mb-3" style={{ color: primaryColor }}>
+              Read Terms &amp; Conditions here
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 w-4 h-4"
+                style={{ accentColor: primaryColor }}
+              />
+              <span className="text-sm text-gray-700">I have read and agree to your Terms &amp; Conditions</span>
+            </label>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3 no-print">
+            <button className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 font-semibold rounded hover:bg-gray-400 transition-colors">
+              Decline
+            </button>
             <button
               onClick={generatePDF}
               disabled={generatingPdf}
-              style={{
-                background: generatingPdf ? '#9ca3af' : primaryColor,
-                color: '#ffffff',
-                border: 'none',
-                padding: '12px 20px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '700',
-                cursor: generatingPdf ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'opacity 0.2s',
-              }}
-              title="Download quote as PDF"
+              style={{ backgroundColor: generatingPdf ? '#e5e7eb' : primaryColor }}
+              className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {generatingPdf ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                  </svg>
-                  Generating PDF…
-                </>
+                <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
               ) : (
                 <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -793,11 +805,30 @@ function QuotePageContent() {
                 </>
               )}
             </button>
+            <button
+              onClick={handleAcceptQuote}
+              disabled={!isFormValid() || submitting}
+              style={{ backgroundColor: isFormValid() && !submitting ? primaryColor : '#e5e7eb' }}
+              className="flex-1 px-6 py-3 text-white font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting ? 'Submitting...' : 'Accept'}
+            </button>
           </div>
-        )}
+        </div>
+      </div>
+    );
 
-        {/* Spinner keyframe for the PDF button */}
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    return (
+      <PageShell includeHeader={false}>
+        <div ref={pdfContentRef}>
+          <CustomLayoutRenderer
+            config={customLayout}
+            data={pageData}
+            selectedCostingId={selectedCostingId}
+            onSelectCosting={(id: string) => setSelectedCostingId(id)}
+            acceptanceFormSlot={acceptanceFormSlot}
+          />
+        </div>
       </PageShell>
     );
   }
