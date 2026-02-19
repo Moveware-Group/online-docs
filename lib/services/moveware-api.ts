@@ -112,12 +112,35 @@ export async function fetchMwOptions(
   return mwGet(creds, `jobs/${jobId}/options?include=charges`);
 }
 
-/** GET /{{coId}}/api/jobs/{{jobId}}/inventory */
+/**
+ * GET /{{coId}}/api/jobs/{{jobId}}/inventory
+ *
+ * Requests up to 500 items per page so we get the full inventory list in a
+ * single call rather than receiving just the default page (typically 10–20).
+ * If the job has more than 500 items we log a warning; a full pagination loop
+ * can be added at that point.
+ */
 export async function fetchMwInventory(
   creds: MwCredentials,
   jobId: string,
 ): Promise<unknown> {
-  return mwGet(creds, `jobs/${jobId}/inventory`);
+  const raw = await mwGet(creds, `jobs/${jobId}/inventory?pageSize=500`);
+
+  // Warn when the API response indicates there are more items than we fetched
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    const meta = r.meta as Record<string, unknown> | undefined;
+    const total = meta?.totalItems ?? meta?.total ?? meta?.count;
+    const returned = Array.isArray(r.inventoryUsage) ? r.inventoryUsage.length : null;
+    if (total != null && returned != null && Number(total) > Number(returned)) {
+      console.warn(
+        `[moveware-api] inventory may be truncated: API reports ${total} items but returned ${returned}.` +
+        ' Consider increasing pageSize or implementing pagination.',
+      );
+    }
+  }
+
+  return raw;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -25,8 +25,9 @@ interface MockInventoryItem {
   typeCode: string;
 }
 
-// Mock data matches live Moveware API response for job 111505 exactly.
-// (all qty=1, typeCode=Furniture, no room — confirmed against live API)
+// Mock data for job 111505 — covers the 20 items confirmed from the live API.
+// The live Moveware job has 40 items total; when live credentials are available
+// fetchMwInventory uses ?pageSize=500 to return the complete list.
 const MOCK_INVENTORY: Record<string, MockInventoryItem[]> = {
   '111505': [
     { id: 22302, description: 'Bed, King',        room: '', quantity: 1, cube: 2.14, typeCode: 'Furniture' },
