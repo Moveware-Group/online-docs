@@ -24,7 +24,6 @@ import {
   Check,
   GripVertical,
   Layers,
-  Tag,
   ChevronDown,
   ChevronRight,
   EyeOff,
@@ -199,8 +198,13 @@ function LayoutBuilderContent() {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Left panel tabs: 'setup' | 'blocks' | 'placeholders'
-  const [leftPanelTab, setLeftPanelTab] = useState<'setup' | 'blocks' | 'placeholders'>('setup');
+  // Left panel tabs: 'setup' | 'blocks' | 'json'
+  const [leftPanelTab, setLeftPanelTab] = useState<'setup' | 'blocks' | 'json'>('setup');
+
+  // Raw JSON editor (developer tab)
+  const [rawJsonContent, setRawJsonContent] = useState('');
+  const [rawJsonError, setRawJsonError] = useState<string | null>(null);
+  const [rawJsonApplied, setRawJsonApplied] = useState(false);
 
   // Custom preview URL (optional — overrides the default job URL)
   const [previewJobUrl, setPreviewJobUrl] = useState('');
@@ -552,7 +556,7 @@ function LayoutBuilderContent() {
       if (data.warnings && data.warnings.length > 0) {
         addAssistantMessage(data.message);
       } else {
-        addAssistantMessage(data.message || 'Layout generated! Switch to the **Blocks** tab (already active) to edit copy and add placeholders. Use the **Placeholders** tab to see all available data fields.');
+        addAssistantMessage(data.message || 'Layout generated! Switch to the **Blocks** tab (already active) to edit copy and add placeholders.');
       }
       
       updatePreview(data.data);
@@ -1277,16 +1281,25 @@ function LayoutBuilderContent() {
           {/* Tab Bar */}
           <div className="flex border-b border-gray-200 flex-shrink-0">
             {[
-              { id: 'setup', label: 'Setup', icon: <Wand2 className="w-3.5 h-3.5" /> },
-              { id: 'blocks', label: 'Blocks', icon: <Layers className="w-3.5 h-3.5" /> },
-              { id: 'placeholders', label: 'Placeholders', icon: <Tag className="w-3.5 h-3.5" /> },
+              { id: 'setup',  label: 'Setup',    icon: <Wand2  className="w-3.5 h-3.5" /> },
+              { id: 'blocks', label: 'Blocks',   icon: <Layers className="w-3.5 h-3.5" /> },
+              { id: 'json',   label: 'Raw JSON', icon: <Code2  className="w-3.5 h-3.5" /> },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setLeftPanelTab(tab.id as 'setup' | 'blocks' | 'placeholders')}
+                onClick={() => {
+                  setLeftPanelTab(tab.id as 'setup' | 'blocks' | 'json');
+                  if (tab.id === 'json' && layoutConfig) {
+                    setRawJsonContent(JSON.stringify(layoutConfig, null, 2));
+                    setRawJsonError(null);
+                    setRawJsonApplied(false);
+                  }
+                }}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                   leftPanelTab === tab.id
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                    ? tab.id === 'json'
+                      ? 'border-orange-500 text-orange-600 bg-orange-50'
+                      : 'border-blue-600 text-blue-600 bg-blue-50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
@@ -2226,82 +2239,94 @@ function LayoutBuilderContent() {
             </div>
           )}
 
-          {/* ── PLACEHOLDERS TAB ── */}
-          {leftPanelTab === 'placeholders' && (
-          <div className="p-4 overflow-y-auto flex-1">
-            <h2 className="text-sm font-bold text-gray-900 mb-1 uppercase tracking-wide flex items-center gap-2">
-              <Tag className="w-4 h-4 text-blue-600" />
-              Placeholders
-            </h2>
-            <p className="text-xs text-gray-500 mb-4">
-              Click <Copy className="w-3 h-3 inline mx-0.5" /> to copy a placeholder. Paste it into any copy block in your HTML template.
-            </p>
-
-            <div className="space-y-2">
-              {PLACEHOLDER_CATEGORIES.map((category) => {
-                const items = PLACEHOLDER_REGISTRY.filter((p) => p.category === category);
-                const isExpanded = expandedCategories.has(category);
-                return (
-                  <div key={category} className="border border-gray-200 rounded-lg overflow-hidden">
-                    {/* Category header */}
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-                    >
-                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{category}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">{items.length}</span>
-                        {isExpanded
-                          ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                          : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                        }
-                      </div>
-                    </button>
-
-                    {/* Items */}
-                    {isExpanded && (
-                      <div className="divide-y divide-gray-100">
-                        {items.map((placeholder) => {
-                          const isCopied = copiedKey === placeholder.key;
-                          return (
-                            <div
-                              key={placeholder.key}
-                              className="flex items-center justify-between px-3 py-2 hover:bg-blue-50 group"
-                            >
-                              <div className="flex-1 min-w-0 mr-2">
-                                <div className="text-xs font-mono text-blue-700 truncate">
-                                  {`{{${placeholder.key}}}`}
-                                </div>
-                                <div className="text-xs text-gray-500 truncate">{placeholder.label}</div>
-                                {placeholder.description && (
-                                  <div className="text-xs text-gray-400 italic truncate">{placeholder.description}</div>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => handleCopyPlaceholder(placeholder.key)}
-                                title={isCopied ? 'Copied!' : `Copy {{${placeholder.key}}}`}
-                                className={`flex-shrink-0 p-1.5 rounded transition-all ${
-                                  isCopied
-                                    ? 'bg-green-100 text-green-600'
-                                    : 'bg-gray-100 text-gray-500 opacity-0 group-hover:opacity-100 hover:bg-blue-100 hover:text-blue-600'
-                                }`}
-                              >
-                                {isCopied
-                                  ? <Check className="w-3.5 h-3.5" />
-                                  : <Copy className="w-3.5 h-3.5" />
-                                }
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          {/* ── RAW JSON TAB (developer) ── */}
+          {leftPanelTab === 'json' && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Warning banner */}
+            <div className="flex-shrink-0 px-3 py-2.5 bg-orange-50 border-b border-orange-200 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-orange-700">Developer view</p>
+                <p className="text-[10px] text-orange-600 mt-0.5">Edit the full layout config as JSON. Invalid JSON will be rejected. Always preview after applying changes.</p>
+              </div>
             </div>
+
+            {!layoutConfig ? (
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                Load a layout first (Setup tab or Blocks tab).
+              </div>
+            ) : (
+              <>
+                {/* Toolbar */}
+                <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
+                  <button
+                    onClick={() => {
+                      setRawJsonContent(JSON.stringify(layoutConfig, null, 2));
+                      setRawJsonError(null);
+                      setRawJsonApplied(false);
+                    }}
+                    className="px-2.5 py-1 text-xs border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center gap-1 text-gray-600"
+                    title="Reload from current layout (discards unsaved edits)"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Reload
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        const parsed = JSON.parse(rawJsonContent) as LayoutConfig;
+                        if (!parsed.sections || !Array.isArray(parsed.sections)) {
+                          setRawJsonError('JSON must have a "sections" array.');
+                          return;
+                        }
+                        setLayoutConfig(parsed);
+                        updatePreview(parsed);
+                        setSaved(false);
+                        setRawJsonError(null);
+                        setRawJsonApplied(true);
+                        setTimeout(() => setRawJsonApplied(false), 2000);
+                      } catch (e) {
+                        setRawJsonError(`Invalid JSON: ${(e as Error).message}`);
+                      }
+                    }}
+                    className="px-2.5 py-1 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-1 font-medium"
+                  >
+                    {rawJsonApplied
+                      ? <><CheckCircle2 className="w-3 h-3" /> Applied</>
+                      : <><Check className="w-3 h-3" /> Apply JSON</>
+                    }
+                  </button>
+                  <span className="text-[10px] text-gray-400 ml-auto">
+                    {rawJsonContent.split('\n').length} lines
+                  </span>
+                </div>
+
+                {/* Error */}
+                {rawJsonError && (
+                  <div className="flex-shrink-0 px-3 py-2 bg-red-50 border-b border-red-200 flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                    <p className="text-xs text-red-700 font-mono">{rawJsonError}</p>
+                  </div>
+                )}
+
+                {/* JSON textarea */}
+                <textarea
+                  value={rawJsonContent}
+                  onChange={(e) => { setRawJsonContent(e.target.value); setRawJsonError(null); }}
+                  spellCheck={false}
+                  className="flex-1 w-full p-3 font-mono text-[11px] text-gray-800 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-orange-400 leading-relaxed"
+                />
+
+                {/* Footer hint */}
+                <div className="flex-shrink-0 px-3 py-2 bg-gray-50 border-t border-gray-200">
+                  <p className="text-[10px] text-gray-400">
+                    Click <strong>Apply JSON</strong> to push changes to the preview. Then use <strong>Save</strong> in the top bar to persist. Changes here replace all block-level edits.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
-          )} {/* end PLACEHOLDERS TAB */}
+          )} {/* end RAW JSON TAB */}
 
         </div>
 

@@ -807,7 +807,9 @@ export default function SettingsPage() {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [promoteCompanyId, setPromoteCompanyId] = useState('');
   const [promotingTemplate, setPromotingTemplate] = useState(false);
-  const [createFromBase, setCreateFromBase] = useState<'grace' | 'default'>('default');
+  const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default' | 'blank' | 'html' | 'duplicate'>('default');
+  const [importHtml, setImportHtml] = useState('');
+  const [duplicateSourceTemplateId, setDuplicateSourceTemplateId] = useState('');
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
   const [createAsGlobalDefault, setCreateAsGlobalDefault] = useState(false);
 
@@ -964,6 +966,8 @@ export default function SettingsPage() {
 
   const handlePromoteToTemplate = async () => {
     if (!newTemplateName.trim()) return;
+    if (createFromBase === 'company' && !promoteCompanyId) return;
+    if (createFromBase === 'duplicate' && !duplicateSourceTemplateId) return;
     setPromotingTemplate(true);
     try {
       let res: Response;
@@ -979,16 +983,61 @@ export default function SettingsPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT, isDefault: createAsGlobalDefault }),
         });
+      } else if (createFromBase === 'blank') {
+        const blankConfig = {
+          version: 1,
+          globalStyles: { fontFamily: 'Arial, Helvetica, sans-serif', backgroundColor: '#f9fafb', maxWidth: '1152px' },
+          sections: [{
+            id: `custom-html-${Date.now()}`,
+            label: 'Custom HTML',
+            type: 'custom_html',
+            visible: true,
+            html: '<!-- Start building your layout here. Use {{placeholders}} for dynamic data. -->',
+          }],
+        };
+        res = await fetch('/api/layout-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: blankConfig, isDefault: createAsGlobalDefault }),
+        });
+      } else if (createFromBase === 'html') {
+        const htmlConfig = {
+          version: 1,
+          globalStyles: { fontFamily: 'Arial, Helvetica, sans-serif', backgroundColor: '#f9fafb', maxWidth: '1152px' },
+          sections: [{
+            id: `custom-html-${Date.now()}`,
+            label: 'Imported HTML',
+            type: 'custom_html',
+            visible: true,
+            html: importHtml,
+          }],
+        };
+        res = await fetch('/api/layout-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: htmlConfig, isDefault: createAsGlobalDefault }),
+        });
+      } else if (createFromBase === 'duplicate') {
+        const srcRes = await fetch(`/api/layout-templates/${duplicateSourceTemplateId}`);
+        const srcData = await srcRes.json();
+        if (!srcData.success) throw new Error('Failed to fetch source template');
+        res = await fetch('/api/layout-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: srcData.data.layoutConfig, isDefault: createAsGlobalDefault }),
+        });
       } else {
         setError('Please select a base layout to create from.');
         return;
       }
-      const data = await res.json();
+      const data = await res!.json();
       if (data.success) {
         setLayoutTemplates((prev) => [data.data, ...prev]);
         setNewTemplateName('');
         setNewTemplateDesc('');
         setPromoteCompanyId('');
+        setImportHtml('');
+        setDuplicateSourceTemplateId('');
         setCreateFromBase('default');
         setCreateAsGlobalDefault(false);
         setCreatingTemplate(false);
@@ -1533,43 +1582,125 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-2">Layout source <span className="text-red-500">*</span></label>
-                  <div className="flex gap-2 mb-3 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => { setCreateFromBase('default'); setPromoteCompanyId(''); }}
-                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'default' ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      From Default Layout <span className="ml-1 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">built-in</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setCreateFromBase('grace'); setPromoteCompanyId(''); }}
-                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'grace' ? 'bg-purple-50 border-purple-400 text-purple-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      From Grace Base Layout <span className="ml-1 text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">latest</span>
-                    </button>
+                  <div className="grid grid-cols-2 gap-2 mb-3 sm:grid-cols-3">
+                    {([
+                      { key: 'blank',     label: 'Blank',                 sub: 'Start from scratch',             color: 'gray'   },
+                      { key: 'html',      label: 'Import HTML',           sub: 'Paste your own markup',          color: 'orange' },
+                      { key: 'duplicate', label: 'Duplicate Template',    sub: 'Copy an existing template',      color: 'teal'   },
+                      { key: 'default',   label: 'Default Layout',        sub: 'Built-in standard blocks',       color: 'blue'   },
+                      { key: 'grace',     label: 'Grace Base Layout',     sub: 'Latest grace-static.ts',         color: 'purple' },
+                      { key: 'company',   label: 'From Company Layout',   sub: 'Legacy — copy saved layout',     color: 'gray'   },
+                    ] as const).map(({ key, label, sub, color }) => {
+                      const active = createFromBase === key;
+                      const colorMap: Record<string, string> = {
+                        gray:   active ? 'bg-gray-100 border-gray-400 text-gray-800'   : 'border-gray-200 text-gray-500 hover:bg-gray-50',
+                        orange: active ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-gray-200 text-gray-500 hover:bg-orange-50',
+                        teal:   active ? 'bg-teal-50 border-teal-400 text-teal-700'    : 'border-gray-200 text-gray-500 hover:bg-teal-50',
+                        blue:   active ? 'bg-blue-50 border-blue-400 text-blue-700'    : 'border-gray-200 text-gray-500 hover:bg-blue-50',
+                        purple: active ? 'bg-purple-50 border-purple-400 text-purple-700' : 'border-gray-200 text-gray-500 hover:bg-purple-50',
+                      };
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => { setCreateFromBase(key); setPromoteCompanyId(''); setImportHtml(''); setDuplicateSourceTemplateId(''); }}
+                          className={`px-3 py-2.5 text-left text-xs rounded-lg border transition-colors ${colorMap[color]}`}
+                        >
+                          <div className="font-semibold">{label}</div>
+                          <div className="text-[10px] opacity-70 mt-0.5">{sub}</div>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {/* Blank */}
+                  {createFromBase === 'blank' && (
+                    <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+                      Creates a template with a single empty HTML block. Open it in the Layout Builder to add blocks or paste your own markup.
+                    </div>
+                  )}
+
+                  {/* Import HTML */}
+                  {createFromBase === 'html' && (
+                    <div className="space-y-2">
+                      <p className="text-xs text-orange-700 font-medium">Paste your full HTML below. It will be stored as a single custom HTML block — open the Layout Builder afterwards to split it into sections if needed.</p>
+                      <textarea
+                        value={importHtml}
+                        onChange={(e) => setImportHtml(e.target.value)}
+                        rows={10}
+                        spellCheck={false}
+                        placeholder="<!DOCTYPE html>&#10;<html>&#10;  <!-- paste your layout HTML here -->&#10;</html>"
+                        className="w-full px-3 py-2 text-xs font-mono border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-400 bg-white resize-y"
+                      />
+                      <p className="text-[10px] text-gray-400">Use <code className="bg-gray-100 px-0.5 rounded">{'{{customerName}}'}</code>, <code className="bg-gray-100 px-0.5 rounded">{'{{branding.primaryColor}}'}</code> etc. for dynamic values.</p>
+                    </div>
+                  )}
+
+                  {/* Duplicate */}
+                  {createFromBase === 'duplicate' && (
+                    <div className="space-y-2">
+                      <label className="block text-xs text-gray-600 font-medium">Source template to copy from:</label>
+                      <select
+                        value={duplicateSourceTemplateId}
+                        onChange={(e) => setDuplicateSourceTemplateId(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-teal-300 rounded-lg bg-white focus:ring-2 focus:ring-teal-400"
+                      >
+                        <option value="">— Select a template —</option>
+                        {layoutTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (Global Default)' : ''}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500">All blocks and settings will be copied. The original template is not changed.</p>
+                    </div>
+                  )}
+
+                  {/* Default */}
                   {createFromBase === 'default' && (
                     <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
                       Creates the template from the standard built-in quote layout (Header, Intro, Locations, Pricing, Inventory, Accept Quote). The same layout all companies use before any customisation is applied.
                     </div>
                   )}
+
+                  {/* Grace */}
                   {createFromBase === 'grace' && (
                     <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
                       Creates the template from the current built-in Grace base layout (<code>grace-static.ts</code>). Use this to seed a fresh, up-to-date Grace layout that you can then assign to companies.
                     </div>
                   )}
+
+                  {/* Company (legacy) */}
+                  {createFromBase === 'company' && (
+                    <>
+                      <select
+                        value={promoteCompanyId}
+                        onChange={(e) => setPromoteCompanyId(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">— Select a company to use as source —</option>
+                        {companies.map((c) => (
+                          <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">The company&apos;s existing saved layout will be copied into this template.</p>
+                    </>
+                  )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handlePromoteToTemplate}
-                    disabled={!newTemplateName.trim() || promotingTemplate}
+                    disabled={
+                      !newTemplateName.trim() ||
+                      (createFromBase === 'company' && !promoteCompanyId) ||
+                      (createFromBase === 'html' && !importHtml.trim()) ||
+                      (createFromBase === 'duplicate' && !duplicateSourceTemplateId) ||
+                      promotingTemplate
+                    }
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('default'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setImportHtml(''); setDuplicateSourceTemplateId(''); setCreateFromBase('default'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>
