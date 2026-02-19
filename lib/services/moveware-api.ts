@@ -383,9 +383,7 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
     const description      = str(pick(item, 'description', 'name', 'title', 'label'));
     const optionDescStr    = str(pick(item, 'optionDescription'));
     const displayDesc      = optionDescStr || description;
-    const name = displayDesc
-      ? (optionNumber ? `Option ${optionNumber}: ${displayDesc}` : displayDesc)
-      : `Option ${idx + 1}`;
+    const name = displayDesc || `Option ${idx + 1}`;
 
     // Build inclusions from income charges (type === 'I') that have a description
     const inclusions = charges
