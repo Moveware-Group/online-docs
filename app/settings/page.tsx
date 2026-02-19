@@ -805,9 +805,9 @@ export default function SettingsPage() {
   const [creatingTemplate, setCreatingTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
-  const [promoteCompanyId, setPromoteCompanyId] = useState('');
+
   const [promotingTemplate, setPromotingTemplate] = useState(false);
-  const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default' | 'blank' | 'html' | 'duplicate'>('default');
+  const [createFromBase, setCreateFromBase] = useState<'grace' | 'default' | 'blank' | 'html' | 'duplicate'>('default');
   const [importHtml, setImportHtml] = useState('');
   const [duplicateSourceTemplateId, setDuplicateSourceTemplateId] = useState('');
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
@@ -819,6 +819,12 @@ export default function SettingsPage() {
   const [assignPending, setAssignPending] = useState<Set<string>>(new Set()); // companyIds pending
   const [assigningSaving, setAssigningSaving] = useState(false);
   const assignDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Inline template rename
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Block editor state — shared between the Layout Templates section
   const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
@@ -966,7 +972,6 @@ export default function SettingsPage() {
 
   const handlePromoteToTemplate = async () => {
     if (!newTemplateName.trim()) return;
-    if (createFromBase === 'company' && !promoteCompanyId) return;
     if (createFromBase === 'duplicate' && !duplicateSourceTemplateId) return;
     setPromotingTemplate(true);
     try {
@@ -1035,7 +1040,6 @@ export default function SettingsPage() {
         setLayoutTemplates((prev) => [data.data, ...prev]);
         setNewTemplateName('');
         setNewTemplateDesc('');
-        setPromoteCompanyId('');
         setImportHtml('');
         setDuplicateSourceTemplateId('');
         setCreateFromBase('default');
@@ -1584,12 +1588,11 @@ export default function SettingsPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-2">Layout source <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2 mb-3 sm:grid-cols-3">
                     {([
-                      { key: 'blank',     label: 'Blank',                 sub: 'Start from scratch',             color: 'gray'   },
-                      { key: 'html',      label: 'Import HTML',           sub: 'Paste your own markup',          color: 'orange' },
-                      { key: 'duplicate', label: 'Duplicate Template',    sub: 'Copy an existing template',      color: 'teal'   },
-                      { key: 'default',   label: 'Default Layout',        sub: 'Built-in standard blocks',       color: 'blue'   },
-                      { key: 'grace',     label: 'Grace Base Layout',     sub: 'Latest grace-static.ts',         color: 'purple' },
-                      { key: 'company',   label: 'From Company Layout',   sub: 'Legacy — copy saved layout',     color: 'gray'   },
+                      { key: 'blank',     label: 'Blank',              sub: 'Start from scratch',        color: 'gray'   },
+                      { key: 'html',      label: 'Import HTML',         sub: 'Paste your own markup',      color: 'orange' },
+                      { key: 'duplicate', label: 'Duplicate Template',  sub: 'Copy an existing template',  color: 'teal'   },
+                      { key: 'default',   label: 'Default Layout',      sub: 'Built-in standard blocks',   color: 'blue'   },
+                      { key: 'grace',     label: 'Grace Base Layout',   sub: 'Latest grace-static.ts',     color: 'purple' },
                     ] as const).map(({ key, label, sub, color }) => {
                       const active = createFromBase === key;
                       const colorMap: Record<string, string> = {
@@ -1603,7 +1606,7 @@ export default function SettingsPage() {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => { setCreateFromBase(key); setPromoteCompanyId(''); setImportHtml(''); setDuplicateSourceTemplateId(''); }}
+                          onClick={() => { setCreateFromBase(key); setImportHtml(''); setDuplicateSourceTemplateId(''); }}
                           className={`px-3 py-2.5 text-left text-xs rounded-lg border transition-colors ${colorMap[color]}`}
                         >
                           <div className="font-semibold">{label}</div>
@@ -1668,29 +1671,12 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Company (legacy) */}
-                  {createFromBase === 'company' && (
-                    <>
-                      <select
-                        value={promoteCompanyId}
-                        onChange={(e) => setPromoteCompanyId(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">— Select a company to use as source —</option>
-                        {companies.map((c) => (
-                          <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">The company&apos;s existing saved layout will be copied into this template.</p>
-                    </>
-                  )}
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handlePromoteToTemplate}
                     disabled={
                       !newTemplateName.trim() ||
-                      (createFromBase === 'company' && !promoteCompanyId) ||
                       (createFromBase === 'html' && !importHtml.trim()) ||
                       (createFromBase === 'duplicate' && !duplicateSourceTemplateId) ||
                       promotingTemplate
@@ -1700,7 +1686,7 @@ export default function SettingsPage() {
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setImportHtml(''); setDuplicateSourceTemplateId(''); setCreateFromBase('default'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setImportHtml(''); setDuplicateSourceTemplateId(''); setCreateFromBase('default'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>
@@ -1745,7 +1731,61 @@ export default function SettingsPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
+                                {renamingTemplateId === template.id ? (
+                                  /* ── Inline rename mode ── */
+                                  <form
+                                    className="flex items-center gap-1.5"
+                                    onSubmit={async (e) => {
+                                      e.preventDefault();
+                                      const trimmed = renameValue.trim();
+                                      if (!trimmed || trimmed === template.name) { setRenamingTemplateId(null); return; }
+                                      setRenameSaving(true);
+                                      try {
+                                        const res = await fetch(`/api/layout-templates/${template.id}`, {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ name: trimmed }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                          setLayoutTemplates((prev) => prev.map((t) => t.id === template.id ? { ...t, name: trimmed } : t));
+                                          setSuccess(`Template renamed to "${trimmed}".`);
+                                          setTimeout(() => setSuccess(null), 3000);
+                                        } else {
+                                          setError(data.error || 'Failed to rename');
+                                        }
+                                      } catch { setError('Failed to rename template'); }
+                                      finally { setRenameSaving(false); setRenamingTemplateId(null); }
+                                    }}
+                                  >
+                                    <input
+                                      ref={renameInputRef}
+                                      value={renameValue}
+                                      onChange={(e) => setRenameValue(e.target.value)}
+                                      onKeyDown={(e) => { if (e.key === 'Escape') setRenamingTemplateId(null); }}
+                                      className="px-2 py-0.5 text-sm font-semibold border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0 w-48"
+                                      autoFocus
+                                    />
+                                    <button type="submit" disabled={renameSaving} className="p-1 rounded hover:bg-green-100 text-green-600 disabled:opacity-50" title="Save name">
+                                      {renameSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button type="button" onClick={() => setRenamingTemplateId(null)} className="p-1 rounded hover:bg-gray-100 text-gray-500" title="Cancel">
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </form>
+                                ) : (
+                                  /* ── Display mode ── */
+                                  <div className="flex items-center gap-1.5 group/name min-w-0">
+                                    <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
+                                    <button
+                                      onClick={() => { setRenamingTemplateId(template.id); setRenameValue(template.name); setTimeout(() => renameInputRef.current?.select(), 30); }}
+                                      className="p-0.5 rounded opacity-0 group-hover/name:opacity-100 hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-opacity flex-shrink-0"
+                                      title="Rename template"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
                                 <span className="text-xs text-gray-400 flex-shrink-0">v{template.version}</span>
                                 {!template.isActive && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Inactive</span>}
                                 {template.isDefault && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">🌐 Global Default</span>}
