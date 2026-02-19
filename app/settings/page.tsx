@@ -818,6 +818,54 @@ export default function SettingsPage() {
   const [assigningSaving, setAssigningSaving] = useState(false);
   const assignDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Block editor state — shared between the Layout Templates section
+  const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
+  const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
+  const [editingBlockHtml, setEditingBlockHtml] = useState('');
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [blockEditorExpandedCats, setBlockEditorExpandedCats] = useState<Set<PlaceholderCategory>>(
+    new Set(['Customer', 'Job', 'Branding', 'Dates'])
+  );
+  const blockEditorTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const toggleLayoutExpanded = (id: string) => {
+    setExpandedLayouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); }
+      else next.add(id);
+      return next;
+    });
+    if (editingBlockKey?.startsWith(id)) {
+      setEditingBlockKey(null);
+    }
+  };
+
+  const openBlockEditor = (layoutId: string, blockIdx: number, currentHtml: string) => {
+    setEditingBlockKey(`${layoutId}:${blockIdx}`);
+    setEditingBlockHtml(currentHtml);
+    setTimeout(() => blockEditorTextareaRef.current?.focus(), 50);
+  };
+
+  const closeBlockEditor = () => {
+    setEditingBlockKey(null);
+    setEditingBlockHtml('');
+  };
+
+  const insertPlaceholderInBlockEditor = (key: string) => {
+    const ta = blockEditorTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? editingBlockHtml.length;
+    const end = ta.selectionEnd ?? start;
+    const token = `{{${key}}}`;
+    const newHtml = editingBlockHtml.slice(0, start) + token + editingBlockHtml.slice(end);
+    setEditingBlockHtml(newHtml);
+    setTimeout(() => {
+      ta.focus();
+      const pos = start + token.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
