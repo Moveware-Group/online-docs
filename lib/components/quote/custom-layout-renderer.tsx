@@ -364,8 +364,24 @@ export function CustomLayoutRenderer({
             );
           }
 
-          // All other built-in sections — including AcceptanceForm — are centred
-          // within the configured maxWidth so they align with each other.
+          // AcceptanceForm: the slot manages its own outer layout wrapper
+          // (max-width + padding) so it can match the surrounding custom_html
+          // blocks without being constrained by a second px-4 container here.
+          if (section.component === 'AcceptanceForm') {
+            return (
+              <RenderSection
+                key={section.id}
+                section={section}
+                data={data}
+                selectedCostingId={selectedCostingId}
+                onSelectCosting={onSelectCosting}
+                acceptanceFormSlot={acceptanceFormSlot}
+              />
+            );
+          }
+
+          // All other built-in sections are centred within the configured
+          // maxWidth so they align with each other.
           return (
             <div
               key={section.id}
