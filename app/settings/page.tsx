@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle, RefreshCw } from 'lucide-react';
@@ -1474,15 +1474,11 @@ export default function SettingsPage() {
                   <span><strong>Assigned Template</strong> — a specific template assigned to this company overrides everything else.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                  <span><strong>Company Layout</strong> — a layout built specifically for this company in the Layout Builder.</span>
+                  <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                  <span><strong>Global Default Template</strong> — the template marked <span className="font-semibold text-green-700">🌐 Global Default</span> below applies to ALL companies with no assigned template. Edit it to change what every new client sees.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                  <span><strong>Global Default Template</strong> — the template marked <span className="font-semibold text-green-700">🌐 Global Default</span> below applies to ALL companies with no assigned template or custom layout. Edit it to change what every new client sees.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                  <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
                   <span><strong>Built-in default</strong> — the hard-coded standard quote layout (no customisation applied).</span>
                 </li>
               </ol>
@@ -1494,7 +1490,7 @@ export default function SettingsPage() {
                 <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-amber-800">No Global Default template set</p>
-                  <p className="text-xs text-amber-700 mt-0.5">All companies without an assigned template or company layout will fall back to the built-in hard-coded default. Create a Global Default template to control what they see.</p>
+                  <p className="text-xs text-amber-700 mt-0.5">All companies without an assigned template will fall back to the built-in hard-coded default. Create a Global Default template to control what they see.</p>
                 </div>
                 <button
                   onClick={() => {
