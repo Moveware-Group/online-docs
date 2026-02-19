@@ -1,15 +1,14 @@
 /**
- * Custom Layout CRUD API
+ * Layout API
  * GET    /api/layouts/[companyId] - Fetch layout for a company
- * PUT    /api/layouts/[companyId] - Create or update layout for a company
- * DELETE /api/layouts/[companyId] - Delete layout for a company
+ * PUT    /api/layouts/[companyId] - Save layout for a company (creates/updates a LayoutTemplate)
+ * DELETE /api/layouts/[companyId] - Unassign the layout template from this company
  *
  * Priority order for GET:
- *   1. Layout Template assigned to this specific company (BrandingSettings.layoutTemplateId)
- *   2. Company-specific CustomLayout saved in the DB
- *   3. Global default LayoutTemplate (isDefault = true) — applies to ALL companies
- *      that have no assigned template and no custom layout
- *   4. 404 — caller falls back to the hard-coded default React quote template
+ *   1. Layout Template assigned to this company (BrandingSettings.layoutTemplateId)
+ *   2. Global default LayoutTemplate (isDefault = true) — applies to ALL companies
+ *      that have no assigned template
+ *   3. 404 — caller falls back to the hard-coded default React quote template
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -53,18 +52,20 @@ async function mergeCompanyBrandingIntoLayout(
   }
 }
 
+/** Resolve a company record from either its internal ID or its tenantId (coId). */
+async function resolveCompany(companyId: string) {
+  return prisma.company.findFirst({
+    where: { OR: [{ id: companyId }, { tenantId: companyId }] },
+    select: { id: true, name: true, brandCode: true, tenantId: true },
+  });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ companyId: string }> },
 ) {
   try {
     const { companyId } = await params;
-    let resolvedCompany: {
-      id: string;
-      name: string;
-      brandCode: string;
-      tenantId: string;
-    } | null = null;
 
     if (!companyId) {
       return NextResponse.json(
@@ -73,55 +74,15 @@ export async function GET(
       );
     }
 
-    // Try to find layout by internal company ID first, then by tenant ID (coId from URL)
-    let layout = await prisma.customLayout.findUnique({
-      where: { companyId },
-      include: {
-        company: {
-          select: { id: true, name: true, brandCode: true, tenantId: true },
-        },
-      },
-    });
-    if (layout?.company) {
-      resolvedCompany = layout.company;
-    }
+    const company = await resolveCompany(companyId);
 
-    // If not found by internal ID, try looking up by tenant ID (e.g. coId=12 from the quote page URL)
-    if (!layout) {
-      const company = await prisma.company.findFirst({
-        where: {
-          OR: [{ id: companyId }, { tenantId: companyId }],
-        },
-        select: {
-          id: true,
-          name: true,
-          brandCode: true,
-          tenantId: true,
-        },
-      });
-      resolvedCompany = company;
-      if (company) {
-        layout = await prisma.customLayout.findUnique({
-          where: { companyId: company.id },
-          include: {
-            company: {
-              select: { id: true, name: true, brandCode: true, tenantId: true },
-            },
-          },
-        });
-        if (layout?.company) {
-          resolvedCompany = layout.company;
-        }
-      }
-    }
-
-    // ── Priority 1: Check if company has a LayoutTemplate assigned in BrandingSettings ──
-    const resolvedInternalId = resolvedCompany?.id;
-    if (resolvedInternalId) {
+    // ── Priority 1: Layout Template assigned to this company ─────────────────
+    if (company) {
       try {
-        const branding = await prisma.brandingSettings.findUnique({
-          where: { companyId: resolvedInternalId },
-          select: { layoutTemplateId: true } as never,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const branding = await (prisma as any).brandingSettings.findUnique({
+          where: { companyId: company.id },
+          select: { layoutTemplateId: true },
         }) as { layoutTemplateId?: string | null } | null;
 
         if (branding?.layoutTemplateId) {
@@ -132,12 +93,12 @@ export async function GET(
           if (tmpl && tmpl.isActive) {
             let layoutConfig;
             try { layoutConfig = JSON.parse(tmpl.layoutConfig); } catch { layoutConfig = tmpl.layoutConfig; }
-            const merged = await mergeCompanyBrandingIntoLayout(resolvedInternalId, layoutConfig);
+            const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig);
             return NextResponse.json({
               success: true,
               data: {
                 id: tmpl.id,
-                companyId: resolvedInternalId,
+                companyId: company.id,
                 layoutConfig: merged,
                 templateId: tmpl.id,
                 templateName: tmpl.name,
@@ -153,68 +114,45 @@ export async function GET(
       }
     }
 
-    // ── Priority 2: Company-specific CustomLayout saved in the DB ──
-    if (!layout) {
-      // ── Priority 3: Global isDefault LayoutTemplate ──────────────────────
-      // Applies to all companies that have no assigned template and no custom
-      // layout — this is the "global default" that Moveware staff can customise.
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const defaultTmpl = await (prisma as any).layoutTemplate.findFirst({
-          where: { isDefault: true, isActive: true },
-        });
-        if (defaultTmpl) {
-          let layoutConfig;
-          try { layoutConfig = JSON.parse(defaultTmpl.layoutConfig); } catch { layoutConfig = defaultTmpl.layoutConfig; }
-          const merged = await mergeCompanyBrandingIntoLayout(
-            resolvedCompany?.id ?? companyId,
-            layoutConfig,
-          );
-          return NextResponse.json({
-            success: true,
-            data: {
-              id: defaultTmpl.id,
-              companyId: resolvedCompany?.id ?? companyId,
-              layoutConfig: merged,
-              templateId: defaultTmpl.id,
-              templateName: defaultTmpl.name,
-              version: defaultTmpl.version,
-              isActive: defaultTmpl.isActive,
-              source: "default_template",
-            },
-          });
-        }
-      } catch {
-        // isDefault column may not exist yet (pre-migration) — fall through to 404
-      }
-
-      return NextResponse.json(
-        { success: false, error: "No custom layout found for this company" },
-        { status: 404 },
-      );
-    }
-
-    // Parse the JSON config
-    let layoutConfig;
+    // ── Priority 2: Global isDefault LayoutTemplate ───────────────────────────
     try {
-      layoutConfig = JSON.parse(layout.layoutConfig);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const defaultTmpl = await (prisma as any).layoutTemplate.findFirst({
+        where: { isDefault: true, isActive: true },
+      });
+      if (defaultTmpl) {
+        let layoutConfig;
+        try { layoutConfig = JSON.parse(defaultTmpl.layoutConfig); } catch { layoutConfig = defaultTmpl.layoutConfig; }
+        const merged = await mergeCompanyBrandingIntoLayout(
+          company?.id ?? companyId,
+          layoutConfig,
+        );
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: defaultTmpl.id,
+            companyId: company?.id ?? companyId,
+            layoutConfig: merged,
+            templateId: defaultTmpl.id,
+            templateName: defaultTmpl.name,
+            version: defaultTmpl.version,
+            isActive: defaultTmpl.isActive,
+            source: "default_template",
+          },
+        });
+      }
     } catch {
-      layoutConfig = layout.layoutConfig;
+      // isDefault column may not exist yet (pre-migration) — fall through to 404
     }
 
-    const mergedConfig = await mergeCompanyBrandingIntoLayout(resolvedCompany?.id ?? companyId, layoutConfig);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...layout,
-        layoutConfig: mergedConfig,
-      },
-    });
-  } catch (error) {
-    console.error("Error fetching custom layout:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch custom layout" },
+      { success: false, error: "No layout found for this company" },
+      { status: 404 },
+    );
+  } catch (error) {
+    console.error("Error fetching layout:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch layout" },
       { status: 500 },
     );
   }
@@ -254,11 +192,7 @@ export async function PUT(
       );
     }
 
-    // Verify the company exists
-    const company = await prisma.company.findUnique({
-      where: { id: companyId },
-    });
-
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) {
       return NextResponse.json(
         { success: false, error: "Company not found" },
@@ -266,7 +200,66 @@ export async function PUT(
       );
     }
 
-    // If banner/footer image URLs provided, persist them to branding settings
+    // Stringify config if it's an object
+    const configString =
+      typeof layoutConfig === "string"
+        ? layoutConfig
+        : JSON.stringify(layoutConfig);
+
+    // ── Find or create the LayoutTemplate for this company ────────────────────
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingBranding = await (prisma as any).brandingSettings.findUnique({
+      where: { companyId },
+      select: { layoutTemplateId: true },
+    }) as { layoutTemplateId?: string | null } | null;
+
+    let templateId: string;
+    let templateName: string;
+    let templateVersion: number;
+
+    if (existingBranding?.layoutTemplateId) {
+      // Update the existing assigned template in-place
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updated = await (prisma as any).layoutTemplate.update({
+        where: { id: existingBranding.layoutTemplateId },
+        data: {
+          layoutConfig: configString,
+          description: description || undefined,
+          isActive: isActive !== undefined ? isActive : true,
+          version: { increment: 1 },
+        },
+      });
+      templateId = updated.id;
+      templateName = updated.name;
+      templateVersion = updated.version;
+    } else {
+      // Create a new LayoutTemplate named after the company and assign it
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const created = await (prisma as any).layoutTemplate.create({
+        data: {
+          name: `${company.name} Layout`,
+          description: description || `Layout for ${company.name}`,
+          layoutConfig: configString,
+          isActive: isActive !== undefined ? isActive : true,
+          isDefault: false,
+          conversationId: conversationId || null,
+          createdBy: createdBy || null,
+        },
+      });
+      templateId = created.id;
+      templateName = created.name;
+      templateVersion = created.version;
+
+      // Assign the new template to this company
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (prisma as any).brandingSettings.upsert({
+        where: { companyId },
+        update: { layoutTemplateId: templateId },
+        create: { companyId, layoutTemplateId: templateId },
+      });
+    }
+
+    // Persist banner/footer image URLs to branding settings if provided
     if (heroBannerUrl || footerImageUrl) {
       await prisma.brandingSettings.upsert({
         where: { companyId },
@@ -282,48 +275,26 @@ export async function PUT(
       });
     }
 
-    // Stringify config if it's an object
-    const configString =
-      typeof layoutConfig === "string"
-        ? layoutConfig
-        : JSON.stringify(layoutConfig);
-
-    // Upsert the layout
-    const layout = await prisma.customLayout.upsert({
-      where: { companyId },
-      update: {
-        layoutConfig: configString,
-        referenceUrl: referenceUrl || undefined,
-        referenceFile: referenceFile || undefined,
-        description: description || undefined,
-        isActive: isActive !== undefined ? isActive : true,
-        conversationId: conversationId || undefined,
-        createdBy: createdBy || undefined,
-        version: { increment: 1 },
-      },
-      create: {
-        companyId,
-        layoutConfig: configString,
-        referenceUrl: referenceUrl || null,
-        referenceFile: referenceFile || null,
-        description: description || null,
-        isActive: isActive !== undefined ? isActive : true,
-        conversationId: conversationId || null,
-        createdBy: createdBy || null,
-      },
-    });
-
     return NextResponse.json({
       success: true,
       data: {
-        ...layout,
-        layoutConfig: JSON.parse(layout.layoutConfig),
+        id: templateId,
+        companyId,
+        templateId,
+        templateName,
+        version: templateVersion,
+        isActive: isActive !== undefined ? isActive : true,
+        layoutConfig: JSON.parse(configString),
+        source: "layout_template",
+        referenceUrl: referenceUrl || null,
+        referenceFile: referenceFile || null,
+        description: description || null,
       },
     });
   } catch (error) {
-    console.error("Error saving custom layout:", error);
+    console.error("Error saving layout:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to save custom layout" },
+      { success: false, error: "Failed to save layout" },
       { status: 500 },
     );
   }
@@ -343,27 +314,35 @@ export async function DELETE(
       );
     }
 
-    const existing = await prisma.customLayout.findUnique({
+    // Unassign the template — we don't delete the template itself since it may
+    // be reused or reassigned later.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const branding = await (prisma as any).brandingSettings.findUnique({
       where: { companyId },
-    });
+      select: { layoutTemplateId: true },
+    }) as { layoutTemplateId?: string | null } | null;
 
-    if (!existing) {
+    if (!branding?.layoutTemplateId) {
       return NextResponse.json(
-        { success: false, error: "No custom layout found for this company" },
+        { success: false, error: "No layout template assigned to this company" },
         { status: 404 },
       );
     }
 
-    await prisma.customLayout.delete({ where: { companyId } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (prisma as any).brandingSettings.update({
+      where: { companyId },
+      data: { layoutTemplateId: null },
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Custom layout deleted successfully",
+      message: "Layout template unassigned from company",
     });
   } catch (error) {
-    console.error("Error deleting custom layout:", error);
+    console.error("Error unassigning layout:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete custom layout" },
+      { success: false, error: "Failed to unassign layout" },
       { status: 500 },
     );
   }

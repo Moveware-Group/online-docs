@@ -96,12 +96,12 @@ async function mwGet(creds: MwCredentials, path: string): Promise<unknown> {
 // Public fetch helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** GET /{{coId}}/api/jobs/{{jobId}}/quotations */
+/** GET /{{coId}}/api/jobs/{{jobId}} */
 export async function fetchMwQuotation(
   creds: MwCredentials,
   jobId: string,
 ): Promise<unknown> {
-  return mwGet(creds, `jobs/${jobId}/quotations`);
+  return mwGet(creds, `jobs/${jobId}`);
 }
 
 /** GET /{{coId}}/api/jobs/{{jobId}}/options?include=charges */
@@ -112,26 +112,55 @@ export async function fetchMwOptions(
   return mwGet(creds, `jobs/${jobId}/options?include=charges`);
 }
 
-/** GET /{{coId}}/api/jobs/{{jobId}}/inventory */
+/**
+ * GET /{{coId}}/api/jobs/{{jobId}}/inventory
+ *
+ * Fetches the inventory for a job.  The Moveware REST API returns inventory in
+ * pages; we fetch the first page without a pageSize override (the server's
+ * default is typically 20–50 items) and log a warning if the response metadata
+ * indicates more items are available so a pagination loop can be added later.
+ */
 export async function fetchMwInventory(
   creds: MwCredentials,
   jobId: string,
 ): Promise<unknown> {
-  return mwGet(creds, `jobs/${jobId}/inventory`);
+  const raw = await mwGet(creds, `jobs/${jobId}/inventory`);
+
+  // Warn if the response suggests pagination is truncating results
+  if (raw && typeof raw === 'object') {
+    const r = raw as Record<string, unknown>;
+    const meta = r.meta as Record<string, unknown> | undefined;
+    const total = meta?.totalItems ?? meta?.total ?? meta?.count;
+    const returned = Array.isArray(r.inventoryUsage) ? r.inventoryUsage.length : null;
+    if (total != null && returned != null && Number(total) > Number(returned)) {
+      console.warn(
+        `[moveware-api] inventory truncated: API reports ${total} items but returned ${returned}.` +
+        ' Implement pagination to fetch all pages.',
+      );
+    }
+  }
+
+  return raw;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Adapter utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Coerce an unknown value to string, returning '' on failure. */
+/** Coerce an unknown value to string, returning '' on null/undefined. */
 function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
+  if (v === null || v === undefined) return '';
+  return String(v);
 }
 
 /** Coerce an unknown value to number, returning 0 on failure. */
 function num(v: unknown): number {
-  return typeof v === 'number' ? v : 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
 }
 
 /**
@@ -228,128 +257,158 @@ export type InternalInventoryItem = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Map a raw Moveware quotation response → InternalJob.
+ * Map a raw Moveware GET /jobs/{id} response → InternalJob.
  *
- * The Moveware API may return the payload wrapped in { data: {...} }
- * or as a direct object.  Both shapes are handled.
+ * Field paths confirmed against actual Moveware REST API v1 response shape:
+ *   - firstName / lastName / titleName are at the root level
+ *   - addresses is an object with keys "origin", "destination", "Uplift", "Delivery"
+ *   - measures is an array; volume/weight are nested under measures[0].volume.gross / .weight.gross
+ *   - move manager is in roles.salesRepresentative.entity
  */
 export function adaptMwQuotation(
   raw: unknown,
   branding: InternalBranding,
 ): InternalJob {
   const r = raw as Record<string, unknown>;
-  // Handle { data: {...} } wrapper or direct object
+  // Handle optional { data: {...} } wrapper
   const d: Record<string, unknown> =
     r.data && typeof r.data === 'object'
       ? (r.data as Record<string, unknown>)
       : r;
 
-  // Customer block
-  const customer = (pick(d, 'customer', 'client') ?? {}) as Record<string, unknown>;
+  // ── Customer name fields — at root level in the Moveware response ──────────
+  const titleName = str(pick(d, 'titleName', 'title'));
+  const firstName = str(pick(d, 'firstName', 'givenName'));
+  const lastName  = str(pick(d, 'lastName', 'surname', 'familyName'));
 
-  // Address blocks — try multiple field names used by different MW versions
-  const origin = (pick(d, 'origin', 'uplift', 'fromAddress', 'pickupAddress') ?? {}) as Record<string, unknown>;
-  const dest   = (pick(d, 'destination', 'delivery', 'toAddress', 'deliveryAddress') ?? {}) as Record<string, unknown>;
-  const measures = (pick(d, 'measures', 'measurements') ?? {}) as Record<string, unknown>;
+  // ── Addresses — nested under d.addresses ──────────────────────────────────
+  const addresses = (pick(d, 'addresses') ?? {}) as Record<string, unknown>;
+  // Prefer the dedicated Uplift/Delivery contacts (have email/phone); fall back to origin/destination
+  const origin = (
+    pick(addresses, 'Uplift', 'uplift', 'origin') ??
+    pick(d, 'uplift', 'origin', 'fromAddress', 'pickupAddress') ??
+    {}
+  ) as Record<string, unknown>;
+  const dest = (
+    pick(addresses, 'Delivery', 'delivery', 'destination') ??
+    pick(d, 'delivery', 'destination', 'toAddress', 'deliveryAddress') ??
+    {}
+  ) as Record<string, unknown>;
 
-  // Move manager may be a string or { name, firstName, lastName }
-  const mgr = pick(d, 'moveManager', 'consultant', 'assignedTo');
-  let moveManager = '';
-  if (typeof mgr === 'string') {
-    moveManager = mgr;
-  } else if (mgr && typeof mgr === 'object') {
-    const m = mgr as Record<string, unknown>;
-    moveManager = str(
-      m.name ?? m.fullName ?? `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim(),
-    );
+  // ── Measures — array; first element has volume/weight ─────────────────────
+  let measuresVolumeGrossM3 = 0;
+  let measuresWeightGrossKg = 0;
+  const measuresArr = d.measures;
+  if (Array.isArray(measuresArr) && measuresArr.length > 0) {
+    const m = measuresArr[0] as Record<string, unknown>;
+    // Shape: { volume: { gross: { m3, f3 } }, weight: { gross: { kg, lb } } }
+    const vol = (m.volume as Record<string, Record<string, number>> | undefined)?.gross;
+    const wt  = (m.weight as Record<string, Record<string, number>> | undefined)?.gross;
+    measuresVolumeGrossM3 = num(vol?.m3 ?? vol?.meter);
+    measuresWeightGrossKg = num(wt?.kg);
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[moveware-api] raw quotation response:', JSON.stringify(d, null, 2));
+  // ── Move manager — from roles.salesRepresentative.entity ──────────────────
+  let moveManager = '';
+  const roles = (pick(d, 'roles') ?? {}) as Record<string, unknown>;
+  const salesRep = (pick(roles, 'salesRepresentative', 'consultant', 'moveManager') ?? {}) as Record<string, unknown>;
+  const repEntity = (pick(salesRep, 'entity') ?? {}) as Record<string, unknown>;
+  if (repEntity.firstName || repEntity.lastName) {
+    moveManager = `${str(repEntity.firstName)} ${str(repEntity.lastName)}`.trim();
+  } else {
+    // Fallback: top-level string field
+    const mgr = pick(d, 'moveManager', 'consultant', 'assignedTo');
+    if (typeof mgr === 'string') moveManager = mgr;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[moveware-api] adapted job:', { id: d.id, firstName, lastName, upliftLine1: origin.line1 });
   }
 
   return {
-    id: num(pick(d, 'id', 'jobId', 'jobNumber')),
-    titleName: str(pick(customer, 'title', 'titleName')),
-    firstName: str(pick(customer, 'firstName', 'givenName', 'first')),
-    lastName:  str(pick(customer, 'lastName', 'surname', 'familyName', 'last')),
+    id:        num(pick(d, 'id', 'jobId', 'jobNumber')),
+    titleName,
+    firstName,
+    lastName,
     moveManager,
-    moveType: str(pick(d, 'moveType', 'type', 'moveCategory')),
-    estimatedDeliveryDetails: str(
-      pick(d, 'estimatedDeliveryDetails', 'estimatedDeliveryDate', 'deliveryDate'),
-    ),
-    jobValue: num(pick(d, 'jobValue', 'totalValue', 'value', 'total')),
+    moveType: str(pick(d, 'type', 'moveType', 'moveCategory')),
+    estimatedDeliveryDetails: str(pick(d, 'estimatedDeliveryDetails', 'estimatedDeliveryDate', 'deliveryDate')),
+    jobValue:   num(pick(d, 'jobValue', 'totalValue', 'value', 'total')),
     brandCode:  str(pick(d, 'brandCode', 'brand')),
     branchCode: str(pick(d, 'branchCode', 'branch')),
     // Origin / uplift address
-    upliftLine1:    str(pick(origin, 'address1', 'line1', 'street')),
-    upliftLine2:    str(pick(origin, 'address2', 'line2')),
+    upliftLine1:    str(pick(origin, 'line1', 'address1', 'street')),
+    upliftLine2:    str(pick(origin, 'line2', 'address2')),
     upliftCity:     str(pick(origin, 'city', 'suburb', 'town')),
     upliftState:    str(pick(origin, 'state', 'stateCode')),
     upliftPostcode: str(pick(origin, 'postcode', 'postalCode', 'zip')),
     upliftCountry:  str(pick(origin, 'country', 'countryName', 'countryCode')),
     // Destination / delivery address
-    deliveryLine1:    str(pick(dest, 'address1', 'line1', 'street')),
-    deliveryLine2:    str(pick(dest, 'address2', 'line2')),
+    deliveryLine1:    str(pick(dest, 'line1', 'address1', 'street')),
+    deliveryLine2:    str(pick(dest, 'line2', 'address2')),
     deliveryCity:     str(pick(dest, 'city', 'suburb', 'town')),
     deliveryState:    str(pick(dest, 'state', 'stateCode')),
     deliveryPostcode: str(pick(dest, 'postcode', 'postalCode', 'zip')),
     deliveryCountry:  str(pick(dest, 'country', 'countryName', 'countryCode')),
-    // Measures
-    measuresVolumeGrossM3: num(
-      pick(measures, 'volumeGrossM3', 'cubicMetres', 'volume', 'grossVolume', 'cubicFeet'),
-    ),
-    measuresWeightGrossKg: num(
-      pick(measures, 'weightGrossKg', 'weightKgs', 'weight', 'grossWeight'),
-    ),
+    measuresVolumeGrossM3,
+    measuresWeightGrossKg,
     branding,
   };
 }
 
 /**
- * Map a raw Moveware options/charges response → InternalCosting[].
+ * Map a raw Moveware GET /jobs/{id}/options response → InternalCosting[].
+ *
+ * The response shape is: { options: [ { id, description, optionNumber,
+ *   valueInclusive, valueExclusive, charges: { I: {...}, I2: {...}, ... } } ] }
+ *
+ * NOTE: charges is a keyed OBJECT (not an array).
  */
 export function adaptMwOptions(raw: unknown): InternalCosting[] {
   const items = toArray(raw, 'options', 'costings');
 
   return items.map((item, idx) => {
-    const charges = toArray(pick(item, 'charges', 'lineItems', 'items'));
+    // charges is an object keyed by type code — convert to array of values
+    const chargesRaw = pick(item, 'charges', 'lineItems', 'items');
+    const charges: Record<string, unknown>[] = Array.isArray(chargesRaw)
+      ? chargesRaw
+      : chargesRaw && typeof chargesRaw === 'object'
+        ? Object.values(chargesRaw as Record<string, unknown>) as Record<string, unknown>[]
+        : [];
 
-    // Build a description from charges if none at the top level
-    let description = str(pick(item, 'description', 'notes', 'summary'));
-    if (!description && charges.length > 0) {
-      description = charges
-        .map((c) => str(pick(c, 'description', 'name')))
-        .filter(Boolean)
-        .join('; ');
-    }
+    // Option description / name
+    // Prefer optionDescription (the user-visible summary set in Moveware) over
+    // the internal description field.  Fall back to description when blank.
+    const optionNumber     = str(pick(item, 'optionNumber', 'number'));
+    const description      = str(pick(item, 'description', 'name', 'title', 'label'));
+    const optionDescStr    = str(pick(item, 'optionDescription'));
+    const displayDesc      = optionDescStr || description;
+    const name = displayDesc
+      ? (optionNumber ? `Option ${optionNumber}: ${displayDesc}` : displayDesc)
+      : `Option ${idx + 1}`;
 
-    const inclusions = Array.isArray(item.inclusions)
-      ? (item.inclusions as string[])
-      : [];
+    // Build inclusions from income charges (type === 'I') that have a description
+    const inclusions = charges
+      .filter((c) => str(pick(c, 'type')) === 'I' && str(pick(c, 'description')))
+      .map((c) => str(pick(c, 'description')))
+      .filter(Boolean);
+
     const exclusions = Array.isArray(item.exclusions)
       ? (item.exclusions as string[])
       : [];
 
-    const totalPrice = num(
-      pick(item, 'totalAmount', 'totalPrice', 'amount', 'total', 'grossTotal'),
-    );
-    const netRaw = num(
-      pick(item, 'netAmount', 'netTotal', 'netPrice', 'subTotal'),
-    );
-    const netTotal = netRaw > 0 ? netRaw.toFixed(2) : (totalPrice / 1.1).toFixed(2);
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[moveware-api] option[${idx}] raw:`, JSON.stringify(item, null, 2));
-    }
+    // Total price: valueInclusive (GST-inc total) from the option
+    const totalPrice = num(pick(item, 'valueInclusive', 'totalAmount', 'totalPrice', 'amount', 'total', 'grossTotal'));
+    const netRaw     = num(pick(item, 'valueExclusive', 'netAmount', 'netTotal', 'netPrice', 'subTotal'));
+    const netTotal   = netRaw > 0 ? netRaw.toFixed(2) : (totalPrice > 0 ? (totalPrice / 1.1).toFixed(2) : '0.00');
 
     return {
-      id: str(pick(item, 'id', 'optionId', 'costingId') ?? `opt-${idx}`),
-      name: str(pick(item, 'name', 'title', 'optionName', 'label')) || `Option ${idx + 1}`,
-      category: str(pick(item, 'category', 'type', 'serviceType')),
+      id:          str(pick(item, 'id', 'optionId', 'costingId') || `opt-${idx}`),
+      name,
+      category:    str(pick(item, 'category', 'serviceType')),
       description,
-      quantity: num(pick(item, 'quantity', 'qty')) || 1,
-      rate: totalPrice,
+      quantity:    num(pick(item, 'quantity', 'qty')) || 1,
+      rate:        totalPrice,
       netTotal,
       totalPrice,
       taxIncluded: pick(item, 'taxIncluded', 'gstIncluded', 'includesTax') !== false,
@@ -359,29 +418,31 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
 }
 
 /**
- * Map a raw Moveware inventory response → InternalInventoryItem[].
+ * Map a raw Moveware GET /jobs/{id}/inventory response → InternalInventoryItem[].
+ *
+ * The response shape is: { inventoryUsage: [ { id, description, cube,
+ *   quantity, room, typeCode, ... } ] }
  */
 export function adaptMwInventory(raw: unknown): InternalInventoryItem[] {
-  const items = toArray(raw, 'inventory', 'inventoryItems');
+  // Root key confirmed as "inventoryUsage" in Moveware REST API v1
+  const items = toArray(raw, 'inventoryUsage', 'inventory', 'inventoryItems');
 
   return items.map((item, idx) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[moveware-api] inventory[${idx}] raw:`, JSON.stringify(item, null, 2));
-    }
+    const quantity = num(pick(item, 'quantity', 'qty', 'count')) || 1;
+    // Prefer cubetot (Moveware's pre-multiplied line total: cube × qty).
+    // Fall back to cube (unit cube) × quantity for systems that only expose unit cube.
+    const unitCube = num(pick(item, 'cube', 'cubicMetres', 'm3'));
+    const cubetot  = num(pick(item, 'cubetot', 'totalCube', 'totalM3'));
+    const lineCube = cubetot > 0 ? cubetot : unitCube * quantity;
 
     return {
-      id: num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
-      description: str(
-        pick(item, 'description', 'itemDescription', 'name', 'itemName'),
-      ),
-      room: str(pick(item, 'room', 'roomName', 'location', 'area')),
-      quantity: num(pick(item, 'quantity', 'qty', 'count')) || 1,
-      cube: num(
-        pick(item, 'cube', 'cubicMetres', 'volume', 'cubicFeet', 'm3'),
-      ),
-      typeCode: str(
-        pick(item, 'typeCode', 'type', 'packType', 'category', 'code'),
-      ),
+      id:          num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
+      description: str(pick(item, 'description', 'itemDescription', 'name', 'number')),
+      room:        str(pick(item, 'room', 'roomName', 'location', 'area')),
+      quantity,
+      // cube stored as the line total (cubetot) for display and summing
+      cube:        lineCube,
+      typeCode:    str(pick(item, 'typeCode', 'type', 'packType', 'category', 'code')),
     };
   });
 }

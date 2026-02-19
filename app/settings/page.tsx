@@ -83,17 +83,6 @@ interface LayoutSection {
   visible?: boolean;
 }
 
-interface CompanyLayoutRecord {
-  id: string;
-  companyId: string;
-  layoutConfig: { sections?: LayoutSection[]; globalStyles?: Record<string, string>; version?: number } | null;
-  version: number;
-  isActive: boolean;
-  updatedAt: string;
-  description?: string | null;
-  company: { id: string; name: string; brandCode: string; tenantId: string };
-}
-
 /**
  * Expand shorthand hex (#RGB) to full form (#RRGGBB) for the color picker.
  * The HTML color input only accepts 7-char hex values.
@@ -295,15 +284,12 @@ function CompanyForm({
   onCancel,
   loading,
   layoutTemplates,
-  hasCustomLayout,
 }: {
   company: CompanyBranding | null;
   onSave: (company: CompanyBranding) => void;
   onCancel: () => void;
   loading: boolean;
   layoutTemplates: LayoutTemplate[];
-  /** Whether this company already has a saved layout in the Layout Builder */
-  hasCustomLayout: boolean;
 }) {
   const [formData, setFormData] = useState<CompanyBranding>(
     company || {
@@ -443,34 +429,38 @@ function CompanyForm({
             Quote Page Layout
           </p>
 
-          {/* Part 1: Company's own layout status */}
+          {/* Layout Builder link */}
           {formData.id ? (
-            <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${hasCustomLayout ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${formData.layoutTemplateId ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
               <div className="flex items-center gap-2">
-                {hasCustomLayout ? (
+                {formData.layoutTemplateId ? (
                   <>
                     <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-green-800">Custom layout saved</p>
-                      <p className="text-xs text-green-600">This company has a saved custom layout in the Layout Builder.</p>
+                      <p className="text-sm font-medium text-green-800">Layout template assigned</p>
+                      <p className="text-xs text-green-600">This company has a layout template assigned.</p>
                     </div>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-600">No custom layout yet</p>
+                      <p className="text-sm font-medium text-gray-600">No layout template assigned</p>
                       <p className="text-xs text-gray-500">Using the system default layout.</p>
                     </div>
                   </>
                 )}
               </div>
               <a
-                href={`/settings/layout-builder?companyId=${formData.id}`}
+                href={
+                  formData.layoutTemplateId
+                    ? `/settings/layout-builder?templateId=${formData.layoutTemplateId}`
+                    : `/settings/layout-builder?companyId=${formData.id}`
+                }
                 className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors flex-shrink-0"
               >
                 <Wand2 className="w-3 h-3" />
-                {hasCustomLayout ? 'Edit Layout' : 'Create Layout'}
+                {formData.layoutTemplateId ? 'Edit Layout' : 'Create Layout'}
               </a>
             </div>
           ) : (
@@ -808,9 +798,6 @@ export default function SettingsPage() {
   const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
 
-  // Custom layouts state (per-company)
-  const [customLayouts, setCustomLayouts] = useState<Record<string, { isActive: boolean; version: number; source?: string }>>({});
-
   // Layout templates state
   const [layoutTemplates, setLayoutTemplates] = useState<LayoutTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -820,21 +807,9 @@ export default function SettingsPage() {
   const [newTemplateDesc, setNewTemplateDesc] = useState('');
   const [promoteCompanyId, setPromoteCompanyId] = useState('');
   const [promotingTemplate, setPromotingTemplate] = useState(false);
-  const [createFromBase, setCreateFromBase] = useState<'company' | 'grace' | 'default'>('company');
+  const [createFromBase, setCreateFromBase] = useState<'grace' | 'default'>('default');
   const [settingDefaultTemplateId, setSettingDefaultTemplateId] = useState<string | null>(null);
   const [createAsGlobalDefault, setCreateAsGlobalDefault] = useState(false);
-  const [cloningTemplateToLayoutId, setCloningTemplateToLayoutId] = useState<string | null>(null);
-  const [clonePickerCompanyId, setClonePickerCompanyId] = useState<string | null>(null);
-  const [clonePickerTemplateId, setClonePickerTemplateId] = useState<string>('');
-
-  // Company-specific layout records (for Custom Layouts tab)
-  const [companyLayoutsList, setCompanyLayoutsList] = useState<CompanyLayoutRecord[]>([]);
-  const [loadingCompanyLayouts, setLoadingCompanyLayouts] = useState(false);
-  const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
-  const [syncingLayoutId, setSyncingLayoutId] = useState<string | null>(null);
-
-  // Help popover for Custom Layouts tab
-  const [showLayoutHelp, setShowLayoutHelp] = useState(false);
 
   // Template company-assignment multi-select dropdown
   const [assignDropdownOpen, setAssignDropdownOpen] = useState<string | null>(null); // templateId
@@ -842,6 +817,54 @@ export default function SettingsPage() {
   const [assignPending, setAssignPending] = useState<Set<string>>(new Set()); // companyIds pending
   const [assigningSaving, setAssigningSaving] = useState(false);
   const assignDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Block editor state — shared between the Layout Templates section
+  const [expandedLayouts, setExpandedLayouts] = useState<Set<string>>(new Set());
+  const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
+  const [editingBlockHtml, setEditingBlockHtml] = useState('');
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [blockEditorExpandedCats, setBlockEditorExpandedCats] = useState<Set<PlaceholderCategory>>(
+    new Set(['Customer', 'Job', 'Branding', 'Dates'])
+  );
+  const blockEditorTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const toggleLayoutExpanded = (id: string) => {
+    setExpandedLayouts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); }
+      else next.add(id);
+      return next;
+    });
+    if (editingBlockKey?.startsWith(id)) {
+      setEditingBlockKey(null);
+    }
+  };
+
+  const openBlockEditor = (layoutId: string, blockIdx: number, currentHtml: string) => {
+    setEditingBlockKey(`${layoutId}:${blockIdx}`);
+    setEditingBlockHtml(currentHtml);
+    setTimeout(() => blockEditorTextareaRef.current?.focus(), 50);
+  };
+
+  const closeBlockEditor = () => {
+    setEditingBlockKey(null);
+    setEditingBlockHtml('');
+  };
+
+  const insertPlaceholderInBlockEditor = (key: string) => {
+    const ta = blockEditorTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? editingBlockHtml.length;
+    const end = ta.selectionEnd ?? start;
+    const token = `{{${key}}}`;
+    const newHtml = editingBlockHtml.slice(0, start) + token + editingBlockHtml.slice(end);
+    setEditingBlockHtml(newHtml);
+    setTimeout(() => {
+      ta.focus();
+      const pos = start + token.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -855,16 +878,6 @@ export default function SettingsPage() {
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
-
-  // Per-block HTML editor (Custom Layouts tab)
-  // key: `${layoutId}:${blockIndex}`
-  const [editingBlockKey, setEditingBlockKey] = useState<string | null>(null);
-  const [editingBlockHtml, setEditingBlockHtml] = useState('');
-  const [savingBlock, setSavingBlock] = useState(false);
-  const [blockEditorExpandedCats, setBlockEditorExpandedCats] = useState<Set<PlaceholderCategory>>(
-    new Set(['Customer', 'Job', 'Branding', 'Dates'])
-  );
-  const blockEditorTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Load companies
   useEffect(() => {
@@ -880,29 +893,6 @@ export default function SettingsPage() {
         if (companiesRes.ok) {
           const companiesData = await companiesRes.json();
           setCompanies(companiesData || []);
-
-          // Check for custom layouts for each company
-          const layouts: Record<string, { isActive: boolean; version: number }> = {};
-          const companyList = companiesData || [];
-          for (const c of companyList) {
-            if (c.id) {
-              try {
-                const layoutRes = await fetch(`/api/layouts/${c.id}`);
-                if (layoutRes.ok) {
-                  const layoutData = await layoutRes.json();
-                  if (layoutData.success && layoutData.data) {
-                    layouts[c.id] = {
-                      isActive: layoutData.data.isActive,
-                      version: layoutData.data.version,
-                    };
-                  }
-                }
-              } catch {
-                // No layout for this company — that's fine
-              }
-            }
-          }
-          setCustomLayouts(layouts);
         }
       } catch (err) {
         console.error('Error loading settings:', err);
@@ -933,104 +923,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAuthenticated) loadLayoutTemplates();
   }, [isAuthenticated]);
-
-  // Load all per-company custom layouts for the Custom Layouts tab
-  const loadCompanyLayouts = async () => {
-    setLoadingCompanyLayouts(true);
-    try {
-      const res = await fetch('/api/layouts/list');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) setCompanyLayoutsList(data.data || []);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoadingCompanyLayouts(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) loadCompanyLayouts();
-  }, [isAuthenticated]);
-
-  // Toggle expand/collapse of a layout card
-  const toggleLayoutExpanded = (id: string) => {
-    setExpandedLayouts((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    // Close editor if we're collapsing this layout
-    if (expandedLayouts.has(id) && editingBlockKey?.startsWith(id)) {
-      setEditingBlockKey(null);
-    }
-  };
-
-  // Open block HTML editor
-  const openBlockEditor = (layoutId: string, blockIdx: number, currentHtml: string) => {
-    setEditingBlockKey(`${layoutId}:${blockIdx}`);
-    setEditingBlockHtml(currentHtml);
-    setTimeout(() => blockEditorTextareaRef.current?.focus(), 50);
-  };
-
-  const closeBlockEditor = () => {
-    setEditingBlockKey(null);
-    setEditingBlockHtml('');
-  };
-
-  // Insert placeholder at cursor in the block editor textarea
-  const insertPlaceholderInBlockEditor = (key: string) => {
-    const ta = blockEditorTextareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart ?? editingBlockHtml.length;
-    const end = ta.selectionEnd ?? start;
-    const token = `{{${key}}}`;
-    const newHtml = editingBlockHtml.slice(0, start) + token + editingBlockHtml.slice(end);
-    setEditingBlockHtml(newHtml);
-    setTimeout(() => {
-      ta.focus();
-      const pos = start + token.length;
-      ta.setSelectionRange(pos, pos);
-    }, 0);
-  };
-
-  // Save block HTML changes back to a company layout
-  const saveCompanyLayoutBlock = async (companyId: string, blockIdx: number) => {
-    const record = companyLayoutsList.find((l) => l.companyId === companyId);
-    if (!record || !record.layoutConfig?.sections) return;
-    setSavingBlock(true);
-    try {
-      const updatedSections = record.layoutConfig.sections.map((s, i) =>
-        i === blockIdx ? { ...s, html: editingBlockHtml } : s
-      );
-      const updatedConfig = { ...record.layoutConfig, sections: updatedSections };
-      const res = await fetch(`/api/layouts/${companyId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ layoutConfig: updatedConfig }),
-      });
-      if (res.ok) {
-        setCompanyLayoutsList((prev) =>
-          prev.map((l) =>
-            l.companyId === companyId
-              ? { ...l, layoutConfig: updatedConfig }
-              : l
-          )
-        );
-        closeBlockEditor();
-        setSuccess('Block saved.');
-        setTimeout(() => setSuccess(null), 3000);
-      } else {
-        setError('Failed to save block.');
-      }
-    } catch {
-      setError('Failed to save block.');
-    } finally {
-      setSavingBlock(false);
-    }
-  };
 
   // Save block HTML changes back to a shared template
   const saveTemplateBlock = async (templateId: string, blockIdx: number) => {
@@ -1072,7 +964,6 @@ export default function SettingsPage() {
 
   const handlePromoteToTemplate = async () => {
     if (!newTemplateName.trim()) return;
-    if (createFromBase === 'company' && !promoteCompanyId) return;
     setPromotingTemplate(true);
     try {
       let res: Response;
@@ -1089,11 +980,8 @@ export default function SettingsPage() {
           body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT, isDefault: createAsGlobalDefault }),
         });
       } else {
-        res = await fetch('/api/layout-templates/promote', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId: promoteCompanyId, name: newTemplateName, description: newTemplateDesc }),
-        });
+        setError('Please select a base layout to create from.');
+        return;
       }
       const data = await res.json();
       if (data.success) {
@@ -1101,7 +989,7 @@ export default function SettingsPage() {
         setNewTemplateName('');
         setNewTemplateDesc('');
         setPromoteCompanyId('');
-        setCreateFromBase('company');
+        setCreateFromBase('default');
         setCreateAsGlobalDefault(false);
         setCreatingTemplate(false);
         setSuccess(createAsGlobalDefault ? `Template "${data.data.name}" created and set as Global Default!` : `Template "${data.data.name}" created!`);
@@ -1329,7 +1217,7 @@ export default function SettingsPage() {
           <nav className="flex gap-1" aria-label="Tabs">
             {[
               { id: 'companies', label: 'Companies', icon: <Building2 className="w-4 h-4" /> },
-              { id: 'layouts', label: 'Custom Layouts', icon: <Layout className="w-4 h-4" /> },
+              { id: 'layouts', label: 'Layout Templates', icon: <Layout className="w-4 h-4" /> },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1342,9 +1230,9 @@ export default function SettingsPage() {
               >
                 {tab.icon}
                 {tab.label}
-                {tab.id === 'layouts' && (companyLayoutsList.length + layoutTemplates.length) > 0 && (
+                {tab.id === 'layouts' && layoutTemplates.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
-                    {companyLayoutsList.length + layoutTemplates.length}
+                    {layoutTemplates.length}
                   </span>
                 )}
               </button>
@@ -1418,7 +1306,6 @@ export default function SettingsPage() {
                 }}
                 loading={loading}
                 layoutTemplates={layoutTemplates}
-                hasCustomLayout={!!(selectedCompany?.id && customLayouts[selectedCompany.id])}
               />
             ) : (
               <div className="space-y-4">
@@ -1511,11 +1398,15 @@ export default function SettingsPage() {
                         {/* Actions — fixed width so variable label ("Create"/"Edit" Layout) never shifts colours */}
                         <div className="flex gap-2 flex-shrink-0 w-[272px] justify-end">
                           <a
-                            href={`/settings/layout-builder?companyId=${company.id}`}
+                            href={
+                              company.layoutTemplateId
+                                ? `/settings/layout-builder?templateId=${company.layoutTemplateId}`
+                                : `/settings/layout-builder?companyId=${company.id}`
+                            }
                             className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
                           >
                             <Wand2 className="w-3 h-3" />
-                            {company.id && customLayouts[company.id] ? 'Edit Layout' : 'Create Layout'}
+                            {company.layoutTemplateId ? 'Edit Layout' : 'Create Layout'}
                           </a>
                           <button
                             onClick={() => setSelectedCompany(company)}
@@ -1546,314 +1437,6 @@ export default function SettingsPage() {
         {activeTab === 'layouts' && (
         <div className="space-y-6">
 
-          {/* ── COMPANY LAYOUTS SECTION ── */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                  <Wand2 className="w-5 h-5 text-purple-600" />
-                  Company Layouts
-                  {/* Help button */}
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowLayoutHelp((v) => !v)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                      title="What are Company Layouts vs Layout Templates?"
-                    >
-                      <HelpCircle className="w-4 h-4" />
-                    </button>
-                    {showLayoutHelp && (
-                      <div className="absolute left-0 top-7 z-50 w-80 bg-white border border-gray-200 rounded-xl shadow-xl p-4 text-sm">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-semibold text-gray-900">Company Layouts vs Templates</span>
-                          <button onClick={() => setShowLayoutHelp(false)} className="text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
-                        </div>
-
-                        <div className="space-y-3 text-gray-700">
-                          <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <p className="font-semibold text-purple-800 flex items-center gap-1.5 mb-1">
-                              <Wand2 className="w-3.5 h-3.5" /> Company Layout
-                            </p>
-                            <p className="text-xs leading-relaxed">
-                              A layout saved <strong>specifically for one company</strong>. Created and edited in the AI Layout Builder — this is where you drag blocks, edit copy, and upload banner/footer images. Each company has their own independent version.
-                            </p>
-                          </div>
-
-                          <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <p className="font-semibold text-blue-800 flex items-center gap-1.5 mb-1">
-                              <Layout className="w-3.5 h-3.5" /> Layout Template
-                            </p>
-                            <p className="text-xs leading-relaxed">
-                              A <strong>shared, reusable base</strong> that multiple companies can point to. All companies assigned to the template share the same block structure and copy, but each company&apos;s own banner image, footer image, and brand colors are applied on top.
-                            </p>
-                          </div>
-
-                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <p className="font-semibold text-gray-800 mb-1 text-xs">When to use which?</p>
-                            <ul className="text-xs space-y-1 text-gray-600">
-                              <li>• <strong>One company, unique layout</strong> → Company Layout</li>
-                              <li>• <strong>Same structure across many companies</strong> → Template</li>
-                              <li>• Promote a Company Layout to a Template using <strong>Save as Template</strong></li>
-                              <li>• Mark a template as <strong>🌐 Global Default</strong> to apply it to every company with no other layout</li>
-                              <li>• Templates override a company&apos;s own layout when assigned</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Custom layouts saved per company. Edit individual blocks here, or open the Layout Builder for the full visual editor.
-                </p>
-              </div>
-              <button
-                onClick={loadCompanyLayouts}
-                disabled={loadingCompanyLayouts}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                {loadingCompanyLayouts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
-                Refresh
-              </button>
-            </div>
-
-            {loadingCompanyLayouts ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-purple-500" /></div>
-            ) : companyLayoutsList.length === 0 ? (
-              <div className="text-center py-10 text-gray-400">
-                <Wand2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                <p className="font-medium text-sm">No saved company layouts yet</p>
-                <p className="text-xs mt-1">Open the Layout Builder for any company and click &ldquo;Approve &amp; Save&rdquo; to create one.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {companyLayoutsList.map((record) => {
-                  const sections = record.layoutConfig?.sections || [];
-                  const isExpanded = expandedLayouts.has(record.companyId);
-                  return (
-                    <div key={record.companyId} className="border border-gray-200 rounded-lg overflow-hidden">
-                      {/* Card header */}
-                      <div className="flex items-center justify-between p-4 bg-white hover:bg-gray-50">
-                        <button
-                          onClick={() => toggleLayoutExpanded(record.companyId)}
-                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                        >
-                          {isExpanded
-                            ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          }
-                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                            <Wand2 className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-semibold text-gray-900 truncate">{record.company.name}</div>
-                            <div className="text-xs text-gray-500">
-                              v{record.version} · {sections.length} block{sections.length !== 1 ? 's' : ''} · {record.isActive ? 'Active' : 'Inactive'}
-                              {record.description && ` · ${record.description}`}
-                            </div>
-                          </div>
-                        </button>
-                        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                          <button
-                            onClick={async () => {
-                              const matchedCompany = companies.find((c) => c.id === record.companyId || c.companyId === record.company.tenantId);
-                              const hasTemplate = !!matchedCompany?.layoutTemplateId;
-                              const confirmMsg = hasTemplate
-                                ? `Remove the saved custom layout for "${record.company.name}"?\n\nThe Layout Template assigned to this company will be used automatically. Any block-level edits made in the Layout Builder will be lost.`
-                                : `Remove the saved custom layout for "${record.company.name}"?\n\n⚠️ WARNING: This company has no Layout Template assigned. Removing the saved layout will cause the default quote layout to be shown instead.\n\nAssign a Layout Template to this company first, then reset.`;
-                              if (!confirm(confirmMsg)) return;
-                              setSyncingLayoutId(record.companyId);
-                              try {
-                                const res = await fetch('/api/layouts/reset', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ companyId: record.companyId }),
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  await loadCompanyLayouts();
-                                } else {
-                                  alert(`Reset failed: ${data.error}`);
-                                }
-                              } finally {
-                                setSyncingLayoutId(null);
-                              }
-                            }}
-                            disabled={syncingLayoutId === record.companyId}
-                            className="px-3 py-1.5 text-xs text-amber-600 hover:bg-amber-50 rounded-lg flex items-center gap-1 transition-colors border border-amber-200 disabled:opacity-50"
-                            title="Remove this company's saved layout so the assigned template is used instead"
-                          >
-                            {syncingLayoutId === record.companyId
-                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              : <RefreshCw className="w-3.5 h-3.5" />}
-                            Reset to Template
-                          </button>
-                          {/* Clone any template → this company's custom layout */}
-                          {layoutTemplates.length > 0 && (
-                            <button
-                              disabled={cloningTemplateToLayoutId === record.companyId}
-                              onClick={() => {
-                                if (clonePickerCompanyId === record.companyId) {
-                                  setClonePickerCompanyId(null);
-                                  setClonePickerTemplateId('');
-                                } else {
-                                  // Pre-select the company's assigned template if available
-                                  const matchedCo = companies.find((c) => c.id === record.companyId || c.companyId === record.company?.tenantId);
-                                  setClonePickerTemplateId(matchedCo?.layoutTemplateId || layoutTemplates[0]?.id || '');
-                                  setClonePickerCompanyId(record.companyId);
-                                }
-                              }}
-                              className={`px-3 py-1.5 text-xs rounded-lg flex items-center gap-1 transition-colors border disabled:opacity-50 ${clonePickerCompanyId === record.companyId ? 'bg-green-50 border-green-400 text-green-800' : 'text-green-700 hover:bg-green-50 border-green-300'}`}
-                              title="Copy a template into this company's editable layout"
-                            >
-                              {cloningTemplateToLayoutId === record.companyId
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                : <Copy className="w-3.5 h-3.5" />}
-                              Clone from Template
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              handlePromoteToTemplate();
-                              setPromoteCompanyId(record.companyId);
-                              setCreatingTemplate(true);
-                            }}
-                            className="px-3 py-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg flex items-center gap-1 transition-colors border border-purple-200"
-                            title="Promote to shared template"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            Save as Template
-                          </button>
-                          <a
-                            href={`/settings/layout-builder?companyId=${record.companyId}`}
-                            className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1 transition-colors"
-                          >
-                            <Wand2 className="w-3.5 h-3.5" />
-                            Edit in Builder
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Clone-from-template picker — shown inline when button is active */}
-                      {clonePickerCompanyId === record.companyId && (
-                        <div className="border-t border-green-200 bg-green-50 px-4 py-3 flex items-center gap-3 flex-wrap">
-                          <span className="text-xs font-medium text-green-800 flex-shrink-0">Clone from:</span>
-                          <select
-                            value={clonePickerTemplateId}
-                            onChange={(e) => setClonePickerTemplateId(e.target.value)}
-                            className="flex-1 min-w-[160px] px-2 py-1.5 text-xs border border-green-300 rounded-lg bg-white focus:ring-2 focus:ring-green-400"
-                          >
-                            {layoutTemplates.map((t) => (
-                              <option key={t.id} value={t.id}>{t.name} v{t.version}</option>
-                            ))}
-                          </select>
-                          <button
-                            disabled={!clonePickerTemplateId || cloningTemplateToLayoutId === record.companyId}
-                            onClick={async () => {
-                              const tmpl = layoutTemplates.find((t) => t.id === clonePickerTemplateId);
-                              if (!tmpl) return;
-                              if (!confirm(`Replace the company layout for "${record.company.name}" with the content of template "${tmpl.name}"?\n\nThis creates an editable company-specific copy. The template itself is not changed.`)) return;
-                              setCloningTemplateToLayoutId(record.companyId);
-                              try {
-                                const tmplRes = await fetch(`/api/layout-templates/${clonePickerTemplateId}`);
-                                const tmplData = await tmplRes.json();
-                                if (!tmplData.success) { alert('Failed to load template: ' + (tmplData.error || 'unknown error')); return; }
-                                const saveRes = await fetch(`/api/layouts/${record.companyId}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ layoutConfig: tmplData.data.layoutConfig, isActive: true, description: `Cloned from template: ${tmpl.name}` }),
-                                });
-                                const saveData = await saveRes.json();
-                                if (saveData.success) {
-                                  setClonePickerCompanyId(null);
-                                  setClonePickerTemplateId('');
-                                  await loadCompanyLayouts();
-                                  setSuccess(`Company layout for "${record.company.name}" replaced with "${tmpl.name}". Open the Layout Builder to make company-specific edits.`);
-                                  setTimeout(() => setSuccess(null), 5000);
-                                } else {
-                                  alert('Failed to save: ' + (saveData.error || 'unknown error'));
-                                }
-                              } finally {
-                                setCloningTemplateToLayoutId(null);
-                              }
-                            }}
-                            className="px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {cloningTemplateToLayoutId === record.companyId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                            Apply
-                          </button>
-                          <button
-                            onClick={() => { setClonePickerCompanyId(null); setClonePickerTemplateId(''); }}
-                            className="px-3 py-1.5 text-xs text-gray-500 hover:bg-green-100 rounded-lg border border-green-200 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Expanded: block list */}
-                      {isExpanded && (
-                        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-2">
-                          <p className="text-xs font-medium text-gray-600 mb-3">Blocks — click <Pencil className="w-3 h-3 inline" /> to edit HTML</p>
-                          {sections.map((section, idx) => {
-                            const blockKey = `${record.companyId}:${idx}`;
-                            const isEditing = editingBlockKey === blockKey;
-                            const label = section.label || section.id || `Block ${idx + 1}`;
-                            const isHidden = section.visible === false;
-                            return (
-                              <div key={section.id || idx}>
-                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border bg-white ${isEditing ? 'border-blue-400' : 'border-gray-200'}`}>
-                                  <div className="flex-1 min-w-0">
-                                    <span className="text-sm font-medium text-gray-800 truncate block">{label}</span>
-                                    <span className="text-xs text-gray-400">
-                                      {section.type === 'custom_html' ? 'HTML' : section.type}
-                                      {isHidden && ' · hidden'}
-                                    </span>
-                                  </div>
-                                  <span className="text-xs text-gray-400 font-mono w-5 text-center">{idx + 1}</span>
-                                  {section.type === 'custom_html' && (
-                                    <button
-                                      onClick={() =>
-                                        isEditing
-                                          ? closeBlockEditor()
-                                          : openBlockEditor(record.companyId, idx, section.html || '')
-                                      }
-                                      title={isEditing ? 'Close editor' : 'Edit HTML'}
-                                      className={`p-1.5 rounded transition-colors ${isEditing ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-
-                                {/* Inline block editor */}
-                                {isEditing && (
-                                  <BlockHtmlEditor
-                                    html={editingBlockHtml}
-                                    onChange={setEditingBlockHtml}
-                                    onSave={() => saveCompanyLayoutBlock(record.companyId, idx)}
-                                    onCancel={closeBlockEditor}
-                                    saving={savingBlock}
-                                    textareaRef={blockEditorTextareaRef}
-                                    expandedCats={blockEditorExpandedCats}
-                                    onToggleCat={(c) => setBlockEditorExpandedCats((prev) => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; })}
-                                    onInsertPlaceholder={insertPlaceholderInBlockEditor}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                          {sections.length === 0 && (
-                            <p className="text-xs text-gray-400 text-center py-2">No blocks found in this layout.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
           {/* ── SHARED LAYOUT TEMPLATES SECTION ── */}
           <div className="bg-white rounded-xl shadow-md p-6">
@@ -1888,15 +1471,11 @@ export default function SettingsPage() {
                   <span><strong>Assigned Template</strong> — a specific template assigned to this company overrides everything else.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                  <span><strong>Company Layout</strong> — a layout built specifically for this company in the Layout Builder.</span>
+                  <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                  <span><strong>Global Default Template</strong> — the template marked <span className="font-semibold text-green-700">🌐 Global Default</span> below applies to ALL companies with no assigned template. Edit it to change what every new client sees.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                  <span><strong>Global Default Template</strong> — the template marked <span className="font-semibold text-green-700">🌐 Global Default</span> below applies to ALL companies with no assigned template or custom layout. Edit it to change what every new client sees.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span>
+                  <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
                   <span><strong>Built-in default</strong> — the hard-coded standard quote layout (no customisation applied).</span>
                 </li>
               </ol>
@@ -1908,7 +1487,7 @@ export default function SettingsPage() {
                 <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-amber-800">No Global Default template set</p>
-                  <p className="text-xs text-amber-700 mt-0.5">All companies without an assigned template or company layout will fall back to the built-in hard-coded default. Create a Global Default template to control what they see.</p>
+                  <p className="text-xs text-amber-700 mt-0.5">All companies without an assigned template will fall back to the built-in hard-coded default. Create a Global Default template to control what they see.</p>
                 </div>
                 <button
                   onClick={() => {
@@ -1957,13 +1536,6 @@ export default function SettingsPage() {
                   <div className="flex gap-2 mb-3 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => { setCreateFromBase('company'); setPromoteCompanyId(''); }}
-                      className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'company' ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                    >
-                      From a company&apos;s saved layout
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => { setCreateFromBase('default'); setPromoteCompanyId(''); }}
                       className={`flex-1 min-w-[120px] px-3 py-2 text-xs rounded-lg border transition-colors ${createFromBase === 'default' ? 'bg-blue-50 border-blue-400 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -1977,21 +1549,6 @@ export default function SettingsPage() {
                       From Grace Base Layout <span className="ml-1 text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">latest</span>
                     </button>
                   </div>
-                  {createFromBase === 'company' && (
-                    <>
-                      <select
-                        value={promoteCompanyId}
-                        onChange={(e) => setPromoteCompanyId(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">— Select a company to use as source —</option>
-                        {companies.map((c) => (
-                          <option key={c.id} value={c.id}>{c.companyName} ({c.companyId})</option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">The company&apos;s existing saved layout will be copied into this template.</p>
-                    </>
-                  )}
                   {createFromBase === 'default' && (
                     <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
                       Creates the template from the standard built-in quote layout (Header, Intro, Locations, Pricing, Inventory, Accept Quote). The same layout all companies use before any customisation is applied.
@@ -2006,13 +1563,13 @@ export default function SettingsPage() {
                 <div className="flex gap-2 pt-2">
                   <button
                     onClick={handlePromoteToTemplate}
-                    disabled={!newTemplateName.trim() || (createFromBase === 'company' && !promoteCompanyId) || promotingTemplate}
+                    disabled={!newTemplateName.trim() || promotingTemplate}
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {promotingTemplate ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
                     {promotingTemplate ? 'Creating...' : 'Create Template'}
                   </button>
-                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('company'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+                  <button onClick={() => { setCreatingTemplate(false); setNewTemplateName(''); setNewTemplateDesc(''); setPromoteCompanyId(''); setCreateFromBase('default'); setCreateAsGlobalDefault(false); }} className="px-4 py-2 text-gray-600 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
                     Cancel
                   </button>
                 </div>

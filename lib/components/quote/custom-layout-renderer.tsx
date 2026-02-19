@@ -325,6 +325,13 @@ export function CustomLayoutRenderer({
       {config.sections
         .filter((s) => {
           if (s.visible === false) return false;
+          // Auto-hide custom_html sections that iterate over inventory when
+          // there are no items — prevents showing an empty table heading.
+          if (
+            s.type === 'custom_html' &&
+            s.html?.includes('{{#each inventory}}') &&
+            data.inventory.length === 0
+          ) return false;
           // Evaluate optional display condition
           if (s.condition) return evaluateCondition(s.condition, data);
           return true;
@@ -346,10 +353,28 @@ export function CustomLayoutRenderer({
             );
           }
 
-          // Built-in component sections (HeaderSection, EstimateCard, etc.) are
-          // centred within the configured maxWidth.
-          // AcceptanceForm is the exception — its slot manages its own wrapper.
-          if (section.component === 'AcceptanceForm' && acceptanceFormSlot) {
+          // HeaderSection must render full-viewport-width (the white bg bar
+          // spans edge-to-edge) so we render it without the maxWidth wrapper,
+          // mirroring how custom_html sections work.  mb-6 provides the gap
+          // between the header bar and the first content card.
+          if (section.component === 'HeaderSection') {
+            return (
+              <div key={section.id} className="mb-6">
+                <RenderSection
+                  section={section}
+                  data={data}
+                  selectedCostingId={selectedCostingId}
+                  onSelectCosting={onSelectCosting}
+                  acceptanceFormSlot={acceptanceFormSlot}
+                />
+              </div>
+            );
+          }
+
+          // AcceptanceForm: the slot manages its own outer layout wrapper
+          // (max-width + padding) so it can match the surrounding custom_html
+          // blocks without being constrained by a second px-4 container here.
+          if (section.component === 'AcceptanceForm') {
             return (
               <RenderSection
                 key={section.id}
@@ -362,6 +387,8 @@ export function CustomLayoutRenderer({
             );
           }
 
+          // All other built-in sections are centred within the configured
+          // maxWidth so they align with each other.
           return (
             <div
               key={section.id}

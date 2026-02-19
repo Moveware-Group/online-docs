@@ -272,6 +272,8 @@ export const GRACE_STATIC_LAYOUT = {
       label: "Included Items",
       type: "custom_html",
       visible: true,
+      // Hide entirely when no inventory is available for this job
+      condition: { field: "inventory.length", operator: "!=", value: "0" },
       html: `<!-- Included items / inventory table -->
 <div style="max-width:1152px;margin:0 auto;padding:0 32px;">
   <div style="margin-bottom:50px;background:#ffffff;border:1px solid #e9e9e9;padding:24px;border-radius:20px;">
