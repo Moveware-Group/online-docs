@@ -124,14 +124,20 @@ export async function fetchMwInventory(
 // Adapter utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Coerce an unknown value to string, returning '' on failure. */
+/** Coerce an unknown value to string, returning '' on null/undefined. */
 function str(v: unknown): string {
-  return typeof v === 'string' ? v : '';
+  if (v === null || v === undefined) return '';
+  return String(v);
 }
 
 /** Coerce an unknown value to number, returning 0 on failure. */
 function num(v: unknown): number {
-  return typeof v === 'number' ? v : 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
 }
 
 /**
