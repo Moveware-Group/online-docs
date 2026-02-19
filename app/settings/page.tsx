@@ -980,11 +980,8 @@ export default function SettingsPage() {
           body: JSON.stringify({ name: newTemplateName, description: newTemplateDesc, layoutConfig: DEFAULT_STATIC_LAYOUT, isDefault: createAsGlobalDefault }),
         });
       } else {
-        res = await fetch('/api/layout-templates/promote', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ companyId: promoteCompanyId, name: newTemplateName, description: newTemplateDesc }),
-        });
+        setError('Please select a base layout to create from.');
+        return;
       }
       const data = await res.json();
       if (data.success) {
