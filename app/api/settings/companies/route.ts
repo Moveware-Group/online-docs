@@ -50,6 +50,8 @@ export async function GET() {
         secondaryColor: company.secondaryColor || bs?.secondaryColor || '#ffffff',
         tertiaryColor: company.tertiaryColor || '#5a5a5a',
         fontFamily: bs?.fontFamily || 'Inter',
+        // Assigned layout template — drives Create vs Edit Layout button in the UI
+        layoutTemplateId: bs?.layoutTemplateId || null,
         // Moveware API credentials — password is never returned to the browser
         mwUsername: bs?.mwUsername || '',
         mwPasswordSet: !!(bs?.mwPassword),
