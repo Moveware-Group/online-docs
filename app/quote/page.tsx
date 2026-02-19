@@ -850,7 +850,7 @@ function QuotePageContent() {
     // DatePicker and all form state work exactly as in the default template.
     // It is styled to match the grace card pattern used by all other blocks.
     const acceptanceFormSlot = (
-      <div style={{ marginBottom: '50px', background: '#ffffff', border: '1px solid #e9e9e9', borderRadius: '20px', padding: '28px 24px' }}>
+      <div style={{ marginBottom: '50px', background: '#ffffff', border: '1px solid #e9e9e9', borderRadius: '0.5rem', padding: '28px 24px' }}>
           <h3 style={{ color: primaryColor, fontSize: '22px', fontWeight: 700, margin: '0 0 16px 0', paddingBottom: '16px', borderBottom: '1px solid #e0e0e0' }}>
             Accept quote
           </h3>

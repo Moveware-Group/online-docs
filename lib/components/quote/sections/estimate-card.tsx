@@ -27,7 +27,7 @@ export function EstimateCard({
   const exclusions = costing.rawData?.exclusions || [];
 
   return (
-    <div className="bg-white rounded-lg shadow mb-6">
+    <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
       <div className="px-6 py-4" style={{ backgroundColor: primaryColor }}>
         <div className="flex justify-between items-center text-white">
           <h3 className="text-xl font-bold">Your Estimate</h3>
