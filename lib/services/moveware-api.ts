@@ -400,13 +400,22 @@ export function adaptMwInventory(raw: unknown): InternalInventoryItem[] {
   // Root key confirmed as "inventoryUsage" in Moveware REST API v1
   const items = toArray(raw, 'inventoryUsage', 'inventory', 'inventoryItems');
 
-  return items.map((item, idx) => ({
-    id:          num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
-    description: str(pick(item, 'description', 'itemDescription', 'name', 'number')),
-    room:        str(pick(item, 'room', 'roomName', 'location', 'area')),
-    quantity:    num(pick(item, 'quantity', 'qty', 'count')) || 1,
-    // cube is a top-level field in inventoryUsage items (confirmed)
-    cube:        num(pick(item, 'cube', 'cubetot', 'cubicMetres', 'm3')),
-    typeCode:    str(pick(item, 'typeCode', 'type', 'packType', 'category', 'code')),
-  }));
+  return items.map((item, idx) => {
+    const quantity = num(pick(item, 'quantity', 'qty', 'count')) || 1;
+    // Prefer cubetot (Moveware's pre-multiplied line total: cube × qty).
+    // Fall back to cube (unit cube) × quantity for systems that only expose unit cube.
+    const unitCube = num(pick(item, 'cube', 'cubicMetres', 'm3'));
+    const cubetot  = num(pick(item, 'cubetot', 'totalCube', 'totalM3'));
+    const lineCube = cubetot > 0 ? cubetot : unitCube * quantity;
+
+    return {
+      id:          num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
+      description: str(pick(item, 'description', 'itemDescription', 'name', 'number')),
+      room:        str(pick(item, 'room', 'roomName', 'location', 'area')),
+      quantity,
+      // cube stored as the line total (cubetot) for display and summing
+      cube:        lineCube,
+      typeCode:    str(pick(item, 'typeCode', 'type', 'packType', 'category', 'code')),
+    };
+  });
 }

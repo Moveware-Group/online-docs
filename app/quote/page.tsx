@@ -502,6 +502,9 @@ function QuotePageContent() {
       // Fetch inventory with company ID
       const inventoryResponse = await fetch(`/api/jobs/${jobIdParam}/inventory?coId=${coIdParam}`);
       const inventoryResult = await inventoryResponse.json();
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[quote] inventory source="${inventoryResult.source}" count=${inventoryResult.count}`);
+      }
 
       // Fetch costings with company ID
       const costingsResponse = await fetch(`/api/jobs/${jobIdParam}/costings?coId=${coIdParam}`);
