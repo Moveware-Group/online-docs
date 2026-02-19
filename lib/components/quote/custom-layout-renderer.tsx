@@ -346,22 +346,26 @@ export function CustomLayoutRenderer({
             );
           }
 
-          // Built-in component sections (HeaderSection, EstimateCard, etc.) are
-          // centred within the configured maxWidth.
-          // AcceptanceForm is the exception — its slot manages its own wrapper.
-          if (section.component === 'AcceptanceForm' && acceptanceFormSlot) {
+          // HeaderSection must render full-viewport-width (the white bg bar
+          // spans edge-to-edge) so we render it without the maxWidth wrapper,
+          // mirroring how custom_html sections work.  mb-6 provides the gap
+          // between the header bar and the first content card.
+          if (section.component === 'HeaderSection') {
             return (
-              <RenderSection
-                key={section.id}
-                section={section}
-                data={data}
-                selectedCostingId={selectedCostingId}
-                onSelectCosting={onSelectCosting}
-                acceptanceFormSlot={acceptanceFormSlot}
-              />
+              <div key={section.id} className="mb-6">
+                <RenderSection
+                  section={section}
+                  data={data}
+                  selectedCostingId={selectedCostingId}
+                  onSelectCosting={onSelectCosting}
+                  acceptanceFormSlot={acceptanceFormSlot}
+                />
+              </div>
             );
           }
 
+          // All other built-in sections — including AcceptanceForm — are centred
+          // within the configured maxWidth so they align with each other.
           return (
             <div
               key={section.id}

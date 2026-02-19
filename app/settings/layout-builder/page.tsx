@@ -684,7 +684,8 @@ function LayoutBuilderContent() {
         return;
       }
 
-      // Company-layout mode: save to the company's custom layout
+      // Company mode: PUT /api/layouts/[companyId] now creates or updates a
+      // LayoutTemplate for the company and assigns it automatically.
       if (!selectedCompany) return;
       const res = await fetch(`/api/layouts/${selectedCompany.id}`, {
         method: 'PUT',
@@ -703,6 +704,13 @@ function LayoutBuilderContent() {
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Save failed');
+      }
+
+      // Subsequent saves should update the template directly so we switch into
+      // template-edit mode immediately after the first save.
+      if (data.data?.templateId && !editingTemplateId) {
+        setEditingTemplateId(data.data.templateId);
+        setEditingTemplateName(data.data.templateName || `${selectedCompany.name} Layout`);
       }
 
       setSaved(true);

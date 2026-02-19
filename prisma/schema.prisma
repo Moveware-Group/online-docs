@@ -40,8 +40,6 @@ model Company {
   heroSettings      HeroSettings?
   copySettings      CopySettings?
   quotes            Quote[]
-  customLayout      CustomLayout?
-
   @@unique([tenantId, brandCode])
   @@index([id])
   @@index([name])
@@ -170,24 +168,6 @@ model ReviewSubmission {
   @@map("review_submissions")
 }
 
-model CustomLayout {
-  id             String   @id @default(cuid())
-  companyId      String   @unique @map("company_id")
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  layoutConfig   String   @db.Text
-  referenceUrl   String?  @db.VarChar(2000) @map("reference_url")
-  referenceFile  String?  @db.VarChar(500) @map("reference_file")
-  description    String?  @db.Text
-  version        Int      @default(1)
-  isActive       Boolean  @default(true) @map("is_active")
-  conversationId String?  @map("conversation_id")
-  createdBy      String?  @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  @@index([companyId])
-  @@map("custom_layouts")
-}
 
 model BotConversation {
   id           String             @id @default(cuid())
