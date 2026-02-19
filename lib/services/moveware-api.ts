@@ -377,10 +377,14 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
         : [];
 
     // Option description / name
-    const optionNumber = str(pick(item, 'optionNumber', 'number'));
-    const optionDesc   = str(pick(item, 'description', 'optionDescription', 'name', 'title', 'label'));
-    const name = optionDesc
-      ? (optionNumber ? `Option ${optionNumber}: ${optionDesc}` : optionDesc)
+    // Prefer optionDescription (the user-visible summary set in Moveware) over
+    // the internal description field.  Fall back to description when blank.
+    const optionNumber     = str(pick(item, 'optionNumber', 'number'));
+    const description      = str(pick(item, 'description', 'name', 'title', 'label'));
+    const optionDescStr    = str(pick(item, 'optionDescription'));
+    const displayDesc      = optionDescStr || description;
+    const name = displayDesc
+      ? (optionNumber ? `Option ${optionNumber}: ${displayDesc}` : displayDesc)
       : `Option ${idx + 1}`;
 
     // Build inclusions from income charges (type === 'I') that have a description
@@ -402,7 +406,7 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
       id:          str(pick(item, 'id', 'optionId', 'costingId') || `opt-${idx}`),
       name,
       category:    str(pick(item, 'category', 'serviceType')),
-      description: optionDesc,
+      description,
       quantity:    num(pick(item, 'quantity', 'qty')) || 1,
       rate:        totalPrice,
       netTotal,
