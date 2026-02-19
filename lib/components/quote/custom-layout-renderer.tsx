@@ -325,6 +325,13 @@ export function CustomLayoutRenderer({
       {config.sections
         .filter((s) => {
           if (s.visible === false) return false;
+          // Auto-hide custom_html sections that iterate over inventory when
+          // there are no items — prevents showing an empty table heading.
+          if (
+            s.type === 'custom_html' &&
+            s.html?.includes('{{#each inventory}}') &&
+            data.inventory.length === 0
+          ) return false;
           // Evaluate optional display condition
           if (s.condition) return evaluateCondition(s.condition, data);
           return true;

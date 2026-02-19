@@ -115,18 +115,18 @@ export async function fetchMwOptions(
 /**
  * GET /{{coId}}/api/jobs/{{jobId}}/inventory
  *
- * Requests up to 500 items per page so we get the full inventory list in a
- * single call rather than receiving just the default page (typically 10–20).
- * If the job has more than 500 items we log a warning; a full pagination loop
- * can be added at that point.
+ * Fetches the inventory for a job.  The Moveware REST API returns inventory in
+ * pages; we fetch the first page without a pageSize override (the server's
+ * default is typically 20–50 items) and log a warning if the response metadata
+ * indicates more items are available so a pagination loop can be added later.
  */
 export async function fetchMwInventory(
   creds: MwCredentials,
   jobId: string,
 ): Promise<unknown> {
-  const raw = await mwGet(creds, `jobs/${jobId}/inventory?pageSize=500`);
+  const raw = await mwGet(creds, `jobs/${jobId}/inventory`);
 
-  // Warn when the API response indicates there are more items than we fetched
+  // Warn if the response suggests pagination is truncating results
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
     const meta = r.meta as Record<string, unknown> | undefined;
@@ -134,8 +134,8 @@ export async function fetchMwInventory(
     const returned = Array.isArray(r.inventoryUsage) ? r.inventoryUsage.length : null;
     if (total != null && returned != null && Number(total) > Number(returned)) {
       console.warn(
-        `[moveware-api] inventory may be truncated: API reports ${total} items but returned ${returned}.` +
-        ' Consider increasing pageSize or implementing pagination.',
+        `[moveware-api] inventory truncated: API reports ${total} items but returned ${returned}.` +
+        ' Implement pagination to fetch all pages.',
       );
     }
   }
