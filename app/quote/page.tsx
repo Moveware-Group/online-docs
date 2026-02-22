@@ -394,31 +394,50 @@ function QuotePageContent() {
     }
   }, [costings, selectedCostingId]);
 
-  // Wire up grace pricing "Select Option" / "✓ Selected" buttons.
-  // Re-runs after each render so button state always reflects selectedCostingId.
+  // Document-level delegated click handler for Grace "Select Option" buttons.
+  // A single listener is immune to DOM replacement by dangerouslySetInnerHTML
+  // (per-element listeners are lost whenever innerHTML is reset by React).
   useEffect(() => {
-    if (!customLayout) return;
-    const timer = setTimeout(() => {
-      const buttons = document.querySelectorAll<HTMLButtonElement>('.grace-select-btn');
-      buttons.forEach((btn) => {
-        const fresh = btn.cloneNode(true) as HTMLButtonElement;
-        btn.parentNode?.replaceChild(fresh, btn);
-
-        const costingId = fresh.dataset.costingId;
-        const isSelected = costingId === selectedCostingId;
-
-        fresh.textContent = isSelected ? '✓ Selected' : 'Select Option';
-        fresh.style.opacity = isSelected ? '0.85' : '1';
-        fresh.style.outline = isSelected ? '3px solid rgba(255,255,255,0.6)' : 'none';
-
-        fresh.addEventListener('click', () => {
-          if (costingId) setSelectedCostingId(costingId);
-        });
-      });
-    }, 100);
-    return () => clearTimeout(timer);
+    if (typeof document === 'undefined') return;
+    const handler = (e: MouseEvent) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.grace-select-btn');
+      if (!btn) return;
+      const id = btn.getAttribute('data-costing-id');
+      if (id) setSelectedCostingId(id);
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customLayout, selectedCostingId]);
+  }, []); // empty — setSelectedCostingId is stable
+
+  // Synchronously update Grace button visual state before the browser paints
+  // (useLayoutEffect fires after DOM commit but before paint — no visible flash).
+  // Also handles the single-option auto-select: computes effectiveId immediately
+  // so the button shows "✓ Selected" on the very first paint, then persists the
+  // selection in React state so the acceptance form validation passes.
+  useLayoutEffect(() => {
+    if (!customLayout) return;
+
+    // Pre-compute which option should appear selected (auto-select single option)
+    const effectiveId: string | null =
+      selectedCostingId ?? (costings.length === 1 ? costings[0].id : null);
+
+    // Persist auto-selection in React state (triggers a synchronous re-render
+    // before paint in React 18, so the form validation sees the value immediately)
+    if (effectiveId && !selectedCostingId) {
+      setSelectedCostingId(effectiveId);
+    }
+
+    document
+      .querySelectorAll<HTMLButtonElement>('.grace-select-btn')
+      .forEach((btn) => {
+        const isSelected = btn.dataset.costingId === effectiveId;
+        btn.textContent   = isSelected ? '✓ Selected' : 'Select Option';
+        btn.style.opacity = isSelected ? '0.85'       : '1';
+        btn.style.outline = isSelected ? '3px solid rgba(255,255,255,0.6)' : 'none';
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customLayout, selectedCostingId, costings]);
 
   // Reset to page 1 when inventory changes
   useEffect(() => {
