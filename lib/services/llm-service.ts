@@ -642,41 +642,82 @@ Return ONLY corrected JSON.`;
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Refine system prompt — intentionally separate from the generate prompt.
+// The generate prompt tells the LLM to build a fresh full-page layout.
+// This prompt tells it to make the *smallest possible edit* to existing JSON.
+// ---------------------------------------------------------------------------
+
+const REFINE_SYSTEM_PROMPT = `You are a JSON layout patch editor. Your only job is to apply minimal, surgical changes to an existing layout JSON based on user feedback.
+
+## Strict rules
+
+1. **PRESERVE ALL SECTIONS** — Return every section from the original JSON in the same order. Do not add or remove sections unless the user explicitly asks for that.
+2. **MINIMAL CHANGES ONLY** — Only modify the exact properties the feedback requests. Copy everything else character-for-character.
+3. **NEVER change a section's "type" or "component" field** — If a section had "type": "built_in" keep it exactly as-is. If it had "type": "custom_html" keep it "custom_html".
+4. **HTML style edits** — For custom_html sections, only touch the style="…" attributes of the elements the user mentions. Leave all other HTML unchanged.
+5. **NO regeneration** — Do not rewrite, restructure or simplify any section. The output HTML must be at least as long as the input HTML for each section.
+6. **NO explanation** — Return ONLY the complete updated JSON object. No markdown, no prose.`;
+
 export async function refineLayout(
   input: RefineLayoutInput,
 ): Promise<LayoutConfig> {
-  const userMessage = `The user wants to update the layout. Here is their feedback:
+  const userMessage = `Apply ONLY this change — nothing else:
 
 "${input.feedback}"
 
-Here is the CURRENT layout config JSON that needs to be modified:
+Company: ${input.companyName} | Primary: ${input.primaryColor} | Secondary: ${input.secondaryColor}
+
+Current layout JSON (copy all unchanged sections VERBATIM — do not shorten, restructure or re-generate any section):
 
 ${JSON.stringify(input.currentConfig, null, 2)}
 
-Company: ${input.companyName}
-Primary Color: ${input.primaryColor}
-Secondary Color: ${input.secondaryColor}
-
-Return the UPDATED layout config JSON incorporating the user's feedback.
-Constraints:
-- Use custom_html sections only (no built_in sections)
-- Keep the layout as a full custom document structure
-Return ONLY the JSON.`;
+Return the complete updated layout JSON with ONLY the requested change applied.`;
 
   const raw = await callLLM(
-    LAYOUT_SYSTEM_PROMPT,
+    REFINE_SYSTEM_PROMPT,
     userMessage,
     input.conversationHistory,
   );
   const json = extractJSON(raw);
 
+  let refined: LayoutConfig;
   try {
-    const config = JSON.parse(json) as LayoutConfig;
-    config.version = config.version || 1;
-    return config;
+    refined = JSON.parse(json) as LayoutConfig;
+    refined.version = refined.version || 1;
   } catch {
     throw new Error("AI returned invalid JSON during refinement. Please try again.");
   }
+
+  // ── Safety layer ────────────────────────────────────────────────────────────
+  // Protect against the AI accidentally converting/dropping sections.
+
+  const origById = new Map(input.currentConfig.sections.map((s) => [s.id, s]));
+
+  // 1. Restore any built_in sections the AI converted to custom_html
+  refined.sections = (refined.sections || []).map((s) => {
+    const orig = origById.get(s.id);
+    if (orig?.type === "built_in" && s.type !== "built_in") {
+      console.warn(`[refineLayout] AI converted built_in section "${s.id}" to "${s.type}" — restoring original`);
+      return orig;
+    }
+    return s;
+  });
+
+  // 2. Re-insert any sections the AI silently dropped
+  const refinedIds = new Set(refined.sections.map((s) => s.id));
+  const dropped = input.currentConfig.sections.filter((s) => !refinedIds.has(s.id));
+  if (dropped.length > 0) {
+    console.warn(`[refineLayout] AI dropped ${dropped.length} section(s) (${dropped.map((s) => s.id).join(", ")}) — restoring`);
+    refined.sections = [...refined.sections, ...dropped];
+  }
+
+  // 3. Restore globalStyles if the AI wiped them
+  if (!refined.globalStyles) {
+    refined.globalStyles = input.currentConfig.globalStyles;
+  }
+
+  return refined;
 }
 
 /**
