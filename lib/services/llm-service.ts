@@ -655,9 +655,27 @@ const REFINE_SYSTEM_PROMPT = `You are a JSON layout patch editor. Your only job 
 1. **PRESERVE ALL SECTIONS** — Return every section from the original JSON in the same order. Do not add or remove sections unless the user explicitly asks for that.
 2. **MINIMAL CHANGES ONLY** — Only modify the exact properties the feedback requests. Copy everything else character-for-character.
 3. **NEVER change a section's "type" or "component" field** — If a section had "type": "built_in" keep it exactly as-is. If it had "type": "custom_html" keep it "custom_html".
-4. **HTML style edits** — For custom_html sections, only touch the style="…" attributes of the elements the user mentions. Leave all other HTML unchanged.
+4. **HTML style edits** — For custom_html sections, only touch the style="..." attributes of the elements the user mentions. Leave all other HTML unchanged.
 5. **NO regeneration** — Do not rewrite, restructure or simplify any section. The output HTML must be at least as long as the input HTML for each section.
-6. **NO explanation** — Return ONLY the complete updated JSON object. No markdown, no prose.`;
+6. **NO explanation** — Return ONLY the complete updated JSON object. No markdown, no prose.
+
+## Styling built_in sections
+
+Built-in sections (type: "built_in") are React components — they have no HTML to edit directly.
+To apply CSS changes to built-in sections, add or update **globalStyles.customCss**.
+
+Each built-in section wrapper has the attribute data-section-id="<section.id>".
+The inner white card of every built-in content section uses Tailwind class "bg-white".
+
+Examples:
+- Add 20px border-radius to all content blocks (everything except the header):
+  globalStyles.customCss: "[data-section-id]:not([data-section-id='default-header']) .bg-white { border-radius: 20px !important; }"
+- Target a specific section:
+  "[data-section-id='default-intro'] .bg-white { border-radius: 20px; }"
+- Change background color of a section card:
+  "[data-section-id='default-locations'] .bg-white { background: #f8f9fa; }"
+
+Always APPEND new CSS to any existing globalStyles.customCss value — do not overwrite it.`;
 
 export async function refineLayout(
   input: RefineLayoutInput,

@@ -359,7 +359,7 @@ export function CustomLayoutRenderer({
           // between the header bar and the first content card.
           if (section.component === 'HeaderSection') {
             return (
-              <div key={section.id} className="mb-6">
+              <div key={section.id} data-section-id={section.id} className="mb-6">
                 <RenderSection
                   section={section}
                   data={data}
@@ -376,14 +376,15 @@ export function CustomLayoutRenderer({
           // blocks without being constrained by a second px-4 container here.
           if (section.component === 'AcceptanceForm') {
             return (
-              <RenderSection
-                key={section.id}
-                section={section}
-                data={data}
-                selectedCostingId={selectedCostingId}
-                onSelectCosting={onSelectCosting}
-                acceptanceFormSlot={acceptanceFormSlot}
-              />
+              <div key={section.id} data-section-id={section.id}>
+                <RenderSection
+                  section={section}
+                  data={data}
+                  selectedCostingId={selectedCostingId}
+                  onSelectCosting={onSelectCosting}
+                  acceptanceFormSlot={acceptanceFormSlot}
+                />
+              </div>
             );
           }
 
@@ -392,6 +393,7 @@ export function CustomLayoutRenderer({
           return (
             <div
               key={section.id}
+              data-section-id={section.id}
               style={{ maxWidth: globalStyles.maxWidth || '1152px' }}
               className="mx-auto px-4"
             >
