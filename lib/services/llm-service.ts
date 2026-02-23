@@ -675,7 +675,24 @@ Examples:
 - Change background color of a section card:
   "[data-section-id='default-locations'] .bg-white { background: #f8f9fa; }"
 
-Always APPEND new CSS to any existing globalStyles.customCss value — do not overwrite it.`;
+Always APPEND new CSS to any existing globalStyles.customCss value — do not overwrite it.
+
+## Known HTML structure of Default built_in sections
+
+HeaderSection (data-section-id="default-header"):
+- Company logo img: alt={companyName}, className="w-auto object-contain mb-6"
+- Banner/hero image: alt="Professional moving services", className="w-full h-full object-cover"
+  - Wrapped in: div.rounded-xl.overflow-hidden.shadow-md with inline style maxHeight:250px
+  - To make this image a true CIRCLE (not oval) you must set equal width AND height on the wrapper:
+    [data-section-id='default-header'] .rounded-xl { border-radius:50% !important; width:250px !important; height:250px !important; max-height:none !important; overflow:hidden !important; }
+    [data-section-id='default-header'] .rounded-xl img { max-height:none !important; width:100% !important; height:100% !important; }
+  - For oval/rounded-rectangle use border-radius values like 12px or 1rem (not 50%)
+- Content cards in other sections use className="bg-white rounded-lg shadow"
+
+## Handling follow-up / clarification messages
+
+When the user's message is a clarification or correction of a previous request (e.g. "not the logo", "just the right side", "it's still an oval"), use the conversation history to understand what they mean and apply the correct change.
+If the message is purely conversational (a question with no change implied), return the current layout JSON UNCHANGED and add a plain-text "reply" field at the top level with your answer.`;
 
 export async function refineLayout(
   input: RefineLayoutInput,

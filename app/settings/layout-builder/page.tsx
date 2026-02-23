@@ -609,7 +609,13 @@ function LayoutBuilderContent() {
       addAssistantMessage(data.message || 'Layout updated! Check the preview.');
       updatePreview(data.data);
     } catch (err) {
-      addAssistantMessage(`Sorry, I had trouble updating the layout: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // Give the user actionable feedback rather than a generic apology
+      addAssistantMessage(
+        msg.toLowerCase().includes('json')
+          ? `I couldn't apply that change — the AI returned an unexpected response. Try rephrasing your request and I'll have another go.`
+          : `Sorry, I had trouble applying that change: ${msg}. Please try rephrasing.`,
+      );
     } finally {
       setChatLoading(false);
     }
@@ -655,10 +661,12 @@ function LayoutBuilderContent() {
 
     addUserMessage(trimmedMessage);
 
-    // Determine if this is a layout modification request or general chat
-    const isModification = layoutConfig && /change|update|move|make|add|remove|hide|show|swap|replace|bigger|smaller|different|modify|adjust|set|use/i.test(trimmedMessage);
-
-    if (isModification) {
+    // When a layout is loaded, route everything through handleRefine so the AI
+    // always has layout context and can make changes.  Follow-up corrections
+    // ("not the logo", "it's still an oval", "revert that", etc.) must reach
+    // the layout-aware path even when they contain no obvious action verbs.
+    // Only fall back to pure chat when no layout has been generated yet.
+    if (layoutConfig) {
       await handleRefine(trimmedMessage);
     } else {
       await handleChat(trimmedMessage);

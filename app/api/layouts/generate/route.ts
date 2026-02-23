@@ -247,10 +247,17 @@ export async function POST(request: NextRequest) {
         secondaryColor: secondaryColor || "#1e40af",
       });
 
+      // If the AI answered a question without making a layout change it
+      // sets a top-level "reply" field — surface that as the message.
+      const replyField = (layoutConfig as unknown as Record<string, unknown>).reply as string | undefined;
+      if (replyField) {
+        delete (layoutConfig as unknown as Record<string, unknown>).reply;
+      }
+
       return NextResponse.json({
         success: true,
         data: layoutConfig,
-        message: "Layout updated based on your feedback.",
+        message: replyField || "Layout updated based on your feedback.",
       });
     }
 
