@@ -680,18 +680,34 @@ Always APPEND new CSS to any existing globalStyles.customCss value — do not ov
 ## Known HTML structure of Default built_in sections
 
 HeaderSection (data-section-id="default-header"):
-- Company logo img: alt={companyName}, className="w-auto object-contain mb-6"
-- Banner/hero image: alt="Professional moving services", className="w-full h-full object-cover"
-  - Wrapped in: div.rounded-xl.overflow-hidden.shadow-md with inline style maxHeight:250px
-  - To make this image a true CIRCLE (not oval) you must set equal width AND height on the wrapper:
-    [data-section-id='default-header'] .rounded-xl { border-radius:50% !important; width:250px !important; height:250px !important; max-height:none !important; overflow:hidden !important; }
-    [data-section-id='default-header'] .rounded-xl img { max-height:none !important; width:100% !important; height:100% !important; }
-  - For oval/rounded-rectangle use border-radius values like 12px or 1rem (not 50%)
-- Content cards in other sections use className="bg-white rounded-lg shadow"
+  Left column:
+    - Company logo: <img alt="{companyName}" class="w-auto object-contain mb-6">
+    - Title: <h1 class="text-2xl font-bold" style="color:{primaryColor}">Your Moving Quote</h1>
+    - Quote info block: <div class="mt-4 space-y-1 text-sm text-gray-600">
+        <p><span class="font-medium">Prepared For:</span> …</p>
+        <p><span class="font-medium">Reference:</span> …</p>
+        <p><span class="font-medium">Quote Date:</span> …</p>
+        <p><span class="font-medium">Expiry Date:</span> …</p>
+      </div>
+    - To make the labels (text before the colon) black and bold:
+      [data-section-id='default-header'] .text-gray-600 .font-medium { color:#000 !important; font-weight:700 !important; }
+
+  Right column (banner image):
+    - Wrapper: <div class="hidden md:block"> containing <div class="rounded-xl overflow-hidden shadow-md" style="max-height:250px">
+    - Image: <img alt="Professional moving services" class="w-full h-full object-cover">
+    - To make it a true CIRCLE (not oval) — must set equal dimensions on the wrapper:
+      [data-section-id='default-header'] .rounded-xl { border-radius:50% !important; width:250px !important; height:250px !important; max-height:none !important; overflow:hidden !important; }
+      [data-section-id='default-header'] .rounded-xl img { max-height:none !important; width:100% !important; height:100% !important; }
+    - To right-align the image within the header grid, add justify-self to the parent:
+      [data-section-id='default-header'] .hidden.md\\:block { justify-self:end; }
+
+Other built_in content section inner card: <div class="bg-white rounded-lg shadow …">
+  - Section heading: <h3 class="text-xl font-bold text-gray-900 …">
+  - To add a bottom border to headings: [data-section-id] h3 { border-bottom:1px solid #e3e3e3 !important; padding-bottom:8px !important; }
 
 ## Handling follow-up / clarification messages
 
-When the user's message is a clarification or correction of a previous request (e.g. "not the logo", "just the right side", "it's still an oval"), use the conversation history to understand what they mean and apply the correct change.
+When the user's message is a clarification or correction of a previous request (e.g. "not the logo", "just the right side", "it's still an oval", "nothing changed", "undo that"), use the conversation history to understand what they mean and apply the correct change.
 If the message is purely conversational (a question with no change implied), return the current layout JSON UNCHANGED and add a plain-text "reply" field at the top level with your answer.`;
 
 export async function refineLayout(

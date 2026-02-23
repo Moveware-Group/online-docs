@@ -254,10 +254,20 @@ export async function POST(request: NextRequest) {
         delete (layoutConfig as unknown as Record<string, unknown>).reply;
       }
 
+      // Detect when the AI returned the layout unchanged (no actual edit applied).
+      const configChanged = JSON.stringify(layoutConfig) !== JSON.stringify(currentConfig);
+      let responseMessage = replyField || "Layout updated based on your feedback.";
+      if (!configChanged && !replyField) {
+        responseMessage =
+          "I wasn't able to locate the exact element to change. Could you describe it differently? " +
+          "For example, mention a specific section name, the text it contains, or whether it's in the header, a content block, or the form.";
+      }
+
       return NextResponse.json({
         success: true,
         data: layoutConfig,
-        message: replyField || "Layout updated based on your feedback.",
+        message: responseMessage,
+        noChange: !configChanged && !replyField,
       });
     }
 
