@@ -8,6 +8,7 @@ import SignatureCanvas from '@/lib/components/forms/signature-canvas';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { CustomLayoutRenderer } from '@/lib/components/quote/custom-layout-renderer';
+import { InventoryTable } from '@/lib/components/quote/sections/inventory-table';
 import type { LayoutConfig } from '@/lib/services/llm-service';
 
 interface Job {
@@ -47,6 +48,7 @@ interface Job {
     primaryColor?: string;
     secondaryColor?: string;
     fontFamily?: string;
+    inventoryWeightUnit?: 'kg' | 'lbs';
   };
 }
 
@@ -57,6 +59,7 @@ interface InventoryItem {
   quantity?: number;
   cube?: number;
   typeCode?: string;
+  weightKg?: number;
 }
 
 interface CostingCharge {
@@ -1354,6 +1357,14 @@ function QuotePageContent() {
 
           {/* Inventory Section */}
           {inventory.length > 0 && (
+            <InventoryTable
+              inventory={paginatedInventory}
+              primaryColor={primaryColor}
+              totalCube={totalCube}
+              weightUnit={job?.branding?.inventoryWeightUnit ?? 'kg'}
+            />
+          )}
+          {false && inventory.length > 0 && (
             <div className="bg-white rounded-lg shadow mb-6">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900">Complete Inventory</h3>

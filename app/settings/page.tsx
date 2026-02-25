@@ -61,6 +61,8 @@ interface CompanyBranding {
   mwPasswordSet?: boolean;
   /** Write-only: a new password entered by the user. Empty = keep existing. */
   mwPassword?: string;
+  /** Unit used to display inventory weights on the quote page */
+  inventoryWeightUnit?: 'kg' | 'lbs';
 }
 
 interface LayoutTemplate {
@@ -307,6 +309,7 @@ function CompanyForm({
       mwUsername: '',
       mwPasswordSet: false,
       mwPassword: '',
+      inventoryWeightUnit: 'kg',
     }
   );
   const [showMwPassword, setShowMwPassword] = useState(false);
@@ -494,6 +497,45 @@ function CompanyForm({
                 Shared template will take priority over the company&apos;s own layout. Per-company images still apply.
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Quote Settings */}
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Quote Settings
+          </p>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Inventory Weight Unit
+            </label>
+            <div className="flex gap-2">
+              {(['kg', 'lbs'] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, inventoryWeightUnit: unit })}
+                  className={`px-4 py-1.5 text-sm rounded-full border transition-colors ${
+                    (formData.inventoryWeightUnit ?? 'kg') === unit
+                      ? 'text-white border-transparent'
+                      : 'text-gray-600 border-gray-300 hover:border-gray-400 bg-white'
+                  }`}
+                  style={
+                    (formData.inventoryWeightUnit ?? 'kg') === unit
+                      ? { backgroundColor: formData.primaryColor || '#cc0000', borderColor: formData.primaryColor || '#cc0000' }
+                      : {}
+                  }
+                >
+                  {unit.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Controls how item weights are displayed in the inventory table on the quote page.
+            </p>
           </div>
         </div>
 

@@ -55,6 +55,7 @@ export async function GET() {
         // Moveware API credentials — password is never returned to the browser
         mwUsername: bs?.mwUsername || '',
         mwPasswordSet: !!(bs?.mwPassword),
+        inventoryWeightUnit: (bs?.inventoryWeightUnit as 'kg' | 'lbs') || 'kg',
       };
     });
 
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const {
+      const {
       id,
       companyId,
       brandCode,
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
       fontFamily,
       mwUsername,
       mwPassword,
+      inventoryWeightUnit,
     } = body;
 
     // Validate required fields
@@ -159,6 +161,7 @@ export async function POST(request: NextRequest) {
         secondaryColor: normSecondary,
         fontFamily: fontFamily || 'Inter',
         mwUsername: mwUsername?.trim() || null,
+        inventoryWeightUnit: inventoryWeightUnit || 'kg',
       };
       if (mwPassword?.trim()) brandingBase.mwPassword = mwPassword.trim();
 
@@ -207,6 +210,7 @@ export async function POST(request: NextRequest) {
         fontFamily: fontFamily || 'Inter',
         mwUsername: mwUsername?.trim() || null,
         mwPassword: mwPassword?.trim() || null,
+        inventoryWeightUnit: inventoryWeightUnit || 'kg',
         ...(defaultTemplateId ? { layoutTemplateId: defaultTemplateId } : {}),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

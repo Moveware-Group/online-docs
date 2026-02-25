@@ -46,6 +46,8 @@ export interface InventoryItem {
   quantity?: number;
   cube?: number;
   typeCode?: string;
+  /** Gross weight of a single unit in kilograms */
+  weightKg?: number;
 }
 
 /** A single charge line item within a pricing option. */
@@ -122,6 +124,8 @@ export interface QuotePageData {
   /** 18 Mar 2026                  */
   expiryDateMedium: string;
   totalCube: number;
+  /** Unit used to display inventory weights ('kg' | 'lbs'). Defaults to 'kg'. */
+  inventoryWeightUnit?: 'kg' | 'lbs';
   /** Pagination metadata for the inventory table (used by custom layout blocks) */
   inventoryFrom?: number;
   inventoryTo?: number;

@@ -110,20 +110,23 @@ async function resolveBranding(
 
     if (!company) return defaults;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bs = company.brandingSettings as any;
     return {
       companyName: company.name,
-      logoUrl: company.brandingSettings?.logoUrl ?? company.logoUrl ?? '',
-      heroBannerUrl: company.brandingSettings?.heroBannerUrl ?? '',
-      footerImageUrl: company.brandingSettings?.footerImageUrl ?? '',
+      logoUrl: bs?.logoUrl ?? company.logoUrl ?? '',
+      heroBannerUrl: bs?.heroBannerUrl ?? '',
+      footerImageUrl: bs?.footerImageUrl ?? '',
       primaryColor:
-        company.brandingSettings?.primaryColor ??
+        bs?.primaryColor ??
         company.primaryColor ??
         defaults.primaryColor,
       secondaryColor:
-        company.brandingSettings?.secondaryColor ??
+        bs?.secondaryColor ??
         company.secondaryColor ??
         defaults.secondaryColor,
-      fontFamily: company.brandingSettings?.fontFamily ?? defaults.fontFamily,
+      fontFamily: bs?.fontFamily ?? defaults.fontFamily,
+      inventoryWeightUnit: (bs?.inventoryWeightUnit as 'kg' | 'lbs') ?? 'kg',
     };
   } catch (err) {
     console.warn('[jobs/route] branding lookup failed:', err);

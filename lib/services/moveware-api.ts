@@ -352,6 +352,8 @@ export type InternalBranding = {
   primaryColor: string;
   secondaryColor: string;
   fontFamily: string;
+  /** Unit used to display inventory weights on the quote ('kg' | 'lbs') */
+  inventoryWeightUnit: 'kg' | 'lbs';
 };
 
 export type InternalJob = {
@@ -420,6 +422,8 @@ export type InternalInventoryItem = {
   quantity: number;
   cube: number;
   typeCode: string;
+  /** Gross weight of a single unit in kilograms */
+  weightKg: number;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -718,14 +722,19 @@ export function adaptMwInventory(raw: unknown): InternalInventoryItem[] {
     const cubetot  = num(pick(item, 'cubetot', 'totalCube', 'totalM3'));
     const lineCube = cubetot > 0 ? cubetot : unitCube * quantity;
 
+    // Weight — try several common Moveware field names (unit weight in kg)
+    const weightKg = num(
+      pick(item, 'weight', 'weightKg', 'kg', 'grossWeight', 'wtGross', 'weightGross', 'unitWeight'),
+    );
+
     return {
       id:          num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
       description: str(pick(item, 'description', 'itemDescription', 'name', 'number')),
       room:        str(pick(item, 'room', 'roomName', 'location', 'area')),
       quantity,
-      // cube stored as the line total (cubetot) for display and summing
       cube:        lineCube,
       typeCode:    str(pick(item, 'typeCode', 'type', 'packType', 'category', 'code')),
+      weightKg,
     };
   });
 }
