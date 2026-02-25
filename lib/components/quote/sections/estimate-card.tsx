@@ -22,22 +22,17 @@ export function EstimateCard({
   const [showDetails, setShowDetails] = useState(false);
 
   const charges        = costing.charges || [];
-  const currencyCode   = costing.currency       || 'AUD';
-  const currencySymbol = costing.currencySymbol  || '$';
+  const currencyCode   = costing.currency      || 'AUD';
+  const currencySymbol = costing.currencySymbol || '$';
   const inclusions     = costing.rawData?.inclusions || [];
   const exclusions     = costing.rawData?.exclusions || [];
 
   // Base charge: the aggregate total line (oneTotal === "Y")
-  const baseCharge = charges.find((c) => c.isBaseCharge) ?? null;
-
-  // Included non-base charges: always in the price, shown as plain rows
+  const baseCharge      = charges.find((c) => c.isBaseCharge) ?? null;
   const includedCharges = charges.filter((c) => !c.isBaseCharge && c.included);
-
-  // Optional charges: not included by default, shown with checkboxes
   const optionalCharges = charges.filter((c) => !c.isBaseCharge && !c.included);
 
-  // Default optional selections: pre-check those with included=true (none by default,
-  // but kept as a Set so the user can toggle freely).
+  // Optional selections — default to none (user must explicitly add)
   const defaultSelected = useMemo(
     () => new Set(optionalCharges.filter((c) => c.included).map((c) => c.id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -53,13 +48,12 @@ export function EstimateCard({
     });
   };
 
-  // Dynamic total = base + all included non-base + selected optional charges
-  const basePrice     = baseCharge?.price ?? 0;
-  const includedTotal = includedCharges.reduce((s, c) => s + c.price * c.quantity, 0);
+  // The base amount is the option's total (valueInclusive), not the rate
+  const baseAmount    = costing.totalPrice ?? 0;
   const optionalTotal = optionalCharges
     .filter((c) => selectedOptionals.has(c.id))
     .reduce((s, c) => s + c.price * c.quantity, 0);
-  const dynamicTotal  = basePrice + includedTotal + optionalTotal;
+  const dynamicTotal  = baseAmount + optionalTotal;
 
   const isSelected = selectedCostingId === costing.id;
 
@@ -69,139 +63,152 @@ export function EstimateCard({
   return (
     <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      {/* ── Coloured header ─────────────────────────────────────────────────── */}
       <div
         className="px-6 py-4 flex justify-between items-center text-white"
         style={{ backgroundColor: primaryColor }}
       >
-        <h3 className="text-lg font-bold">Option {index + 1}</h3>
+        <span className="text-lg font-bold">{costing.name}</span>
         <div className="text-right">
           <div className="text-xl font-bold">
             ({currencyCode}) {fmt(dynamicTotal)}
           </div>
-          <div className="text-xs opacity-80">Tax included</div>
+          <div className="text-xs opacity-80">Tax Included where applicable</div>
         </div>
       </div>
 
-      {/* ── Base service row ─────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex justify-between items-start">
-          <div className="flex-1 min-w-0 pr-4">
-            <div className="font-bold text-gray-900">{costing.name}</div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              Qty: {baseCharge?.quantity ?? 1}
-              {' | '}Rate: {fmt(baseCharge?.price ?? 0)}
-              {' | '}NT: {costing.netTotal && costing.netTotal !== '0.00' ? fmt(Number(costing.netTotal)) : 'N/A'}
-            </div>
-            {costing.description && (
-              <p className="text-sm mt-1" style={{ color: primaryColor }}>
-                {costing.description}
-              </p>
-            )}
-          </div>
-          <div className="font-semibold text-gray-900 whitespace-nowrap">
-            {fmt(baseCharge?.price ?? 0)}
-          </div>
-        </div>
-      </div>
+      {/* ── Charges table ───────────────────────────────────────────────────── */}
+      <table className="w-full text-sm">
 
-      {/* ── Always-included non-base charges (plain rows, no checkbox) ──────── */}
-      {includedCharges.map((charge: CostingCharge) => (
-        <div
-          key={charge.id}
-          className="px-6 py-3 flex justify-between items-start border-b border-gray-100"
-        >
-          <div className="flex-1 min-w-0 pr-4">
-            <div className="font-medium text-gray-900">{charge.heading}</div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              Qty: {charge.quantity}
-              {' | '}Rate: {fmt(charge.price)}
-              {' | '}NT: N/A
-            </div>
-            {charge.notes && (
-              <div className="text-xs text-gray-500 mt-0.5">{charge.notes}</div>
-            )}
-          </div>
-          <div className="font-semibold text-gray-900 whitespace-nowrap">{fmt(charge.price)}</div>
-        </div>
-      ))}
+        {/* Column sub-header */}
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="px-6 py-2 text-left text-xs font-normal text-gray-500">
+              {costing.description || 'Charges'}
+            </th>
+            <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-24">Quantity</th>
+            <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-28">Rate</th>
+            <th className="px-6 py-2 text-right text-xs font-normal text-gray-500 w-32">
+              {fmt(baseAmount)}
+            </th>
+          </tr>
+        </thead>
 
-      {/* ── Optional / add-on charges (checkboxes) ───────────────────────────── */}
-      {optionalCharges.length > 0 && (
-        <>
-          <div className="px-6 pt-3 pb-1 border-b border-gray-100">
-            <span className="text-sm font-bold" style={{ color: primaryColor }}>
-              Optional Services
-            </span>
-          </div>
+        <tbody>
+          {/* ── Base service row ──────────────────────────────────────────── */}
+          {baseCharge && (
+            <tr className="border-b border-gray-100">
+              <td className="px-6 py-3">
+                <span className="font-semibold text-gray-900">{baseCharge.heading || costing.name}</span>
+                {costing.notes && (
+                  <p className="text-xs text-gray-500 mt-0.5">{costing.notes}</p>
+                )}
+              </td>
+              <td className="px-4 py-3 text-center text-gray-700">{baseCharge.quantity}</td>
+              <td className="px-4 py-3 text-center text-gray-700">{fmt(baseCharge.price)}</td>
+              <td className="px-6 py-3 text-right font-semibold" style={{ color: primaryColor }}>
+                {fmt(baseAmount)}
+              </td>
+            </tr>
+          )}
+
+          {/* ── Always-included non-base charges ──────────────────────────── */}
+          {includedCharges.map((charge: CostingCharge) => (
+            <tr key={charge.id} className="border-b border-gray-100">
+              <td className="px-6 py-3">
+                <span className="font-semibold text-gray-900">{charge.heading}</span>
+                {charge.notes && (
+                  <p className="text-xs text-gray-500 mt-0.5">{charge.notes}</p>
+                )}
+              </td>
+              <td className="px-4 py-3 text-center text-gray-700">{charge.quantity}</td>
+              <td className="px-4 py-3 text-center text-gray-700">{fmt(charge.price)}</td>
+              <td className="px-6 py-3 text-right font-semibold text-gray-900">
+                {fmt(charge.price * charge.quantity)}
+              </td>
+            </tr>
+          ))}
+
+          {/* ── Optional Services heading ──────────────────────────────────── */}
+          {optionalCharges.length > 0 && (
+            <tr className="border-b border-gray-100">
+              <td colSpan={4} className="px-6 py-2">
+                <span className="text-sm font-bold" style={{ color: primaryColor }}>
+                  Optional Services
+                </span>
+              </td>
+            </tr>
+          )}
+
+          {/* ── Optional charges (interactive checkboxes) ─────────────────── */}
           {optionalCharges.map((charge: CostingCharge) => {
             const checked = selectedOptionals.has(charge.id);
             return (
-              <div
+              <tr
                 key={charge.id}
-                className="px-6 py-3 flex items-start justify-between border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => toggleOptional(charge.id)}
               >
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div
-                    className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors"
-                    style={{
-                      borderColor:     checked ? primaryColor : '#9ca3af',
-                      backgroundColor: checked ? primaryColor : 'transparent',
-                    }}
-                  >
-                    {checked && (
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-900">{charge.heading}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      Qty: {charge.quantity}
-                      {' | '}Rate: {fmt(charge.price)}
-                      {' | '}NT: N/A
+                <td className="px-6 py-3">
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <div
+                      className="mt-0.5 w-5 h-5 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors"
+                      style={{
+                        borderColor:     checked ? primaryColor : '#9ca3af',
+                        backgroundColor: checked ? primaryColor : 'transparent',
+                      }}
+                    >
+                      {checked && (
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
                     </div>
-                    {charge.notes && (
-                      <div className="text-xs text-gray-500 mt-0.5">{charge.notes}</div>
-                    )}
+                    <div>
+                      <span className="font-medium text-gray-900">{charge.heading}</span>
+                      {charge.notes && (
+                        <p className="text-xs text-gray-500 mt-0.5">{charge.notes}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="font-semibold text-gray-900 whitespace-nowrap ml-4">
-                  {fmt(charge.price)}
-                </div>
-              </div>
+                </td>
+                <td className="px-4 py-3 text-center text-gray-700">{charge.quantity}</td>
+                <td className="px-4 py-3 text-center text-gray-700">{fmt(charge.price)}</td>
+                <td className="px-6 py-3 text-right font-semibold text-gray-900">
+                  {fmt(charge.price * charge.quantity)}
+                </td>
+              </tr>
             );
           })}
-        </>
-      )}
+        </tbody>
+      </table>
 
-      {/* ── Totals ──────────────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="space-y-1 text-sm text-right">
-          <div className="flex justify-between">
-            <span className="font-semibold text-gray-700">Subtotal</span>
-            <span>{fmt(dynamicTotal)}</span>
+      {/* ── Totals (right-aligned) ───────────────────────────────────────────── */}
+      <div className="px-6 py-4 border-t border-gray-200">
+        <div className="flex flex-col items-end gap-1 text-sm">
+          <div className="flex gap-8">
+            <span className="text-gray-600">Ex Tax</span>
+            <span className="w-28 text-right text-gray-700">{fmt(dynamicTotal)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="font-semibold text-gray-700">Tax</span>
-            <span>N/A</span>
+          <div className="flex gap-8">
+            <span className="text-gray-600">Tax</span>
+            <span className="w-28 text-right text-gray-700">$0.00</span>
           </div>
-          <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-300">
+          <div className="flex gap-8 font-bold text-base pt-1 border-t border-gray-300 mt-1">
             <span>Total</span>
-            <span>{fmt(dynamicTotal)}</span>
+            <span className="w-28 text-right" style={{ color: primaryColor }}>{fmt(dynamicTotal)}</span>
           </div>
-          <p className="text-xs text-gray-400">Tax Included</p>
+          <p className="text-xs text-gray-400 mt-0.5">Tax Included</p>
         </div>
       </div>
 
-      {/* ── Select button ───────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 text-right">
+      {/* ── Select button ────────────────────────────────────────────────────── */}
+      <div className="px-6 pb-5 flex justify-end">
         <button
           onClick={() => onSelect(costing.id)}
           style={{ backgroundColor: isSelected ? '#22c55e' : primaryColor }}
-          className="px-6 py-2 text-white font-semibold rounded hover:opacity-90 transition-all"
+          className="px-8 py-2 text-white font-bold rounded hover:opacity-90 transition-all"
         >
           {isSelected ? '\u2713 Selected' : 'Select Option'}
         </button>
