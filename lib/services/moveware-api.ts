@@ -237,6 +237,19 @@ export type InternalJob = {
   branding: InternalBranding;
 };
 
+export type InternalCostingCharge = {
+  id: number;
+  heading: string;
+  notes: string;
+  quantity: number;
+  price: number;
+  currency: string;
+  currencySymbol: string;
+  taxCode: string;
+  sort: string;
+  included: boolean;
+};
+
 export type InternalCosting = {
   id: string;
   name: string;
@@ -247,6 +260,9 @@ export type InternalCosting = {
   netTotal: string;
   totalPrice: number;
   taxIncluded: boolean;
+  currency: string;
+  currencySymbol: string;
+  charges: InternalCostingCharge[];
   rawData: { inclusions: string[]; exclusions: string[] };
 };
 
@@ -410,15 +426,18 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
     const netTotal   = netRaw > 0 ? netRaw.toFixed(2) : (totalPrice > 0 ? (totalPrice / 1.1).toFixed(2) : '0.00');
 
     return {
-      id:          str(pick(item, 'id', 'optionId', 'costingId') || `opt-${idx}`),
+      id:             str(pick(item, 'id', 'optionId', 'costingId') || `opt-${idx}`),
       name,
-      category:    str(pick(item, 'category', 'serviceType')),
+      category:       str(pick(item, 'category', 'serviceType')),
       description,
-      quantity:    num(pick(item, 'quantity', 'qty')) || 1,
-      rate:        totalPrice,
+      quantity:       num(pick(item, 'quantity', 'qty')) || 1,
+      rate:           totalPrice,
       netTotal,
       totalPrice,
-      taxIncluded: pick(item, 'taxIncluded', 'gstIncluded', 'includesTax') !== false,
+      taxIncluded:    pick(item, 'taxIncluded', 'gstIncluded', 'includesTax') !== false,
+      currency:       'AUD',
+      currencySymbol: '$',
+      charges:        [],
       rawData: { inclusions, exclusions },
     };
   });
@@ -465,16 +484,43 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
     : [];
 
   return options.map((option, idx) => {
-    const charges = Array.isArray(option.charges)
+    const rawCharges = Array.isArray(option.charges)
       ? (option.charges as Record<string, unknown>[])
       : [];
 
-    // Sum rateInclusive for all charges that are part of the package price
-    const totalPrice = charges
+    // Sort charges by the sort key (e.g. "001", "002")
+    const sortedCharges = [...rawCharges].sort((a, b) =>
+      str(pick(a, 'sort')).localeCompare(str(pick(b, 'sort'))),
+    );
+
+    // Map to structured charge line items
+    const charges: InternalCostingCharge[] = sortedCharges.map((c) => ({
+      id:             num(pick(c, 'id')),
+      heading:        str(pick(c, 'description')),
+      notes:          str(pick(c, 'notes')),
+      quantity:       num(pick(c, 'quantity', 'qty')) || 1,
+      price:          num(pick(c, 'rateExclusive', 'rate')),
+      currency:       str(pick(c, 'currency')) || 'AUD',
+      currencySymbol: str(pick(c, 'currencySymbol')) || '$',
+      taxCode:        str(pick(c, 'taxCode')),
+      sort:           str(pick(c, 'sort')),
+      included:       c.included === true,
+    }));
+
+    // Total price: use the option-level valueInclusive; fall back to summing
+    // included charges' rateInclusive when the option total isn't populated yet.
+    const optionValueInclusive = num(pick(option, 'valueInclusive', 'totalAmount'));
+    const chargesSum = rawCharges
       .filter((c) => c.included === true)
-      .reduce((sum, c) => sum + num(pick(c, 'rateInclusive', 'valueInclusive', 'rate')), 0);
+      .reduce((sum, c) => sum + num(pick(c, 'rateInclusive', 'valueInclusive')), 0);
+    const totalPrice = optionValueInclusive > 0 ? optionValueInclusive : chargesSum;
 
     const netTotal = totalPrice > 0 ? (totalPrice / 1.1).toFixed(2) : '0.00';
+
+    // Currency from first charge
+    const firstCharge = charges[0];
+    const currency       = firstCharge?.currency       || 'AUD';
+    const currencySymbol = firstCharge?.currencySymbol || '$';
 
     // Prefer optionDescription (user-visible) over the internal description field
     const description   = str(pick(option, 'description', 'name', 'title', 'label'));
@@ -482,22 +528,25 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
     const displayDesc   = optionDescStr || description;
     const name          = displayDesc || `Option ${idx + 1}`;
 
-    // Inclusions / exclusions — bullet-point strings in the new endpoint
+    // Inclusions / exclusions — newline-separated bullet strings
     const incStr = str(pick(option, 'inclusions'));
     const excStr = str(pick(option, 'exclusions'));
     const inclusions = incStr ? splitBullets(incStr) : [];
     const exclusions = excStr ? splitBullets(excStr) : [];
 
     return {
-      id:          str(pick(option, 'id') || `opt-${idx}`),
+      id:             str(pick(option, 'id') || `opt-${idx}`),
       name,
-      category:    str(pick(option, 'costCenter', 'service', 'jobType')),
-      description: str(pick(option, 'details')) || description,
-      quantity:    1,
-      rate:        totalPrice,
+      category:       str(pick(option, 'costCenter', 'service', 'jobType')),
+      description:    str(pick(option, 'details')) || description,
+      quantity:       1,
+      rate:           totalPrice,
       netTotal,
       totalPrice,
-      taxIncluded: true,
+      taxIncluded:    true,
+      currency,
+      currencySymbol,
+      charges,
       rawData: { inclusions, exclusions },
     };
   });

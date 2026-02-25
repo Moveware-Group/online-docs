@@ -59,6 +59,19 @@ interface InventoryItem {
   typeCode?: string;
 }
 
+interface CostingCharge {
+  id: number;
+  heading: string;
+  notes: string;
+  quantity: number;
+  price: number;
+  currency: string;
+  currencySymbol: string;
+  taxCode: string;
+  sort: string;
+  included: boolean;
+}
+
 interface CostingItem {
   id: string;
   name?: string;
@@ -69,6 +82,9 @@ interface CostingItem {
   netTotal?: string;
   totalPrice?: number;
   taxIncluded?: boolean;
+  currency?: string;
+  currencySymbol?: string;
+  charges?: CostingCharge[];
   rawData?: {
     inclusions?: string[];
     exclusions?: string[];

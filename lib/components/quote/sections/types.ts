@@ -48,6 +48,25 @@ export interface InventoryItem {
   typeCode?: string;
 }
 
+/** A single charge line item within a pricing option. */
+export interface CostingCharge {
+  id: number;
+  /** Display heading for this line item (charges[].description) */
+  heading: string;
+  /** Detail text / notes for this line item (charges[].notes) */
+  notes: string;
+  quantity: number;
+  /** Pre-tax price (charges[].rateExclusive) */
+  price: number;
+  currency: string;
+  currencySymbol: string;
+  taxCode: string;
+  /** Sort key used to order line items (charges[].sort, e.g. "001") */
+  sort: string;
+  /** Whether this charge is included in the package price */
+  included: boolean;
+}
+
 export interface CostingItem {
   id: string;
   name?: string;
@@ -58,6 +77,12 @@ export interface CostingItem {
   netTotal?: string;
   totalPrice?: number;
   taxIncluded?: boolean;
+  /** ISO currency code (e.g. "AUD") derived from the first charge */
+  currency?: string;
+  /** Currency symbol (e.g. "$") derived from the first charge */
+  currencySymbol?: string;
+  /** Structured charge line items from the new quotations endpoint */
+  charges?: CostingCharge[];
   rawData?: {
     inclusions?: string[];
     exclusions?: string[];
