@@ -66,30 +66,59 @@ export async function getMwCredentials(
 // HTTP transport
 // ─────────────────────────────────────────────────────────────────────────────
 
+const MW_HEADERS = (creds: MwCredentials) => ({
+  'mw-company-id': creds.coId,
+  'mw-username':   creds.username,
+  'mw-password':   creds.password,
+  Accept:          'application/json',
+  'Content-Type':  'application/json',
+});
+
 async function mwGet(creds: MwCredentials, path: string): Promise<unknown> {
   const url = `${creds.baseUrl}/${creds.coId}/api/${path}`;
-
   const res = await fetch(url, {
     method: 'GET',
-    headers: {
-      'mw-company-id': creds.coId,
-      'mw-username':   creds.username,
-      'mw-password':   creds.password,
-      Accept:          'application/json',
-      'Content-Type':  'application/json',
-    },
-    // Always fetch fresh — job data changes frequently
+    headers: MW_HEADERS(creds),
     cache: 'no-store',
   });
-
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(
-      `Moveware API ${res.status} at ${url}: ${body.slice(0, 300)}`,
-    );
+    throw new Error(`Moveware API ${res.status} at ${url}: ${body.slice(0, 300)}`);
   }
-
   return res.json();
+}
+
+async function mwPatch(creds: MwCredentials, path: string, body: unknown): Promise<unknown> {
+  const url = `${creds.baseUrl}/${creds.coId}/api/${path}`;
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: MW_HEADERS(creds),
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const responseBody = await res.text().catch(() => '');
+    throw new Error(`Moveware PATCH ${res.status} at ${url}: ${responseBody.slice(0, 300)}`);
+  }
+  // Some endpoints return 204 No Content
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
+async function mwPost(creds: MwCredentials, path: string, body: unknown): Promise<unknown> {
+  const url = `${creds.baseUrl}/${creds.coId}/api/${path}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: MW_HEADERS(creds),
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const responseBody = await res.text().catch(() => '');
+    throw new Error(`Moveware POST ${res.status} at ${url}: ${responseBody.slice(0, 300)}`);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,6 +148,122 @@ export async function fetchMwQuotationOptions(
   quoteId: string,
 ): Promise<unknown> {
   return mwGet(creds, `jobs/${jobId}/quotations/${quoteId}?include=options`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Write-back types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MwQuoteAcceptanceInput {
+  /** ISO date string for the signature (DD/MM/YYYY) */
+  signatureDate: string;
+  /** Customer's full name */
+  signatureName: string;
+  /** Base64 PNG data-URI of the drawn signature */
+  signatureImage: string;
+  /** true = Accepted, false = Declined */
+  accepted: boolean;
+  /** Agreed to T&Cs */
+  termsAndConditions: boolean;
+  /** Free-text comments / special requirements */
+  comments?: string;
+  /** Numeric Moveware option IDs that were selected by the customer */
+  selectedOptionIds: number[];
+}
+
+export interface MwJobActivityInput {
+  jobId: string;
+  branchCode: string;
+  acceptedAt: Date;
+  agreedToTerms: boolean;
+  signedOnline: boolean;
+  loadDate: string;
+  insuredValue: string;
+  purchaseOrderNumber: string;
+  specialRequirements: string;
+  /** Human-readable summary of the accepted option(s) and their line items */
+  acceptedOptionsSummary: string;
+}
+
+/**
+ * PATCH /{{coId}}/api/jobs/{{jobId}}/quotes/{{quoteId}}
+ *
+ * Submits the customer's acceptance decision, option selection, and signature
+ * back to Moveware.
+ */
+export async function patchMwQuoteAcceptance(
+  creds: MwCredentials,
+  jobId: string,
+  quoteId: string,
+  input: MwQuoteAcceptanceInput,
+): Promise<unknown> {
+  const body = {
+    status:            input.accepted ? 'Accepted' : 'Declined',
+    termsAndConditions: input.termsAndConditions,
+    comments:          input.comments || '',
+    signature: {
+      name:  input.signatureName,
+      date:  input.signatureDate,
+      image: input.signatureImage,
+    },
+    options: input.selectedOptionIds.map((id) => ({
+      id,
+      selected: input.accepted,
+    })),
+  };
+
+  return mwPatch(creds, `jobs/${jobId}/quotes/${quoteId}`, body);
+}
+
+/**
+ * POST /{{coId}}/api/jobs/{{jobId}}/activities
+ *
+ * Creates a diary entry recording the online quote acceptance.
+ */
+export async function postMwJobActivity(
+  creds: MwCredentials,
+  jobId: string,
+  input: MwJobActivityInput,
+): Promise<unknown> {
+  const pad   = (n: number) => String(n).padStart(2, '0');
+  const d     = input.acceptedAt;
+  const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const hourStr = String(d.getHours());
+
+  const notes = [
+    `Accepted Terms and Conditions: ${input.agreedToTerms ? 'yes' : 'no'}`,
+    `Signed Online: ${input.signedOnline ? 'Yes' : 'No'}`,
+    `Load Date: ${input.loadDate || 'Not provided'}`,
+    `Insurance Value: ${input.insuredValue || 'Not provided'}`,
+    input.purchaseOrderNumber ? `Purchase Order: ${input.purchaseOrderNumber}` : null,
+    `Special Requirements: ${input.specialRequirements || 'None'}`,
+    '',
+    input.acceptedOptionsSummary,
+  ]
+    .filter((l) => l !== null)
+    .join('\n');
+
+  const body = {
+    activityDate:   dateStr,
+    activityHours:  timeStr,
+    activityTime:   hourStr,
+    appointment:    false,
+    branch:         input.branchCode || '',
+    completed:      'Y',
+    comment:        'Customer Quote Accepted',
+    dateModified:   dateStr,
+    description:    'Customer quote accepted',
+    diaries:        '',
+    keyaction:      '',
+    notes,
+    type:           'Customer Quote Accepted',
+    parentId:       Number(input.jobId),
+    parentNumber:   input.jobId,
+    parentType:     'Job',
+  };
+
+  return mwPost(creds, `jobs/${jobId}/activities`, body);
 }
 
 /**

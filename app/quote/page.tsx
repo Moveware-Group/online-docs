@@ -719,6 +719,10 @@ function QuotePageContent() {
       // Format date as DD/MM/YYYY
       const formattedDate = reloFromDate ? formatDate(reloFromDate) : '';
       
+      // Find the full selected costing object so the route can build the
+      // Moveware write-back payload (option summary, charge line items, etc.)
+      const selectedCosting = costings.find((c) => c.id === selectedCostingId) ?? null;
+
       const response = await fetch('/api/quotes/accept', {
         method: 'POST',
         headers: {
@@ -726,16 +730,20 @@ function QuotePageContent() {
         },
         body: JSON.stringify({
           jobId,
-          quoteNumber: jobId,          // API field alias — both are accepted
+          quoteNumber: jobId,
+          coId:        companyId,
+          quoteId,
           costingItemId: selectedCostingId,
-          signatureName: signatureName || customerName,   // fallback when field is hidden
+          signatureName: signatureName || customerName,
           customerName,
-          reloFromDate: formattedDate,
+          branchCode:    job?.branchCode || '',
+          reloFromDate:  formattedDate,
           insuredValue,
           purchaseOrderNumber,
           specialRequirements,
           signatureData: signature,
           agreedToTerms,
+          selectedCosting,
         }),
       });
 
