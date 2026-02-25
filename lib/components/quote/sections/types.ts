@@ -80,6 +80,8 @@ export interface CostingItem {
   name?: string;
   category?: string;
   description?: string;
+  /** Option-level notes / description text */
+  notes?: string;
   quantity?: number;
   rate?: number;
   netTotal?: string;
