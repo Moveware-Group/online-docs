@@ -90,6 +90,7 @@ async function resolveBranding(
     primaryColor: '#1E40AF',
     secondaryColor: '#FFFFFF',
     fontFamily: 'Inter',
+    inventoryWeightUnit: 'kg',
   };
 
   try {
