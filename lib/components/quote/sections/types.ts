@@ -65,6 +65,12 @@ export interface CostingCharge {
   sort: string;
   /** Whether this charge is included in the package price */
   included: boolean;
+  /**
+   * True when this is the aggregate "total" line for the option
+   * (charges[].oneTotal === "Y").  This charge is shown as the primary
+   * service row; all other charges are shown as optional add-ons.
+   */
+  isBaseCharge: boolean;
 }
 
 export interface CostingItem {

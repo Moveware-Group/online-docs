@@ -393,6 +393,8 @@ export type InternalCostingCharge = {
   taxCode: string;
   sort: string;
   included: boolean;
+  /** True when oneTotal === "Y" — this is the aggregate base charge for the option */
+  isBaseCharge: boolean;
 };
 
 export type InternalCosting = {
@@ -582,7 +584,7 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
       taxIncluded:    pick(item, 'taxIncluded', 'gstIncluded', 'includesTax') !== false,
       currency:       'AUD',
       currencySymbol: '$',
-      charges:        [],
+      charges:        [] as InternalCostingCharge[],
       rawData: { inclusions, exclusions },
     };
   });
@@ -650,6 +652,7 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
       taxCode:        str(pick(c, 'taxCode')),
       sort:           str(pick(c, 'sort')),
       included:       c.included === true,
+      isBaseCharge:   c.oneTotal === 'Y' || c.oneTotal === true,
     }));
 
     // Total price: use the option-level valueInclusive; fall back to summing

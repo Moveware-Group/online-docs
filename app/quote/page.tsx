@@ -70,6 +70,7 @@ interface CostingCharge {
   taxCode: string;
   sort: string;
   included: boolean;
+  isBaseCharge: boolean;
 }
 
 interface CostingItem {
