@@ -112,6 +112,15 @@ export async function fetchMwOptions(
   return mwGet(creds, `jobs/${jobId}/options?include=charges`);
 }
 
+/** GET /{{coId}}/api/jobs/{{jobId}}/quotations/{{quoteId}}?include=options */
+export async function fetchMwQuotationOptions(
+  creds: MwCredentials,
+  jobId: string,
+  quoteId: string,
+): Promise<unknown> {
+  return mwGet(creds, `jobs/${jobId}/quotations/${quoteId}?include=options`);
+}
+
 /**
  * GET /{{coId}}/api/jobs/{{jobId}}/inventory
  *
@@ -410,6 +419,85 @@ export function adaptMwOptions(raw: unknown): InternalCosting[] {
       netTotal,
       totalPrice,
       taxIncluded: pick(item, 'taxIncluded', 'gstIncluded', 'includesTax') !== false,
+      rawData: { inclusions, exclusions },
+    };
+  });
+}
+
+/**
+ * Split a bullet-point string (lines separated by \n, optionally prefixed
+ * with "• ", "- " or "* ") into a clean string array.
+ */
+function splitBullets(s: string): string[] {
+  return s
+    .split('\n')
+    .map((l) => l.replace(/^[•\-\*]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+/**
+ * Map a raw Moveware GET /jobs/{id}/quotations/{quoteId}?include=options
+ * response → InternalCosting[].
+ *
+ * Response shape:
+ *   {
+ *     id, quotationDate, expiryDate, options: [
+ *       {
+ *         id, description, optionDescription, optionNumber,
+ *         details, inclusions, exclusions, costCenter, service,
+ *         charges: [
+ *           { id, description, included, rateInclusive, rateExclusive, ... }
+ *         ]
+ *       }
+ *     ]
+ *   }
+ *
+ * Key differences vs. the older /options endpoint:
+ *  - options[].charges is an ARRAY (not a keyed object)
+ *  - inclusions / exclusions are newline-delimited bullet strings
+ *  - the option-level valueInclusive is 0; total must be summed from charges
+ *  - only charges with included === true count toward the package price
+ */
+export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
+  const r = raw as Record<string, unknown>;
+  const options = Array.isArray(r.options)
+    ? (r.options as Record<string, unknown>[])
+    : [];
+
+  return options.map((option, idx) => {
+    const charges = Array.isArray(option.charges)
+      ? (option.charges as Record<string, unknown>[])
+      : [];
+
+    // Sum rateInclusive for all charges that are part of the package price
+    const totalPrice = charges
+      .filter((c) => c.included === true)
+      .reduce((sum, c) => sum + num(pick(c, 'rateInclusive', 'valueInclusive', 'rate')), 0);
+
+    const netTotal = totalPrice > 0 ? (totalPrice / 1.1).toFixed(2) : '0.00';
+
+    // Prefer optionDescription (user-visible) over the internal description field
+    const description   = str(pick(option, 'description', 'name', 'title', 'label'));
+    const optionDescStr = str(pick(option, 'optionDescription'));
+    const displayDesc   = optionDescStr || description;
+    const name          = displayDesc || `Option ${idx + 1}`;
+
+    // Inclusions / exclusions — bullet-point strings in the new endpoint
+    const incStr = str(pick(option, 'inclusions'));
+    const excStr = str(pick(option, 'exclusions'));
+    const inclusions = incStr ? splitBullets(incStr) : [];
+    const exclusions = excStr ? splitBullets(excStr) : [];
+
+    return {
+      id:          str(pick(option, 'id') || `opt-${idx}`),
+      name,
+      category:    str(pick(option, 'costCenter', 'service', 'jobType')),
+      description: str(pick(option, 'details')) || description,
+      quantity:    1,
+      rate:        totalPrice,
+      netTotal,
+      totalPrice,
+      taxIncluded: true,
       rawData: { inclusions, exclusions },
     };
   });

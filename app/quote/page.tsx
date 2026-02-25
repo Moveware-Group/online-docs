@@ -79,6 +79,7 @@ function QuotePageContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get('jobId');
   const companyId = searchParams.get('coId');
+  const quoteId = searchParams.get('quoteId');
   const shouldPrint = searchParams.get('print') === 'true';
   const acceptanceId = searchParams.get('acceptanceId');
   const isPreviewMode = searchParams.get('preview') === 'true';
@@ -362,7 +363,7 @@ function QuotePageContent() {
 
   useEffect(() => {
     if (jobId && companyId) {
-      fetchJobData(jobId, companyId);
+      fetchJobData(jobId, companyId, quoteId);
       
       // If acceptanceId is provided, fetch and populate form data
       if (acceptanceId) {
@@ -505,7 +506,7 @@ function QuotePageContent() {
     }
   };
 
-  const fetchJobData = async (jobIdParam: string, coIdParam: string) => {
+  const fetchJobData = async (jobIdParam: string, coIdParam: string, quoteIdParam?: string | null) => {
     try {
       setLoading(true);
       setError(null);
@@ -525,8 +526,14 @@ function QuotePageContent() {
         console.log(`[quote] inventory source="${inventoryResult.source}" count=${inventoryResult.count}`);
       }
 
-      // Fetch costings with company ID
-      const costingsResponse = await fetch(`/api/jobs/${jobIdParam}/costings?coId=${coIdParam}`);
+      // Fetch costings — use the new quotations endpoint when a quoteId is
+      // provided (single API call returns all options with charges, inclusions
+      // and exclusions).  Fall back to the legacy /options endpoint otherwise.
+      const costingsUrl = quoteIdParam
+        ? `/api/jobs/${jobIdParam}/quotations/${quoteIdParam}?coId=${coIdParam}`
+        : `/api/jobs/${jobIdParam}/costings?coId=${coIdParam}`;
+
+      const costingsResponse = await fetch(costingsUrl);
       const costingsResult = await costingsResponse.json();
 
       setJob(jobResult.data);
@@ -572,7 +579,7 @@ function QuotePageContent() {
       }
 
       // Refresh the page data
-      await fetchJobData(jobId, companyId);
+      await fetchJobData(jobId, companyId, quoteId);
     } catch (err) {
       console.error('Error syncing data:', err);
       setError(err instanceof Error ? err.message : 'Failed to sync data from Moveware');
@@ -762,7 +769,7 @@ function QuotePageContent() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Quote</h2>
             <p className="text-gray-600 mb-6">{error || 'Job not found'}</p>
             <button
-              onClick={() => jobId && companyId && fetchJobData(jobId, companyId)}
+              onClick={() => jobId && companyId && fetchJobData(jobId, companyId, quoteId)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
             >
               Try Again
