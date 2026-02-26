@@ -87,6 +87,16 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-300 bg-gray-50">
+              <td className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
+              <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalItems}</td>
+              <td className="px-4 py-3 text-xs text-gray-500">
+                Volume: <strong>{totalVolume.toFixed(0)} ft³</strong>
+              </td>
+              <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalWeightDisplay}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
@@ -156,27 +166,6 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
         </div>
       )}
 
-      {/* ── Summary totals ──────────────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-t border-gray-200 space-y-1 text-sm">
-        <div className="flex items-center gap-2 text-gray-700">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          Total number of items to move: <strong>{totalItems}</strong>
-        </div>
-        <div className="flex items-center gap-2 text-gray-700">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-          Total Volume: <strong>{totalVolume.toFixed(0)} ft³</strong>
-        </div>
-        <div className="flex items-center gap-2 text-gray-700">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-          </svg>
-          Total weight: <strong>{totalWeightDisplay}</strong>
-        </div>
-      </div>
     </div>
   );
 }
