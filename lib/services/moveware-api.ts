@@ -288,24 +288,22 @@ export async function postMwJobActivity(
 ): Promise<unknown> {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const d     = input.acceptedAt;
-  // Date as YYYY-MM-DD (ISO); time as HH:MM for the Start column
-  const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const startStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-
-  // Notes: use LF-only (\n) line endings — Moveware strips \r and renders
-  // the remaining \n as visible text when CRLF is sent.
-  const notes = (input.acceptedOptionsSummary || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  // Full ISO datetime — populates Moveware's dateTime column (time display in diary)
+  const dateStr    = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const startStr   = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // Full ISO datetime — populates Moveware's dateTime / time column in the diary
   const dateTimeStr = `${dateStr}T${startStr}:00.000`;
 
-  // Only send fields that are present in the GET /activities response to avoid
-  // Moveware validation errors from unknown/unsupported field names.
+  // Moveware stores notes with \r\n line endings — use CRLF so the Paragraph
+  // dialog in the desktop client renders each line break correctly.
+  const notes = (input.acceptedOptionsSummary || '')
+    .replace(/\r\n/g, '\n')   // normalise to LF first
+    .replace(/\r/g, '\n')
+    .replace(/\n/g, '\r\n');  // then convert all LF → CRLF
+
   const body = {
     appointment:  false,
     branch:       input.branchCode || '',
     comment:      'Online Customer Quote Accepted',
-    completed:    'Y',
     date:         dateStr,
     dateTime:     dateTimeStr,
     description:  'Online Customer Quote Accepted',
@@ -317,7 +315,31 @@ export async function postMwJobActivity(
     type:         'Online Customer Quote Accepted',
   };
 
-  return mwPost(creds, `jobs/${jobId}/activities`, body);
+  // Step 1: Create the activity
+  const created = await mwPost(creds, `jobs/${jobId}/activities`, body) as Record<string, unknown>;
+
+  // Step 2: Immediately PATCH the new activity to mark it completed.
+  // Moveware ignores completed:'Y' on POST (the field is read-only at creation);
+  // a follow-up PATCH on the returned activity ID is the correct approach.
+  const activityId =
+    created?.id ??
+    (created?.data as Record<string, unknown>)?.id ??
+    (created?.links as Record<string, unknown>)?.full;
+
+  if (activityId) {
+    try {
+      await mwPatch(creds, `jobs/${jobId}/activities/${activityId}`, {
+        completed: 'Y',
+      });
+    } catch (patchErr) {
+      // Non-fatal — activity was created; completion tick is best-effort.
+      console.warn('[moveware-api] Activity completion PATCH failed:', patchErr);
+    }
+  } else {
+    console.warn('[moveware-api] Could not determine activity ID from POST response — skipping completion PATCH');
+  }
+
+  return created;
 }
 
 /**
