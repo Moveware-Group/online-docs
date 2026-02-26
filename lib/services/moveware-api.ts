@@ -656,19 +656,35 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
     );
 
     // Map to structured charge line items
-    const charges: InternalCostingCharge[] = sortedCharges.map((c) => ({
-      id:             num(pick(c, 'id')),
-      heading:        str(pick(c, 'description')),
-      notes:          str(pick(c, 'notes')),
-      quantity:       num(pick(c, 'quantity', 'qty')) || 1,
-      price:          num(pick(c, 'rateExclusive', 'rate')),
-      currency:       str(pick(c, 'currency')) || 'AUD',
-      currencySymbol: str(pick(c, 'currencySymbol')) || '$',
-      taxCode:        str(pick(c, 'taxCode')),
-      sort:           str(pick(c, 'sort')),
-      included:       c.included === true,
-      isBaseCharge:   c.oneTotal === 'Y' || c.oneTotal === true,
-    }));
+    const charges: InternalCostingCharge[] = sortedCharges.map((c) => {
+      // Price: prefer rateExclusive; fall back to rateInclusive when exclusive is 0
+      // (the base "oneTotal" charge often has rateExclusive=0 but rateInclusive=1050)
+      const rateEx = num(pick(c, 'rateExclusive', 'rateEx'));
+      const rateIn = num(pick(c, 'rateInclusive', 'rate', 'price'));
+      const price  = rateEx > 0 ? rateEx : rateIn;
+
+      // included: handle boolean false, string "false", 0, null, undefined — all = not included
+      const rawIncluded = c.included;
+      const included =
+        rawIncluded === true ||
+        rawIncluded === 'true' ||
+        rawIncluded === 'Y' ||
+        rawIncluded === 1;
+
+      return {
+        id:             num(pick(c, 'id')),
+        heading:        str(pick(c, 'description')),
+        notes:          str(pick(c, 'notes')),
+        quantity:       num(pick(c, 'quantity', 'qty')) || 1,
+        price,
+        currency:       str(pick(c, 'currency')) || 'AUD',
+        currencySymbol: str(pick(c, 'currencySymbol')) || '$',
+        taxCode:        str(pick(c, 'taxCode')),
+        sort:           str(pick(c, 'sort')),
+        included,
+        isBaseCharge:   c.oneTotal === 'Y' || c.oneTotal === true,
+      };
+    });
 
     // Total price: use the option-level valueInclusive; fall back to summing
     // included charges' rateInclusive when the option total isn't populated yet.

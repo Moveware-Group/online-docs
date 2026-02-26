@@ -81,11 +81,11 @@ export function EstimateCard({
       {/* ── Charges table ───────────────────────────────────────────────────── */}
       <table className="w-full text-sm">
 
-        {/* Column sub-header — option name on left, base total on right */}
+        {/* Column sub-header */}
         <thead>
           <tr className="border-b border-gray-200">
             <th className="px-6 py-2 text-left text-xs font-normal text-gray-500">
-              {costing.name || 'Charges'}
+              Services
             </th>
             <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-24">Quantity</th>
             <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-28">Rate</th>
