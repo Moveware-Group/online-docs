@@ -371,12 +371,16 @@ export function CustomLayoutRenderer({
             );
           }
 
-          // AcceptanceForm: the slot manages its own outer layout wrapper
-          // (max-width + padding) so it can match the surrounding custom_html
-          // blocks without being constrained by a second px-4 container here.
+          // AcceptanceForm: use the same maxWidth + px-4 wrapper as every
+          // other built-in section so width and horizontal padding are identical.
           if (section.component === 'AcceptanceForm') {
             return (
-              <div key={section.id} data-section-id={section.id}>
+              <div
+                key={section.id}
+                data-section-id={section.id}
+                style={{ maxWidth: globalStyles.maxWidth || '1152px' }}
+                className="mx-auto px-4 mb-6"
+              >
                 <RenderSection
                   section={section}
                   data={data}

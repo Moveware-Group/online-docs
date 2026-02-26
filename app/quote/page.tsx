@@ -907,11 +907,9 @@ function QuotePageContent() {
     // DatePicker and all form state work exactly as in the default template.
     // It is styled to match the grace card pattern used by all other blocks.
     const acceptanceFormSlot = (
-      // Outer wrapper matches the grace card pattern used by all other custom-layout blocks:
-      // max-width:1152px centred with 32px left/right padding.  The inner card uses 20px
-      // border-radius to match every other Grace block.
-      <div style={{ maxWidth: '1152px', margin: '0 auto', padding: '0 32px' }}>
-      <div style={{ marginBottom: '50px', background: '#ffffff', border: '1px solid #e9e9e9', borderRadius: '20px', padding: '28px 24px' }}>
+      // No outer width wrapper — the CustomLayoutRenderer provides maxWidth + px-4
+      // for AcceptanceForm sections, matching every other built-in section exactly.
+      <div className="bg-white rounded-lg shadow" style={{ padding: '28px 24px' }}>
           <h3 style={{ color: primaryColor, fontSize: '22px', fontWeight: 700, margin: '0 0 16px 0', paddingBottom: '16px', borderBottom: '1px solid #e0e0e0' }}>
             Accept quote
           </h3>
