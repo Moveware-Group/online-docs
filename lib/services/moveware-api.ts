@@ -154,8 +154,18 @@ export async function fetchMwQuotationOptions(
 // Write-back types
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface MwQuoteAcceptanceCharge {
+  id: string | number;
+  description: string;
+  value: number;
+  valueInc: number;
+  valueEx: number;
+  quantity: string;
+  included: boolean;
+}
+
 export interface MwQuoteAcceptanceInput {
-  /** ISO date string for the signature (DD/MM/YYYY) */
+  /** ISO 8601 date string for the signature timestamp */
   signatureDate: string;
   /** Customer's full name */
   signatureName: string;
@@ -167,8 +177,17 @@ export interface MwQuoteAcceptanceInput {
   termsAndConditions: boolean;
   /** Free-text comments / special requirements */
   comments?: string;
-  /** Numeric Moveware option IDs that were selected by the customer */
-  selectedOptionIds: number[];
+  /** Purchase order number (maps to job.jobOrder) */
+  jobOrder?: string;
+  /** Estimated move / relocation date as ISO string (maps to job.estimatedMove) */
+  estimatedMove?: string;
+  /** Insurance value in dollars (maps to job.services.insurance.value) */
+  insuredValue?: number;
+  /** Full option records with their charge line items */
+  selectedOptions: Array<{
+    id: string | number;
+    charges?: MwQuoteAcceptanceCharge[];
+  }>;
 }
 
 export interface MwJobActivityInput {
@@ -186,10 +205,11 @@ export interface MwJobActivityInput {
 }
 
 /**
- * PATCH /{{coId}}/api/jobs/{{jobId}}/quotes/{{quoteId}}
+ * PATCH /{{coId}}/api/jobs/{{jobId}}/quotations/{{quoteId}}
  *
- * Submits the customer's acceptance decision, option selection, and signature
- * back to Moveware.
+ * Submits the customer's acceptance decision, option selection, signature,
+ * job details, and charge line items back to Moveware using the consolidated
+ * quotations endpoint.
  */
 export async function patchMwQuoteAcceptance(
   creds: MwCredentials,
@@ -197,22 +217,40 @@ export async function patchMwQuoteAcceptance(
   quoteId: string,
   input: MwQuoteAcceptanceInput,
 ): Promise<unknown> {
-  const body = {
-    status:            input.accepted ? 'Accepted' : 'Declined',
+  const body: Record<string, unknown> = {
+    status:             input.accepted ? 'Accepted' : 'Declined',
     termsAndConditions: input.termsAndConditions,
-    comments:          input.comments || '',
+    comments:           input.comments || '',
     signature: {
       name:  input.signatureName,
       date:  input.signatureDate,
       image: input.signatureImage,
     },
-    options: input.selectedOptionIds.map((id) => ({
-      id,
+    options: input.selectedOptions.map((opt) => ({
+      id:       String(opt.id),
       selected: input.accepted,
+      charges:  (opt.charges ?? []).map((c) => ({
+        id:          String(c.id),
+        description: c.description,
+        value:       c.value,
+        valueInc:    c.valueInc,
+        valueEx:     c.valueEx,
+        quantity:    c.quantity,
+        included:    c.included,
+      })),
     })),
   };
 
-  return mwPatch(creds, `jobs/${jobId}/quotes/${quoteId}`, body);
+  // Include job-level fields only when they carry meaningful data
+  const jobBlock: Record<string, unknown> = {};
+  if (input.jobOrder)      jobBlock.jobOrder      = input.jobOrder;
+  if (input.estimatedMove) jobBlock.estimatedMove = input.estimatedMove;
+  if (input.insuredValue && input.insuredValue > 0) {
+    jobBlock.services = { insurance: { value: input.insuredValue } };
+  }
+  if (Object.keys(jobBlock).length > 0) body.job = jobBlock;
+
+  return mwPatch(creds, `jobs/${jobId}/quotations/${quoteId}`, body);
 }
 
 /**

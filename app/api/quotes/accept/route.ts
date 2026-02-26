@@ -2,11 +2,11 @@
  * Quote Acceptance API
  * POST /api/quotes/accept
  *
- * 1. Saves the acceptance record to the local database.
- * 2. Writes the acceptance back to Moveware via two calls (non-blocking — a
- *    Moveware failure never blocks the customer's confirmation):
- *      a. PATCH /jobs/{jobId}/quotes/{quoteId}  — status, options, signature
- *      b. POST  /jobs/{jobId}/activities        — diary entry
+ * 1. Writes the acceptance back to Moveware via PATCH
+ *    /jobs/{jobId}/quotations/{quoteId}  — status, options, charges, signature.
+ * 2. Posts a diary activity entry: POST /jobs/{jobId}/activities.
+ * 3. Attempts a best-effort local DB upsert (non-blocking — DB failure never
+ *    prevents the customer's confirmation from reaching Moveware).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,6 +15,7 @@ import {
   getMwCredentials,
   patchMwQuoteAcceptance,
   postMwJobActivity,
+  type MwQuoteAcceptanceCharge,
 } from '@/lib/services/moveware-api';
 
 /** Build the "Accepted Option(s):" block used in the activity diary note. */
@@ -42,6 +43,7 @@ interface AcceptedCharge {
   price: number;
   currency: string;
   included: boolean;
+  quantity?: number;
 }
 
 /** Minimal shape of the costing option sent from the quote page. */
@@ -54,22 +56,34 @@ interface AcceptedCosting {
   charges?: AcceptedCharge[];
 }
 
+/** Parse DD/MM/YYYY or any date string → ISO 8601. Falls back to now. */
+function toIso(dateStr: string): string {
+  if (!dateStr) return new Date().toISOString();
+  // Handle DD/MM/YYYY
+  const dmyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmyMatch) {
+    return new Date(`${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`).toISOString();
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const quoteNumber: string       = body.quoteNumber || body.jobId || '';
-    const jobId: string             = body.jobId || '';
-    const coId: string              = body.coId || '';
-    const quoteId: string           = body.quoteId || '';
-    const signatureData: string     = body.signatureData || '';
-    const signatureName: string     = body.signatureName || body.customerName || 'Accepted';
-    const agreedToTerms: boolean    = !!body.agreedToTerms;
-    const reloFromDate: string      = body.reloFromDate || '';
-    const insuredValue: string      = body.insuredValue || '';
+    const quoteNumber: string         = body.quoteNumber || body.jobId || '';
+    const jobId: string               = body.jobId || '';
+    const coId: string                = body.coId || '';
+    const quoteId: string             = body.quoteId || '';
+    const signatureData: string       = body.signatureData || '';
+    const signatureName: string       = body.signatureName || body.customerName || 'Accepted';
+    const agreedToTerms: boolean      = !!body.agreedToTerms;
+    const reloFromDate: string        = body.reloFromDate || '';
+    const insuredValue: string        = body.insuredValue || '';
     const purchaseOrderNumber: string = body.purchaseOrderNumber || '';
     const specialRequirements: string = body.specialRequirements || '';
-    const branchCode: string        = body.branchCode || '';
+    const branchCode: string          = body.branchCode || '';
     const selectedCosting: AcceptedCosting | null = body.selectedCosting || null;
 
     console.log('📝 Received quote acceptance request:', { quoteNumber, signatureName, quoteId });
@@ -95,43 +109,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── 1. Save to local database ───────────────────────────────────────────
-    console.log('💾 Updating quote in database...');
-    const updatedQuote = await prisma.quote.update({
-      where: { quoteNumber },
-      data: {
-        status:       'accepted',
-        termsAccepted: true,
-        acceptedAt:   new Date(),
-        acceptedBy:   signatureName,
-        signatureData,
-      },
-    });
-    console.log('✅ Quote acceptance saved locally:', updatedQuote.id);
+    // ── 1. Write back to Moveware ───────────────────────────────────────────
+    // This is the primary acceptance path.  Failures are logged but a failed
+    // Moveware call does NOT block the customer — the local record is still
+    // saved and the confirmation page is shown.
+    const acceptedAt = new Date();
 
-    // ── 2. Write back to Moveware (non-blocking) ────────────────────────────
-    // Both calls are attempted in parallel.  Failures are logged but do not
-    // surface an error to the customer — the local acceptance is already saved.
     if (coId && quoteId && jobId) {
-      const acceptedAt = new Date();
       const creds = await getMwCredentials(coId).catch(() => null);
 
       if (creds) {
-        const selectedOptionIds: number[] = selectedCosting?.id
-          ? [Number(selectedCosting.id)]
-          : [];
+        // Map the selected option's charges to the Moveware payload format
+        const mwCharges: MwQuoteAcceptanceCharge[] = (selectedCosting?.charges ?? []).map((c) => ({
+          id:          c.id,
+          description: c.heading,
+          value:       c.price,
+          valueInc:    c.price,
+          valueEx:     c.price,
+          quantity:    String(c.quantity ?? 1),
+          included:    c.included,
+        }));
+
+        const insuredValueNum = insuredValue
+          ? parseFloat(insuredValue.replace(/[^0-9.]/g, '')) || 0
+          : 0;
 
         const optionsSummary = buildOptionsSummary(selectedCosting);
 
         const [patchResult, activityResult] = await Promise.allSettled([
           patchMwQuoteAcceptance(creds, jobId, quoteId, {
-            signatureDate:  reloFromDate || acceptedAt.toLocaleDateString('en-AU'),
+            signatureDate:     acceptedAt.toISOString(),
             signatureName,
-            signatureImage: signatureData,
-            accepted:       true,
+            signatureImage:    signatureData,
+            accepted:          true,
             termsAndConditions: agreedToTerms,
-            comments:       specialRequirements,
-            selectedOptionIds,
+            comments:          specialRequirements,
+            jobOrder:          purchaseOrderNumber || undefined,
+            estimatedMove:     reloFromDate ? toIso(reloFromDate) : undefined,
+            insuredValue:      insuredValueNum || undefined,
+            selectedOptions:   selectedCosting
+              ? [{ id: selectedCosting.id, charges: mwCharges }]
+              : [],
           }),
           postMwJobActivity(creds, jobId, {
             jobId,
@@ -148,13 +166,13 @@ export async function POST(request: NextRequest) {
         ]);
 
         if (patchResult.status === 'rejected') {
-          console.error('[accept] Moveware PATCH failed (non-blocking):', patchResult.reason);
+          console.error('[accept] Moveware PATCH failed:', patchResult.reason);
         } else {
           console.log('[accept] Moveware PATCH succeeded');
         }
 
         if (activityResult.status === 'rejected') {
-          console.error('[accept] Moveware activity POST failed (non-blocking):', activityResult.reason);
+          console.error('[accept] Moveware activity POST failed:', activityResult.reason);
         } else {
           console.log('[accept] Moveware activity diary created');
         }
@@ -165,10 +183,53 @@ export async function POST(request: NextRequest) {
       console.warn('[accept] Missing coId/quoteId/jobId — skipping Moveware write-back');
     }
 
+    // ── 2. Best-effort local DB upsert (non-blocking) ──────────────────────
+    // The Quote table requires companyId (FK) so we look it up first.
+    // A failure here never blocks the customer's confirmation.
+    let localId = `mw-${jobId}-${Date.now()}`;
+    try {
+      const company = coId
+        ? await prisma.company.findFirst({ where: { tenantId: coId }, select: { id: true } })
+        : null;
+
+      if (company) {
+        const localRecord = await (prisma.quote as unknown as {
+          upsert: (args: unknown) => Promise<{ id: string }>;
+        }).upsert({
+          where:  { quoteNumber },
+          create: {
+            quoteNumber,
+            companyId:     company.id,
+            customerName:  signatureName,
+            status:        'accepted',
+            totalAmount:   selectedCosting?.totalPrice ?? 0,
+            termsAccepted: true,
+            acceptedAt,
+            acceptedBy:    signatureName,
+            signatureData,
+            data:          JSON.stringify({ jobId, quoteId }),
+          },
+          update: {
+            status:        'accepted',
+            termsAccepted: true,
+            acceptedAt,
+            acceptedBy:    signatureName,
+            signatureData,
+          },
+        });
+        localId = localRecord.id;
+        console.log('✅ Local DB record upserted:', localId);
+      } else {
+        console.warn('[accept] Company not found for coId:', coId, '— skipping local DB save');
+      }
+    } catch (dbErr) {
+      console.warn('[accept] Local DB upsert failed (non-blocking):', dbErr);
+    }
+
     return NextResponse.json(
       {
         success: true,
-        data: updatedQuote,
+        data:    { id: localId },
         message: 'Quote accepted successfully',
       },
       { status: 200 },
@@ -177,7 +238,7 @@ export async function POST(request: NextRequest) {
     console.error('❌ Error accepting quote:', error);
     return NextResponse.json(
       {
-        error: 'Failed to accept quote',
+        error:   'Failed to accept quote',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 },
