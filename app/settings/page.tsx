@@ -525,32 +525,45 @@ function CompanyForm({
             Quote Settings
           </p>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Inventory Weight Unit
+            <label className="block text-xs font-medium text-gray-600 mb-2">
+              Measurement System
             </label>
-            <div className="flex gap-2">
-              {(['kg', 'lbs'] as const).map((unit) => (
-                <button
-                  key={unit}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, inventoryWeightUnit: unit })}
-                  className={`px-4 py-1.5 text-sm rounded-full border transition-colors ${
-                    (formData.inventoryWeightUnit ?? 'kg') === unit
-                      ? 'text-white border-transparent'
-                      : 'text-gray-600 border-gray-300 hover:border-gray-400 bg-white'
-                  }`}
-                  style={
-                    (formData.inventoryWeightUnit ?? 'kg') === unit
-                      ? { backgroundColor: formData.primaryColor || '#cc0000', borderColor: formData.primaryColor || '#cc0000' }
-                      : {}
-                  }
-                >
-                  {unit.toUpperCase()}
-                </button>
-              ))}
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'kg' })}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
+                    ? 'text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                style={
+                  (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
+                    ? { backgroundColor: formData.primaryColor || '#cc0000' }
+                    : {}
+                }
+              >
+                Metric (kg, m³)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'lbs' })}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  formData.inventoryWeightUnit === 'lbs'
+                    ? 'text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                style={
+                  formData.inventoryWeightUnit === 'lbs'
+                    ? { backgroundColor: formData.primaryColor || '#cc0000' }
+                    : {}
+                }
+              >
+                Imperial (lbs, ft³)
+              </button>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Controls how item weights are displayed in the inventory table on the quote page.
+              Controls how weight and volume are displayed in the inventory table on the quote page.
             </p>
           </div>
         </div>

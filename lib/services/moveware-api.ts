@@ -437,6 +437,16 @@ export type InternalInventoryItem = {
   weightKg: number;
 };
 
+/** Aggregate measurement totals extracted from the quotation-level measurements block. */
+export type InternalMeasurements = {
+  /** Total gross volume in cubic metres (measurements.volume.gross.meters) */
+  volumeGrossM3: number;
+  /** Total gross weight in kilograms (measurements.weight.gross.kilograms) */
+  weightGrossKg: number;
+  /** Total gross weight in pounds (measurements.weight.gross.pounds) */
+  weightGrossPounds: number;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Response adapters
 // Field names try multiple common Moveware REST API conventions.
@@ -729,6 +739,32 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
       rawData: { inclusions, exclusions },
     };
   });
+}
+
+/**
+ * Extract aggregate measurement totals from a raw Moveware quotation response.
+ *
+ * Expects the top-level shape:
+ *   {
+ *     measurements: {
+ *       volume: { gross: { meters: 0.481, feet: 17.0 }, ... },
+ *       weight: { gross: { kilograms: 54.0, pounds: 119.0 }, ... }
+ *     }
+ *   }
+ */
+export function adaptMwQuotationMeasurements(raw: unknown): InternalMeasurements {
+  const r   = raw as Record<string, unknown>;
+  const m   = r.measurements as Record<string, unknown> | undefined;
+  const vol      = m?.volume   as Record<string, unknown> | undefined;
+  const volGross = vol?.gross  as Record<string, unknown> | undefined;
+  const wt       = m?.weight   as Record<string, unknown> | undefined;
+  const wtGross  = wt?.gross   as Record<string, unknown> | undefined;
+
+  return {
+    volumeGrossM3:     num(volGross?.meters    ?? volGross?.meter    ?? 0),
+    weightGrossKg:     num(wtGross?.kilograms  ?? wtGross?.kg        ?? 0),
+    weightGrossPounds: num(wtGross?.pounds     ?? wtGross?.lbs       ?? 0),
+  };
 }
 
 /**

@@ -3,18 +3,36 @@
 import { useState } from 'react';
 import type { InventoryItem, SectionConfig } from './types';
 
-const KG_TO_LBS = 2.20462;
+const KG_TO_LBS  = 2.20462;
+const M3_TO_FT3  = 35.3147;
 
 interface Props {
   inventory: InventoryItem[];
   primaryColor: string;
   totalCube: number;
-  /** Unit for the weight column. Defaults to 'kg'. */
+  /** Unit for weight and volume columns ('kg' = metric m³, 'lbs' = imperial ft³). Defaults to 'kg'. */
   weightUnit?: 'kg' | 'lbs';
+  /**
+   * When provided, use this as the total volume instead of summing individual
+   * item cubes. Sourced from measurements.volume.gross.meters on the quotation.
+   */
+  totalVolumeM3Override?: number;
+  /**
+   * When provided, use this as the total weight instead of summing item weights.
+   * Sourced from measurements.weight.gross.kilograms on the quotation.
+   */
+  totalWeightKgOverride?: number;
   config?: SectionConfig;
 }
 
-export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', config }: Props) {
+export function InventoryTable({
+  inventory,
+  primaryColor,
+  weightUnit = 'kg',
+  totalVolumeM3Override,
+  totalWeightKgOverride,
+  config,
+}: Props) {
   const defaultPageSize = (config?.defaultPageSize as number) || 10;
 
   const [itemsPerPage, setItemsPerPage] = useState(defaultPageSize);
@@ -35,18 +53,32 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
     return v.toFixed(0);
   };
 
-  const totalItems  = inventory.reduce((s, i) => s + (i.quantity || 1), 0);
-  const totalWeight = inventory.reduce((s, i) => {
-    const w = i.weightKg ?? 0;
-    const q = i.quantity || 1;
-    return s + w * q;
-  }, 0);
+  const totalItems = inventory.reduce((s, i) => s + (i.quantity || 1), 0);
+
+  // Weight: prefer API-provided total (measurements.weight.gross.kilograms),
+  // fall back to summing individual item weights × quantity.
+  const totalWeightKg =
+    totalWeightKgOverride !== undefined
+      ? totalWeightKgOverride
+      : inventory.reduce((s, i) => s + (i.weightKg ?? 0) * (i.quantity || 1), 0);
+
   const totalWeightDisplay =
     weightUnit === 'lbs'
-      ? `${(totalWeight * KG_TO_LBS).toFixed(0)} lbs`
-      : `${totalWeight.toFixed(0)} kg`;
-  // cube is stored in cubic metres (from volume.meter in the Moveware API)
-  const totalVolumeM3 = inventory.reduce((s, i) => s + (i.cube ?? 0), 0);
+      ? `${(totalWeightKg * KG_TO_LBS).toFixed(0)} lbs`
+      : `${totalWeightKg.toFixed(0)} kg`;
+
+  // Volume: prefer API-provided total (measurements.volume.gross.meters),
+  // fall back to summing individual item cubes.
+  const totalVolumeM3 =
+    totalVolumeM3Override !== undefined
+      ? totalVolumeM3Override
+      : inventory.reduce((s, i) => s + (i.cube ?? 0), 0);
+
+  // Display volume in m³ (metric) or ft³ (imperial)
+  const volumeDisplay =
+    weightUnit === 'lbs'
+      ? `${(totalVolumeM3 * M3_TO_FT3).toFixed(2)} ft³`
+      : `${totalVolumeM3.toFixed(2)} m³`;
 
   return (
     <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
@@ -93,7 +125,7 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
               <td className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
               <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalItems}</td>
               <td className="px-4 py-3 text-xs text-gray-500">
-                Volume: <strong>{totalVolumeM3.toFixed(2)} m³</strong>
+                Volume: <strong>{volumeDisplay}</strong>
               </td>
               <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalWeightDisplay}</td>
             </tr>

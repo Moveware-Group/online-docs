@@ -17,6 +17,7 @@ import {
   getMwCredentials,
   fetchMwQuotationOptions,
   adaptMwQuotationOptions,
+  adaptMwQuotationMeasurements,
 } from '@/lib/services/moveware-api';
 
 export async function GET(
@@ -40,11 +41,13 @@ export async function GET(
       if (creds) {
         try {
           const raw = await fetchMwQuotationOptions(creds, jobId, quoteId);
-          const costings = adaptMwQuotationOptions(raw);
+          const costings     = adaptMwQuotationOptions(raw);
+          const measurements = adaptMwQuotationMeasurements(raw);
 
           return NextResponse.json({
             success: true,
             data: costings,
+            measurements,
             count: costings.length,
             source: 'moveware',
           });

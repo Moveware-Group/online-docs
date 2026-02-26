@@ -115,6 +115,11 @@ function QuotePageContent() {
   const [job, setJob] = useState<Job | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [costings, setCostings] = useState<CostingItem[]>([]);
+  const [quoteMeasurements, setQuoteMeasurements] = useState<{
+    volumeGrossM3?: number;
+    weightGrossKg?: number;
+    weightGrossPounds?: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -567,6 +572,9 @@ function QuotePageContent() {
       setJob(jobResult.data);
       setInventory(inventoryResult.data || []);
       setCostings(costingsResult.data || []);
+      if (costingsResult.measurements) {
+        setQuoteMeasurements(costingsResult.measurements);
+      }
 
       // Always load the saved layout from the API.
       // In preview mode (Layout Builder iframe) the postMessage handler will
@@ -1367,6 +1375,8 @@ function QuotePageContent() {
               primaryColor={primaryColor}
               totalCube={totalCube}
               weightUnit={job?.branding?.inventoryWeightUnit ?? 'kg'}
+              totalVolumeM3Override={quoteMeasurements?.volumeGrossM3}
+              totalWeightKgOverride={quoteMeasurements?.weightGrossKg}
             />
           )}
           {false && inventory.length > 0 && (
