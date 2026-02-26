@@ -1431,7 +1431,7 @@ function QuotePageContent() {
                         <span className="text-red-600">Qty</span> {inventory.reduce((sum, item) => sum + (item.quantity || 1), 0)}
                       </td>
                       <td className="px-6 py-4 text-center text-sm font-bold text-gray-900">
-                        <span className="text-red-600">cubic metres</span> {totalCube.toFixed(2)}
+                        {totalCube.toFixed(2)} m³
                       </td>
                       <td></td>
                     </tr>

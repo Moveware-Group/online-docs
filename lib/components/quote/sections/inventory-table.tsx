@@ -45,7 +45,8 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
     weightUnit === 'lbs'
       ? `${(totalWeight * KG_TO_LBS).toFixed(0)} lbs`
       : `${totalWeight.toFixed(0)} kg`;
-  const totalVolume = inventory.reduce((s, i) => s + (i.cube ?? 0), 0);
+  // cube is stored in cubic metres (from volume.meter in the Moveware API)
+  const totalVolumeM3 = inventory.reduce((s, i) => s + (i.cube ?? 0), 0);
 
   return (
     <div className="bg-white rounded-lg shadow mb-6 overflow-hidden">
@@ -92,7 +93,7 @@ export function InventoryTable({ inventory, primaryColor, weightUnit = 'kg', con
               <td className="px-4 py-3 text-sm font-semibold text-gray-700">Total</td>
               <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalItems}</td>
               <td className="px-4 py-3 text-xs text-gray-500">
-                Volume: <strong>{totalVolume.toFixed(0)} ft³</strong>
+                Volume: <strong>{totalVolumeM3.toFixed(2)} m³</strong>
               </td>
               <td className="px-4 py-3 text-sm font-bold text-gray-900">{totalWeightDisplay}</td>
             </tr>
