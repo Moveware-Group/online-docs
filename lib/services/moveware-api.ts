@@ -254,6 +254,29 @@ export async function patchMwQuoteAcceptance(
 }
 
 /**
+ * PATCH /{{coId}}/api/jobs/{{jobId}}
+ *
+ * Updates the job status and estimated move date on acceptance.
+ * - status: "W" (Won)
+ * - estimatedMove.date: the customer's requested relocation date (ISO string)
+ */
+export async function patchMwJobStatus(
+  creds: MwCredentials,
+  jobId: string,
+  input: { status: string; estimatedMoveDate?: string },
+): Promise<unknown> {
+  const body: Record<string, unknown> = {
+    status: input.status,
+  };
+
+  if (input.estimatedMoveDate) {
+    body.estimatedMove = { date: input.estimatedMoveDate };
+  }
+
+  return mwPatch(creds, `jobs/${jobId}`, body);
+}
+
+/**
  * POST /{{coId}}/api/jobs/{{jobId}}/activities
  *
  * Creates a diary entry recording the online quote acceptance.

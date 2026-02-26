@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db';
 import {
   getMwCredentials,
   patchMwQuoteAcceptance,
+  patchMwJobStatus,
   postMwJobActivity,
   type MwQuoteAcceptanceCharge,
 } from '@/lib/services/moveware-api';
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest) {
 
         const optionsSummary = buildOptionsSummary(selectedCosting);
 
-        const [patchResult, activityResult] = await Promise.allSettled([
+        const [patchResult, jobStatusResult, activityResult] = await Promise.allSettled([
           patchMwQuoteAcceptance(creds, jobId, quoteId, {
             signatureDate:     acceptedAt.toISOString(),
             signatureName,
@@ -150,6 +151,10 @@ export async function POST(request: NextRequest) {
             selectedOptions:   selectedCosting
               ? [{ id: selectedCosting.id, charges: mwCharges }]
               : [],
+          }),
+          patchMwJobStatus(creds, jobId, {
+            status:            'W',
+            estimatedMoveDate: reloFromDate ? toIso(reloFromDate) : undefined,
           }),
           postMwJobActivity(creds, jobId, {
             jobId,
@@ -166,9 +171,15 @@ export async function POST(request: NextRequest) {
         ]);
 
         if (patchResult.status === 'rejected') {
-          console.error('[accept] Moveware PATCH failed:', patchResult.reason);
+          console.error('[accept] Moveware quotation PATCH failed:', patchResult.reason);
         } else {
-          console.log('[accept] Moveware PATCH succeeded');
+          console.log('[accept] Moveware quotation PATCH succeeded');
+        }
+
+        if (jobStatusResult.status === 'rejected') {
+          console.error('[accept] Moveware job status PATCH failed:', jobStatusResult.reason);
+        } else {
+          console.log('[accept] Moveware job status set to W');
         }
 
         if (activityResult.status === 'rejected') {
