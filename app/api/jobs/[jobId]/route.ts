@@ -91,6 +91,13 @@ async function resolveBranding(
     secondaryColor: '#FFFFFF',
     fontFamily: 'Inter',
     inventoryWeightUnit: 'kg',
+    footerBgColor: '#ffffff',
+    footerTextColor: '#374151',
+    footerAddressLine1: '',
+    footerAddressLine2: '',
+    footerPhone: '',
+    footerEmail: '',
+    footerAbn: '',
   };
 
   try {
@@ -128,6 +135,13 @@ async function resolveBranding(
         defaults.secondaryColor,
       fontFamily: bs?.fontFamily ?? defaults.fontFamily,
       inventoryWeightUnit: (bs?.inventoryWeightUnit as 'kg' | 'lbs') ?? 'kg',
+      footerBgColor:      bs?.footerBgColor      ?? '#ffffff',
+      footerTextColor:    bs?.footerTextColor     ?? '#374151',
+      footerAddressLine1: bs?.footerAddressLine1  ?? '',
+      footerAddressLine2: bs?.footerAddressLine2  ?? '',
+      footerPhone:        bs?.footerPhone         ?? '',
+      footerEmail:        bs?.footerEmail         ?? '',
+      footerAbn:          bs?.footerAbn           ?? '',
     };
   } catch (err) {
     console.warn('[jobs/route] branding lookup failed:', err);

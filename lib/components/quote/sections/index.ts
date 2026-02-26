@@ -4,6 +4,7 @@ export { LocationInfo } from './location-info';
 export { EstimateCard } from './estimate-card';
 export { InventoryTable } from './inventory-table';
 export { TermsSection } from './terms-section';
+export { FooterSection } from './footer-section';
 export type {
   Job,
   InventoryItem,

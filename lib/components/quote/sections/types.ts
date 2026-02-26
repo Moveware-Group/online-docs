@@ -36,6 +36,14 @@ export interface Job {
     primaryColor?: string;
     secondaryColor?: string;
     fontFamily?: string;
+    inventoryWeightUnit?: 'kg' | 'lbs';
+    footerBgColor?: string;
+    footerTextColor?: string;
+    footerAddressLine1?: string;
+    footerAddressLine2?: string;
+    footerPhone?: string;
+    footerEmail?: string;
+    footerAbn?: string;
   };
 }
 

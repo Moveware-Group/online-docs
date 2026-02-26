@@ -56,6 +56,13 @@ export async function GET() {
         mwUsername: bs?.mwUsername || '',
         mwPasswordSet: !!(bs?.mwPassword),
         inventoryWeightUnit: (bs?.inventoryWeightUnit as 'kg' | 'lbs') || 'kg',
+        footerBgColor:      bs?.footerBgColor      || '#ffffff',
+        footerTextColor:    bs?.footerTextColor     || '#374151',
+        footerAddressLine1: bs?.footerAddressLine1  || '',
+        footerAddressLine2: bs?.footerAddressLine2  || '',
+        footerPhone:        bs?.footerPhone         || '',
+        footerEmail:        bs?.footerEmail         || '',
+        footerAbn:          bs?.footerAbn           || '',
       };
     });
 
@@ -105,6 +112,13 @@ export async function POST(request: NextRequest) {
       mwUsername,
       mwPassword,
       inventoryWeightUnit,
+      footerBgColor,
+      footerTextColor,
+      footerAddressLine1,
+      footerAddressLine2,
+      footerPhone,
+      footerEmail,
+      footerAbn,
     } = body;
 
     // Validate required fields
@@ -162,6 +176,13 @@ export async function POST(request: NextRequest) {
         fontFamily: fontFamily || 'Inter',
         mwUsername: mwUsername?.trim() || null,
         inventoryWeightUnit: inventoryWeightUnit || 'kg',
+        footerBgColor:      footerBgColor      || '#ffffff',
+        footerTextColor:    footerTextColor     || '#374151',
+        footerAddressLine1: footerAddressLine1  || null,
+        footerAddressLine2: footerAddressLine2  || null,
+        footerPhone:        footerPhone         || null,
+        footerEmail:        footerEmail         || null,
+        footerAbn:          footerAbn           || null,
       };
       if (mwPassword?.trim()) brandingBase.mwPassword = mwPassword.trim();
 
@@ -211,6 +232,13 @@ export async function POST(request: NextRequest) {
         mwUsername: mwUsername?.trim() || null,
         mwPassword: mwPassword?.trim() || null,
         inventoryWeightUnit: inventoryWeightUnit || 'kg',
+        footerBgColor:      footerBgColor      || '#ffffff',
+        footerTextColor:    footerTextColor     || '#374151',
+        footerAddressLine1: footerAddressLine1  || null,
+        footerAddressLine2: footerAddressLine2  || null,
+        footerPhone:        footerPhone         || null,
+        footerEmail:        footerEmail         || null,
+        footerAbn:          footerAbn           || null,
         ...(defaultTemplateId ? { layoutTemplateId: defaultTemplateId } : {}),
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

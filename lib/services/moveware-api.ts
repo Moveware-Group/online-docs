@@ -354,6 +354,17 @@ export type InternalBranding = {
   fontFamily: string;
   /** Unit used to display inventory weights on the quote ('kg' | 'lbs') */
   inventoryWeightUnit: 'kg' | 'lbs';
+  /** Footer background colour (default: #ffffff) */
+  footerBgColor: string;
+  /** Footer body text colour (default: #374151) */
+  footerTextColor: string;
+  /** First line of company contact address shown in footer */
+  footerAddressLine1: string;
+  /** Second line of company contact address shown in footer */
+  footerAddressLine2: string;
+  footerPhone: string;
+  footerEmail: string;
+  footerAbn: string;
 };
 
 export type InternalJob = {

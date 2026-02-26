@@ -63,6 +63,15 @@ interface CompanyBranding {
   mwPassword?: string;
   /** Unit used to display inventory weights on the quote page */
   inventoryWeightUnit?: 'kg' | 'lbs';
+  /** Footer background colour */
+  footerBgColor?: string;
+  /** Footer text colour */
+  footerTextColor?: string;
+  footerAddressLine1?: string;
+  footerAddressLine2?: string;
+  footerPhone?: string;
+  footerEmail?: string;
+  footerAbn?: string;
 }
 
 interface LayoutTemplate {
@@ -310,6 +319,13 @@ function CompanyForm({
       mwPasswordSet: false,
       mwPassword: '',
       inventoryWeightUnit: 'kg',
+      footerBgColor: '#ffffff',
+      footerTextColor: '#374151',
+      footerAddressLine1: '',
+      footerAddressLine2: '',
+      footerPhone: '',
+      footerEmail: '',
+      footerAbn: '',
     }
   );
   const [showMwPassword, setShowMwPassword] = useState(false);
@@ -536,6 +552,110 @@ function CompanyForm({
             <p className="text-xs text-gray-500 mt-1">
               Controls how item weights are displayed in the inventory table on the quote page.
             </p>
+          </div>
+        </div>
+
+        {/* Footer Settings */}
+        <div className="pt-4 border-t border-gray-200 space-y-3">
+          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            Footer
+          </p>
+
+          {/* Background + text colour */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Background Colour</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={formData.footerBgColor || '#ffffff'}
+                  onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
+                  className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
+                />
+                <input
+                  type="text"
+                  value={formData.footerBgColor || '#ffffff'}
+                  onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
+                  className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
+                  placeholder="#ffffff"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Text Colour</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={formData.footerTextColor || '#374151'}
+                  onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
+                  className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
+                />
+                <input
+                  type="text"
+                  value={formData.footerTextColor || '#374151'}
+                  onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
+                  className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
+                  placeholder="#374151"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Contact details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 1</label>
+              <input
+                type="text"
+                value={formData.footerAddressLine1 || ''}
+                onChange={(e) => setFormData({ ...formData, footerAddressLine1: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="11 Toohey Street"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2</label>
+              <input
+                type="text"
+                value={formData.footerAddressLine2 || ''}
+                onChange={(e) => setFormData({ ...formData, footerAddressLine2: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Brisbane QLD 4000"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+              <input
+                type="text"
+                value={formData.footerPhone || ''}
+                onChange={(e) => setFormData({ ...formData, footerPhone: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="+61 7 3000 0000"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+              <input
+                type="email"
+                value={formData.footerEmail || ''}
+                onChange={(e) => setFormData({ ...formData, footerEmail: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="info@company.com.au"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">ABN</label>
+              <input
+                type="text"
+                value={formData.footerAbn || ''}
+                onChange={(e) => setFormData({ ...formData, footerAbn: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="12 345 678 901"
+              />
+            </div>
           </div>
         </div>
 

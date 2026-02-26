@@ -9,6 +9,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { CustomLayoutRenderer } from '@/lib/components/quote/custom-layout-renderer';
 import { InventoryTable } from '@/lib/components/quote/sections/inventory-table';
+import { FooterSection } from '@/lib/components/quote/sections/footer-section';
 import type { LayoutConfig } from '@/lib/services/llm-service';
 
 interface Job {
@@ -49,6 +50,13 @@ interface Job {
     secondaryColor?: string;
     fontFamily?: string;
     inventoryWeightUnit?: 'kg' | 'lbs';
+    footerBgColor?: string;
+    footerTextColor?: string;
+    footerAddressLine1?: string;
+    footerAddressLine2?: string;
+    footerPhone?: string;
+    footerEmail?: string;
+    footerAbn?: string;
   };
 }
 
@@ -1988,6 +1996,30 @@ function QuotePageContent() {
           </div>
 
         </div>
+
+        {/* Standard footer */}
+        {job && (
+          <FooterSection
+            data={{
+              job,
+              inventory: [],
+              costings: [],
+              customerName: `${job.titleName ?? ''} ${job.firstName ?? ''} ${job.lastName ?? ''}`.trim(),
+              companyName: job.branding?.companyName ?? companyName,
+              logoUrl: job.branding?.logoUrl ?? logoUrl,
+              primaryColor: job.branding?.primaryColor ?? primaryColor,
+              quoteDate: '',
+              quoteDateLong: '',
+              quoteDateFull: '',
+              quoteDateMedium: '',
+              expiryDate: '',
+              expiryDateLong: '',
+              expiryDateFull: '',
+              expiryDateMedium: '',
+              totalCube: 0,
+            }}
+          />
+        )}
 
         {/* Back to Top Button */}
         {showBackToTop && (

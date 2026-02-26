@@ -9,6 +9,7 @@ import {
   EstimateCard,
   InventoryTable,
   TermsSection,
+  FooterSection,
 } from './sections';
 import type { QuotePageData, CostingItem } from './sections/types';
 import type { LayoutConfig, LayoutSection, SectionCondition } from '@/lib/services/llm-service';
@@ -322,6 +323,7 @@ export function CustomLayoutRenderer({
       {/* Grace banner corrective CSS — overrides stale stored styles */}
       {graceBannerCss && <style>{graceBannerCss}</style>}
 
+      {/* Sections */}
       {config.sections
         .filter((s) => {
           if (s.visible === false) return false;
@@ -411,6 +413,9 @@ export function CustomLayoutRenderer({
             </div>
           );
         })}
+
+      {/* Standard footer — always rendered at the bottom of every layout */}
+      <FooterSection data={data} />
     </div>
   );
 }
