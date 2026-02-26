@@ -764,6 +764,7 @@ function QuotePageContent() {
           signatureData: signature,
           agreedToTerms,
           selectedCosting,
+          allCostings:   costings,
         }),
       });
 

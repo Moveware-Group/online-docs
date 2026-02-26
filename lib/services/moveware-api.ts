@@ -292,17 +292,14 @@ export async function postMwJobActivity(
   const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const hourStr = String(d.getHours());
 
+  // The full notes string is pre-built by the accept route (buildNotes)
+  // and passed in via acceptedOptionsSummary; special requirements are
+  // appended here when present so the diary always captures them.
   const notes = [
-    `Accepted Terms and Conditions: ${input.agreedToTerms ? 'yes' : 'no'}`,
-    `Signed Online: ${input.signedOnline ? 'Yes' : 'No'}`,
-    `Load Date: ${input.loadDate || 'Not provided'}`,
-    `Insurance Value: ${input.insuredValue || 'Not provided'}`,
-    input.purchaseOrderNumber ? `Purchase Order: ${input.purchaseOrderNumber}` : null,
-    `Special Requirements: ${input.specialRequirements || 'None'}`,
-    '',
     input.acceptedOptionsSummary,
+    input.specialRequirements ? `\nSpecial Requirements: ${input.specialRequirements}` : null,
   ]
-    .filter((l) => l !== null)
+    .filter(Boolean)
     .join('\n');
 
   const body = {
@@ -311,7 +308,7 @@ export async function postMwJobActivity(
     activityTime:   hourStr,
     appointment:    false,
     branch:         input.branchCode || '',
-    completed:      true,
+    completed:      'Y',
     comment:        'Online Customer Quote Accepted',
     dateModified:   dateStr,
     description:    'Online Customer Quote Accepted',

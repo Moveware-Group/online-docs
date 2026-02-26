@@ -19,19 +19,69 @@ import {
   type MwQuoteAcceptanceCharge,
 } from '@/lib/services/moveware-api';
 
-/** Build the "Accepted Option(s):" block used in the activity diary note. */
-function buildOptionsSummary(selectedCosting: AcceptedCosting | null): string {
-  if (!selectedCosting) return '';
+/** Format a price without redundant decimals: 1050 → "1050", 1050.5 → "1050.50" */
+function fmtPrice(p: number): string {
+  return p % 1 === 0 ? String(Math.round(p)) : p.toFixed(2);
+}
 
-  const lines: string[] = [`Accepted Option(s):`, selectedCosting.name || 'Unknown option'];
+/**
+ * Build the full activity diary notes string in the requested format:
+ *
+ *   Accepted Terms and Conditions: yes
+ *   Signed Online: Yes
+ *   Order Number: 1234
+ *   Load Date: 26/02/26
+ *   Insurance Value: 1234
+ *
+ *   Accepted Option(s):
+ *   Option 01 - Option 1 Incl. Cleaning
+ *    • Charge A: 1050 AUD
+ *
+ *   Declined Option(s):
+ *   Option 02 - Option 2 Basic
+ *    • Charge B: 200 AUD
+ */
+function buildNotes(opts: {
+  agreedToTerms: boolean;
+  purchaseOrderNumber: string;
+  reloFromDate: string;
+  insuredValue: string;
+  selectedCosting: AcceptedCosting | null;
+  allCostings: AcceptedCosting[];
+}): string {
+  const pad2 = (n: number) => String(n + 1).padStart(2, '0');
+  const lines: string[] = [];
 
-  const charges = selectedCosting.charges || [];
-  const included = charges.filter((c) => c.included);
-  if (included.length > 0) {
-    lines.push('Included:');
-    for (const c of included) {
-      lines.push(` ${c.heading}: ${c.price.toFixed(2)} ${c.currency}`);
+  // ── Header fields ────────────────────────────────────────────────────────
+  lines.push(`Accepted Terms and Conditions: ${opts.agreedToTerms ? 'yes' : 'no'}`);
+  lines.push(`Signed Online: Yes`);
+  if (opts.purchaseOrderNumber) lines.push(`Order Number: ${opts.purchaseOrderNumber}`);
+  if (opts.reloFromDate)        lines.push(`Load Date: ${opts.reloFromDate}`);
+  if (opts.insuredValue)        lines.push(`Insurance Value: ${opts.insuredValue}`);
+
+  // ── Accepted option ──────────────────────────────────────────────────────
+  if (opts.selectedCosting) {
+    const idx = opts.allCostings.findIndex((c) => c.id === opts.selectedCosting!.id);
+    lines.push('');
+    lines.push('Accepted Option(s):');
+    lines.push(`Option ${pad2(idx >= 0 ? idx : 0)} - ${opts.selectedCosting.name || 'Unknown option'}`);
+    for (const c of opts.selectedCosting.charges || []) {
+      lines.push(` \u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
     }
+  }
+
+  // ── Declined options ─────────────────────────────────────────────────────
+  const declined = opts.allCostings.filter((c) => c.id !== opts.selectedCosting?.id);
+  if (declined.length > 0) {
+    lines.push('');
+    lines.push('Declined Option(s):');
+    declined.forEach((opt, i) => {
+      const globalIdx = opts.allCostings.findIndex((c) => c.id === opt.id);
+      lines.push(`Option ${pad2(globalIdx >= 0 ? globalIdx : i)} - ${opt.name || 'Unknown option'}`);
+      for (const c of opt.charges || []) {
+        lines.push(` \u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+      }
+    });
   }
 
   return lines.join('\n');
@@ -86,6 +136,7 @@ export async function POST(request: NextRequest) {
     const specialRequirements: string = body.specialRequirements || '';
     const branchCode: string          = body.branchCode || '';
     const selectedCosting: AcceptedCosting | null = body.selectedCosting || null;
+    const allCostings: AcceptedCosting[]          = body.allCostings || [];
 
     console.log('📝 Received quote acceptance request:', { quoteNumber, signatureName, quoteId });
 
@@ -135,7 +186,14 @@ export async function POST(request: NextRequest) {
           ? parseFloat(insuredValue.replace(/[^0-9.]/g, '')) || 0
           : 0;
 
-        const optionsSummary = buildOptionsSummary(selectedCosting);
+        const activityNotes = buildNotes({
+          agreedToTerms,
+          purchaseOrderNumber,
+          reloFromDate,
+          insuredValue,
+          selectedCosting,
+          allCostings,
+        });
 
         const [patchResult, jobStatusResult, activityResult] = await Promise.allSettled([
           patchMwQuoteAcceptance(creds, jobId, quoteId, {
@@ -161,12 +219,12 @@ export async function POST(request: NextRequest) {
             branchCode,
             acceptedAt,
             agreedToTerms,
-            signedOnline:   true,
-            loadDate:       reloFromDate,
+            signedOnline:           true,
+            loadDate:               reloFromDate,
             insuredValue,
             purchaseOrderNumber,
             specialRequirements,
-            acceptedOptionsSummary: optionsSummary,
+            acceptedOptionsSummary: activityNotes,
           }),
         ]);
 
