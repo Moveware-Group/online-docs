@@ -19,8 +19,9 @@ interface Branding {
 
 function ThankYouContent() {
   const searchParams = useSearchParams();
-  const jobId = searchParams.get('jobId');
-  const coId  = searchParams.get('coId');
+  const jobId   = searchParams.get('jobId');
+  const coId    = searchParams.get('coId');
+  const quoteId = searchParams.get('quoteId');
 
   const [branding, setBranding] = useState<Branding | null>(null);
   const [loading, setLoading]   = useState(true);
@@ -197,7 +198,8 @@ function ThankYouContent() {
                     const acceptanceId = sessionStorage.getItem('quoteAcceptanceId');
                     const params = new URLSearchParams();
                     params.set('jobId', jobId);
-                    if (coId) params.set('coId', coId);
+                    if (coId)         params.set('coId',        coId);
+                    if (quoteId)      params.set('quoteId',     quoteId);
                     if (acceptanceId) params.set('acceptanceId', acceptanceId);
                     params.set('print', 'true');
                     window.open(`/quote?${params.toString()}`, '_blank');

@@ -525,10 +525,10 @@ function QuotePageContent() {
       if (response.ok && result.success && result.data) {
         const acceptance = result.data;
         // Populate form fields with accepted data
-        setSignatureName(acceptance.signatureName);
+        setSignatureName(acceptance.signatureName ?? '');
         setReloFromDate(acceptance.reloFromDate ? new Date(acceptance.reloFromDate.split('/').reverse().join('-')) : null);
-        setInsuredValue(acceptance.insuredValue);
-        setPurchaseOrderNumber(acceptance.purchaseOrderNumber);
+        setInsuredValue(acceptance.insuredValue ?? '');
+        setPurchaseOrderNumber(acceptance.purchaseOrderNumber ?? '');
         setSpecialRequirements(acceptance.specialRequirements || '');
         setSignature(acceptance.signatureData);
         setSelectedCostingId(acceptance.costingItemId);
@@ -781,8 +781,13 @@ function QuotePageContent() {
 
       // Show success message inline
       setError(null);
-      // Redirect to thank you page with parameters
-      window.location.href = `/thank-you?jobId=${jobId}&coId=${companyId}`;
+      // Redirect to thank you page with parameters (include quoteId so the
+      // print confirmation button can re-open the quote with the correct data)
+      const tyParams = new URLSearchParams();
+      if (jobId)     tyParams.set('jobId',   jobId);
+      if (companyId) tyParams.set('coId',    companyId);
+      if (quoteId)   tyParams.set('quoteId', quoteId);
+      window.location.href = `/thank-you?${tyParams.toString()}`;
     } catch (err) {
       console.error('Error accepting quote:', err);
       setError(err instanceof Error ? err.message : 'Failed to accept quote. Please try again.');
