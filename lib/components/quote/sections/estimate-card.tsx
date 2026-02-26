@@ -32,9 +32,9 @@ export function EstimateCard({
   const includedCharges = charges.filter((c) => !c.isBaseCharge && c.included);
   const optionalCharges = charges.filter((c) => !c.isBaseCharge && !c.included);
 
-  // Optional selections — default to none (user must explicitly add)
+  // Optional selections — none selected by default (user opts in)
   const defaultSelected = useMemo(
-    () => new Set(optionalCharges.filter((c) => c.included).map((c) => c.id)),
+    () => new Set<number>(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [costing.id],
   );
@@ -48,12 +48,13 @@ export function EstimateCard({
     });
   };
 
-  // The base amount is the option's total (valueInclusive), not the rate
-  const baseAmount    = costing.totalPrice ?? 0;
+  // Base amount = the actual base charge line price (not the full option valueInclusive)
+  const baseAmount    = baseCharge ? baseCharge.price * baseCharge.quantity : (costing.totalPrice ?? 0);
+  const includedTotal = includedCharges.reduce((s, c) => s + c.price * c.quantity, 0);
   const optionalTotal = optionalCharges
     .filter((c) => selectedOptionals.has(c.id))
     .reduce((s, c) => s + c.price * c.quantity, 0);
-  const dynamicTotal  = baseAmount + optionalTotal;
+  const dynamicTotal  = baseAmount + includedTotal + optionalTotal;
 
   const isSelected = selectedCostingId === costing.id;
 
@@ -80,11 +81,11 @@ export function EstimateCard({
       {/* ── Charges table ───────────────────────────────────────────────────── */}
       <table className="w-full text-sm">
 
-        {/* Column sub-header */}
+        {/* Column sub-header — option name on left, base total on right */}
         <thead>
           <tr className="border-b border-gray-200">
             <th className="px-6 py-2 text-left text-xs font-normal text-gray-500">
-              {costing.description || 'Charges'}
+              {costing.name || 'Charges'}
             </th>
             <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-24">Quantity</th>
             <th className="px-4 py-2 text-center text-xs font-normal text-gray-500 w-28">Rate</th>
@@ -95,14 +96,13 @@ export function EstimateCard({
         </thead>
 
         <tbody>
-          {/* ── Base service row ──────────────────────────────────────────── */}
+          {/* ── Base service row — use the job/service description, not the option name ── */}
           {baseCharge && (
             <tr className="border-b border-gray-100">
               <td className="px-6 py-3">
-                <span className="font-semibold text-gray-900">{baseCharge.heading || costing.name}</span>
-                {costing.notes && (
-                  <p className="text-xs text-gray-500 mt-0.5">{costing.notes}</p>
-                )}
+                <span className="font-semibold text-gray-900">
+                  {costing.description || costing.notes || baseCharge.heading || costing.name}
+                </span>
               </td>
               <td className="px-4 py-3 text-center text-gray-700">{baseCharge.quantity}</td>
               <td className="px-4 py-3 text-center text-gray-700">{fmt(baseCharge.price)}</td>
