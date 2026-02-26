@@ -311,7 +311,7 @@ export async function postMwJobActivity(
     activityTime:   hourStr,
     appointment:    false,
     branch:         input.branchCode || '',
-    completed:      'Y',
+    completed:      true,
     comment:        'Online Customer Quote Accepted',
     dateModified:   dateStr,
     description:    'Online Customer Quote Accepted',
