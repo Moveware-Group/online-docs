@@ -158,21 +158,10 @@ export async function POST(request: NextRequest) {
     // saved and the confirmation page is shown.
     const acceptedAt = new Date();
 
-    if (coId && quoteId && jobId) {
+    if (coId && jobId) {
       const creds = await getMwCredentials(coId).catch(() => null);
 
       if (creds) {
-        // Map the selected option's charges to the Moveware payload format
-        const mwCharges: MwQuoteAcceptanceCharge[] = (selectedCosting?.charges ?? []).map((c) => ({
-          id:          c.id,
-          description: c.heading,
-          value:       c.price,
-          valueInc:    c.price,
-          valueEx:     c.price,
-          quantity:    String(c.quantity ?? 1),
-          included:    c.included,
-        }));
-
         const insuredValueNum = insuredValue
           ? parseFloat(insuredValue.replace(/[^0-9.]/g, '')) || 0
           : 0;
@@ -187,21 +176,8 @@ export async function POST(request: NextRequest) {
           allCostings,
         });
 
-        const [patchResult, jobStatusResult, activityResult] = await Promise.allSettled([
-          patchMwQuoteAcceptance(creds, jobId, quoteId, {
-            signatureDate:     acceptedAt.toISOString(),
-            signatureName,
-            signatureImage:    signatureData,
-            accepted:          true,
-            termsAndConditions: agreedToTerms,
-            comments:          specialRequirements,
-            jobOrder:          purchaseOrderNumber || undefined,
-            estimatedMove:     reloFromDate ? toIso(reloFromDate) : undefined,
-            insuredValue:      insuredValueNum || undefined,
-            selectedOptions:   selectedCosting
-              ? [{ id: selectedCosting.id, charges: mwCharges }]
-              : [],
-          }),
+        // ── Calls that only need coId + jobId ─────────────────────────────
+        const basePromises: Promise<unknown>[] = [
           patchMwJobStatus(creds, jobId, {
             status:            'W',
             estimatedMoveDate: reloFromDate ? toIso(reloFromDate) : undefined,
@@ -218,13 +194,43 @@ export async function POST(request: NextRequest) {
             specialRequirements,
             acceptedOptionsSummary: activityNotes,
           }),
-        ]);
+        ];
 
-        if (patchResult.status === 'rejected') {
-          console.error('[accept] Moveware quotation PATCH failed:', patchResult.reason);
+        // ── Quotation PATCH also requires quoteId ────────────────────────
+        if (quoteId) {
+          const mwCharges: MwQuoteAcceptanceCharge[] = (selectedCosting?.charges ?? []).map((c) => ({
+            id:          c.id,
+            description: c.heading,
+            value:       c.price,
+            valueInc:    c.price,
+            valueEx:     c.price,
+            quantity:    String(c.quantity ?? 1),
+            included:    c.included,
+          }));
+
+          basePromises.push(
+            patchMwQuoteAcceptance(creds, jobId, quoteId, {
+              signatureDate:      acceptedAt.toISOString(),
+              signatureName,
+              signatureImage:     signatureData,
+              accepted:           true,
+              termsAndConditions: agreedToTerms,
+              comments:           specialRequirements,
+              jobOrder:           purchaseOrderNumber || undefined,
+              estimatedMove:      reloFromDate ? toIso(reloFromDate) : undefined,
+              insuredValue:       insuredValueNum || undefined,
+              selectedOptions:    selectedCosting
+                ? [{ id: selectedCosting.id, charges: mwCharges }]
+                : [],
+            }),
+          );
         } else {
-          console.log('[accept] Moveware quotation PATCH succeeded');
+          console.warn('[accept] No quoteId — skipping quotation PATCH (job status + activity will still be posted)');
         }
+
+        const results = await Promise.allSettled(basePromises);
+
+        const [jobStatusResult, activityResult, patchResult] = results;
 
         if (jobStatusResult.status === 'rejected') {
           console.error('[accept] Moveware job status PATCH failed:', jobStatusResult.reason);
@@ -237,11 +243,19 @@ export async function POST(request: NextRequest) {
         } else {
           console.log('[accept] Moveware activity diary created');
         }
+
+        if (patchResult) {
+          if (patchResult.status === 'rejected') {
+            console.error('[accept] Moveware quotation PATCH failed:', patchResult.reason);
+          } else {
+            console.log('[accept] Moveware quotation PATCH succeeded');
+          }
+        }
       } else {
         console.warn('[accept] No Moveware credentials found for coId:', coId, '— skipping write-back');
       }
     } else {
-      console.warn('[accept] Missing coId/quoteId/jobId — skipping Moveware write-back');
+      console.warn('[accept] Missing coId/jobId — skipping Moveware write-back');
     }
 
     // ── 2. Best-effort local DB upsert (non-blocking) ──────────────────────
