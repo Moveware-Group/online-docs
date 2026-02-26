@@ -11,26 +11,52 @@ interface Branding {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  footerPhone?: string;
+  footerEmail?: string;
+  footerAddressLine1?: string;
+  footerAddressLine2?: string;
 }
 
 function ThankYouContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get('jobId');
-  const coId = searchParams.get('coId');
-  
+  const coId  = searchParams.get('coId');
+
   const [branding, setBranding] = useState<Branding | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     async function fetchBranding() {
       try {
-        const response = await fetch('/api/settings/branding');
-        if (response.ok) {
-          const data = await response.json();
+        // Use the job endpoint with coId so we always get the correct
+        // company branding (same data source as the quote page itself).
+        if (jobId && coId) {
+          const res = await fetch(`/api/jobs/${jobId}?coId=${coId}`);
+          if (res.ok) {
+            const json = await res.json();
+            const b = json?.data?.branding;
+            if (b) {
+              setBranding({
+                companyName:      b.companyName,
+                logoUrl:          b.logoUrl,
+                primaryColor:     b.primaryColor,
+                secondaryColor:   b.secondaryColor,
+                footerPhone:      b.footerPhone,
+                footerEmail:      b.footerEmail,
+                footerAddressLine1: b.footerAddressLine1,
+                footerAddressLine2: b.footerAddressLine2,
+              });
+              return;
+            }
+          }
+        }
+        // Fallback: generic branding endpoint (no coId available)
+        const res = await fetch('/api/settings/branding');
+        if (res.ok) {
+          const data = await res.json();
           setBranding({
             primaryColor: data?.primaryColor,
-            secondaryColor: data?.secondaryColor,
-            logoUrl: data?.logoUrl,
+            logoUrl:      data?.logoUrl,
           });
         }
       } catch (err) {
@@ -41,11 +67,15 @@ function ThankYouContent() {
     }
 
     fetchBranding();
-  }, []);
+  }, [jobId, coId]);
 
-  const companyName = branding?.companyName || 'Moveware';
-  const logoUrl = branding?.logoUrl;
-  const primaryColor = branding?.primaryColor || '#c00';
+  const companyName  = branding?.companyName  || 'Moveware';
+  const logoUrl      = branding?.logoUrl;
+  const primaryColor = branding?.primaryColor || '#1E40AF';
+  const contactEmail = branding?.footerEmail  || '';
+  const contactPhone = branding?.footerPhone  || '';
+  const address1     = branding?.footerAddressLine1 || '';
+  const address2     = branding?.footerAddressLine2 || '';
 
   if (loading) {
     return (
@@ -61,11 +91,12 @@ function ThankYouContent() {
     <PageShell includeHeader={false}>
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-2xl w-full">
+
           {/* Logo */}
           <div className="text-center mb-8">
             {logoUrl ? (
-              <img 
-                src={logoUrl} 
+              <img
+                src={logoUrl}
                 alt={companyName}
                 style={{ maxWidth: '250px' }}
                 className="mx-auto"
@@ -77,26 +108,24 @@ function ThankYouContent() {
 
           {/* Success Card */}
           <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
+
             {/* Success Icon */}
             <div className="mb-6">
-              <div 
+              <div
                 className="w-24 h-24 rounded-full flex items-center justify-center mx-auto"
-                style={{ backgroundColor: `${primaryColor}15` }}
+                style={{ backgroundColor: `${primaryColor}20` }}
               >
-                <CheckCircle 
-                  className="w-16 h-16" 
-                  style={{ color: primaryColor }}
-                />
+                <CheckCircle className="w-16 h-16" style={{ color: primaryColor }} />
               </div>
             </div>
 
-            {/* Thank You Message */}
+            {/* Heading */}
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Thank You!</h2>
             <p className="text-xl text-gray-600 mb-8">
               Your quote has been accepted successfully
             </p>
 
-            {/* Details */}
+            {/* Reference / Status */}
             {jobId && (
               <div className="bg-gray-50 rounded-lg p-6 mb-8">
                 <div className="space-y-3 text-left">
@@ -115,59 +144,47 @@ function ThankYouContent() {
               </div>
             )}
 
-            {/* What's Next */}
+            {/* What happens next */}
             <div className="mb-8 text-left">
               <h3 className="text-xl font-bold text-gray-900 mb-4">What happens next?</h3>
               <ul className="space-y-3">
-                <li className="flex items-start">
-                  <div 
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    1
-                  </div>
-                  <p className="text-gray-700">
-                    <span className="font-semibold">Confirmation Email</span> - You&apos;ll receive a confirmation email shortly with all the details.
-                  </p>
-                </li>
-                <li className="flex items-start">
-                  <div 
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    2
-                  </div>
-                  <p className="text-gray-700">
-                    <span className="font-semibold">We&apos;ll Contact You</span> - Our team will reach out within 24 hours to finalize the details.
-                  </p>
-                </li>
-                <li className="flex items-start">
-                  <div 
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    3
-                  </div>
-                  <p className="text-gray-700">
-                    <span className="font-semibold">Move Day Preparation</span> - We&apos;ll prepare everything for your scheduled move date.
-                  </p>
-                </li>
+                {[
+                  { n: 1, title: 'Confirmation Email',   body: "You'll receive a confirmation email shortly with all the details." },
+                  { n: 2, title: "We'll Contact You",    body: 'Our team will reach out within 24 hours to finalize the details.' },
+                  { n: 3, title: 'Move Day Preparation', body: "We'll prepare everything for your scheduled move date." },
+                ].map(({ n, title, body }) => (
+                  <li key={n} className="flex items-start">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {n}
+                    </div>
+                    <p className="text-gray-700">
+                      <span className="font-semibold">{title}</span> - {body}
+                    </p>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Contact Info */}
-            <div className="border-t border-gray-200 pt-6 mb-6">
-              <p className="text-sm text-gray-600 mb-4">
-                If you have any questions, please don&apos;t hesitate to contact us:
-              </p>
-              <div className="text-sm text-gray-700 space-y-1">
-                <p><span className="font-medium">Email:</span> contact@moveware.com</p>
-                <p><span className="font-medium">Phone:</span> 1300 MOVEWARE</p>
+            {/* Contact Info — driven by company branding settings */}
+            {(contactEmail || contactPhone || address1) && (
+              <div className="border-t border-gray-200 pt-6 mb-6">
+                <p className="text-sm text-gray-600 mb-3">
+                  If you have any questions, please don&apos;t hesitate to contact us:
+                </p>
+                <div className="text-sm text-gray-700 space-y-1">
+                  {address1     && <p>{address1}</p>}
+                  {address2     && <p>{address2}</p>}
+                  {contactEmail && <p><span className="font-medium">Email:</span> {contactEmail}</p>}
+                  {contactPhone && <p><span className="font-medium">Phone:</span> {contactPhone}</p>}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center mt-6">
               <Link
                 href="/"
                 className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
