@@ -179,10 +179,15 @@ export async function POST(request: NextRequest) {
 
         // ── Calls that only need coId + jobId ─────────────────────────────
         const basePromises: Promise<unknown>[] = [
-          patchMwJobStatus(creds, jobId, {
-            status:            'W',
-            estimatedMoveDate: reloFromDate ? toIso(reloFromDate) : undefined,
-          }),
+          // NOTE: Auto-setting job status to W is disabled for now.
+          // The client will manually update the job status once they have
+          // confirmed the quote and move date.  Re-enable (or replace with a
+          // per-company flag) when automatic "Won" marking is required.
+          //
+          // patchMwJobStatus(creds, jobId, {
+          //   status:            'W',
+          //   estimatedMoveDate: reloFromDate ? toIso(reloFromDate) : undefined,
+          // }),
           postMwJobActivity(creds, jobId, {
             jobId,
             branchCode,
@@ -231,15 +236,7 @@ export async function POST(request: NextRequest) {
 
         const results = await Promise.allSettled(basePromises);
 
-        const [jobStatusResult, activityResult, patchResult] = results;
-
-        if (jobStatusResult.status === 'rejected') {
-          const msg = String((jobStatusResult as PromiseRejectedResult).reason);
-          console.error('[accept] Moveware job status PATCH failed:', msg);
-          mwWritebackErrors.push(`Job status PATCH: ${msg}`);
-        } else {
-          console.log('[accept] Moveware job status set to W');
-        }
+        const [activityResult, patchResult] = results;
 
         if (activityResult.status === 'rejected') {
           const msg = String((activityResult as PromiseRejectedResult).reason);
