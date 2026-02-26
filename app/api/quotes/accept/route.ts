@@ -25,31 +25,21 @@ function fmtPrice(p: number): string {
 }
 
 /**
- * Build the full activity diary notes string in the requested format:
- *
- *   Accepted Terms and Conditions: yes
- *   Signed Online: Yes
- *   Order Number: 1234
- *   Load Date: 26/02/26
- *   Insurance Value: 1234
- *
- *   Accepted Option(s):
- *   Option 01 - Option 1 Incl. Cleaning
- *    • Charge A: 1050 AUD
- *
- *   Declined Option(s):
- *   Option 02 - Option 2 Basic
- *    • Charge B: 200 AUD
+ * Build the full activity diary notes string.
+ * Uses \r\n (Windows line endings) and plain ASCII "- " bullets for
+ * maximum compatibility with the Moveware notes field.
  */
 function buildNotes(opts: {
   agreedToTerms: boolean;
   purchaseOrderNumber: string;
   reloFromDate: string;
   insuredValue: string;
+  specialRequirements: string;
   selectedCosting: AcceptedCosting | null;
   allCostings: AcceptedCosting[];
 }): string {
-  const pad2 = (n: number) => String(n + 1).padStart(2, '0');
+  const CRLF  = '\r\n';
+  const pad2  = (n: number) => String(n + 1).padStart(2, '0');
   const lines: string[] = [];
 
   // ── Header fields ────────────────────────────────────────────────────────
@@ -58,6 +48,7 @@ function buildNotes(opts: {
   if (opts.purchaseOrderNumber) lines.push(`Order Number: ${opts.purchaseOrderNumber}`);
   if (opts.reloFromDate)        lines.push(`Load Date: ${opts.reloFromDate}`);
   if (opts.insuredValue)        lines.push(`Insurance Value: ${opts.insuredValue}`);
+  if (opts.specialRequirements) lines.push(`Special Requirements: ${opts.specialRequirements}`);
 
   // ── Accepted option ──────────────────────────────────────────────────────
   if (opts.selectedCosting) {
@@ -66,7 +57,7 @@ function buildNotes(opts: {
     lines.push('Accepted Option(s):');
     lines.push(`Option ${pad2(idx >= 0 ? idx : 0)} - ${opts.selectedCosting.name || 'Unknown option'}`);
     for (const c of opts.selectedCosting.charges || []) {
-      lines.push(` \u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+      lines.push(` - ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
     }
   }
 
@@ -79,12 +70,12 @@ function buildNotes(opts: {
       const globalIdx = opts.allCostings.findIndex((c) => c.id === opt.id);
       lines.push(`Option ${pad2(globalIdx >= 0 ? globalIdx : i)} - ${opt.name || 'Unknown option'}`);
       for (const c of opt.charges || []) {
-        lines.push(` \u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+        lines.push(` - ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
       }
     });
   }
 
-  return lines.join('\n');
+  return lines.join(CRLF);
 }
 
 /** Minimal shape of the charge data sent from the quote page. */
@@ -191,6 +182,7 @@ export async function POST(request: NextRequest) {
           purchaseOrderNumber,
           reloFromDate,
           insuredValue,
+          specialRequirements,
           selectedCosting,
           allCostings,
         });

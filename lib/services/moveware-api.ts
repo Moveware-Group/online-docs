@@ -293,14 +293,8 @@ export async function postMwJobActivity(
   const hourStr = String(d.getHours());
 
   // The full notes string is pre-built by the accept route (buildNotes)
-  // and passed in via acceptedOptionsSummary; special requirements are
-  // appended here when present so the diary always captures them.
-  const notes = [
-    input.acceptedOptionsSummary,
-    input.specialRequirements ? `\nSpecial Requirements: ${input.specialRequirements}` : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+  // and passed in via acceptedOptionsSummary — use it directly.
+  const notes = input.acceptedOptionsSummary || '';
 
   const body = {
     activityDate:   dateStr,
