@@ -726,17 +726,25 @@ export function adaptMwInventory(raw: unknown): InternalInventoryItem[] {
   const items = toArray(raw, 'inventoryUsage', 'inventory', 'inventoryItems');
 
   return items.map((item, idx) => {
+    const i = item as Record<string, unknown>;
     const quantity = num(pick(item, 'quantity', 'qty', 'count')) || 1;
-    // Prefer cubetot (Moveware's pre-multiplied line total: cube × qty).
-    // Fall back to cube (unit cube) × quantity for systems that only expose unit cube.
-    const unitCube = num(pick(item, 'cube', 'cubicMetres', 'm3'));
-    const cubetot  = num(pick(item, 'cubetot', 'totalCube', 'totalM3'));
-    const lineCube = cubetot > 0 ? cubetot : unitCube * quantity;
 
-    // Weight — try several common Moveware field names (unit weight in kg)
-    const weightKg = num(
-      pick(item, 'weight', 'weightKg', 'kg', 'grossWeight', 'wtGross', 'weightGross', 'unitWeight'),
-    );
+    // ── Volume ──────────────────────────────────────────────────────────────
+    // Moveware REST returns: volume: { meter, feet, other }
+    // Fall back to flat cube / cubetot fields for older API versions.
+    const volumeObj  = i['volume'] as Record<string, unknown> | undefined;
+    const unitCubeM3 = num(volumeObj?.['meter'] ?? volumeObj?.['other'])
+                    || num(pick(item, 'cube', 'cubicMetres', 'm3'));
+    const cubetotFlat = num(pick(item, 'cubetot', 'totalCube', 'totalM3'));
+    // Line total = pre-multiplied flat OR unit × qty
+    const lineCube = cubetotFlat > 0 ? cubetotFlat : unitCubeM3 * quantity;
+
+    // ── Weight ──────────────────────────────────────────────────────────────
+    // Moveware REST returns: weight: { kg, lb, totalkg, totallb, volumetric }
+    // Use totalkg (qty-multiplied) when available, else unit kg.
+    const weightObj = i['weight'] as Record<string, unknown> | undefined;
+    const weightKg  = num(weightObj?.['kg']    ?? weightObj?.['totalkg'])
+                   || num(pick(item, 'weightKg', 'grossWeight', 'wtGross', 'weightGross', 'unitWeight'));
 
     return {
       id:          num(pick(item, 'id', 'inventoryId', 'itemId')) || idx + 1,
