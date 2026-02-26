@@ -296,33 +296,25 @@ export async function postMwJobActivity(
   // the remaining \n as visible text when CRLF is sent.
   const notes = (input.acceptedOptionsSummary || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Build a full ISO datetime string so Moveware's dateTime field is populated
-  // correctly — this is what drives the time column display in the diary.
+  // Full ISO datetime — populates Moveware's dateTime column (time display in diary)
   const dateTimeStr = `${dateStr}T${startStr}:00.000`;
 
+  // Only send fields that are present in the GET /activities response to avoid
+  // Moveware validation errors from unknown/unsupported field names.
   const body = {
-    // Full ISO datetime (what Moveware stores in the dateTime column)
-    dateTime:     dateTimeStr,
-    // Individual date / time fields kept for compatibility
-    date:         dateStr,
-    start:        startStr,
-    hours:        '',
-    activityDate: dateStr,
-    activityHours: startStr,
     appointment:  false,
     branch:       input.branchCode || '',
-    // boolean true — the string 'Y' is ignored by Moveware on POST
-    completed:    true,
     comment:      'Online Customer Quote Accepted',
-    dateModified: dateTimeStr,
+    completed:    true,
+    date:         dateStr,
+    dateTime:     dateTimeStr,
     description:  'Online Customer Quote Accepted',
-    diaries:      'N',
-    keyaction:    '',
     notes,
-    type:         'Online Customer Quote Accepted',
     parentId:     Number(input.jobId),
     parentNumber: input.jobId,
     parentType:   'Job',
+    task:         false,
+    type:         'Online Customer Quote Accepted',
   };
 
   return mwPost(creds, `jobs/${jobId}/activities`, body);

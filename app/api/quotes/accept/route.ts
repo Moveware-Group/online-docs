@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
     // Moveware call does NOT block the customer — the local record is still
     // saved and the confirmation page is shown.
     const acceptedAt = new Date();
+    const mwWritebackErrors: string[] = [];
 
     if (coId && jobId) {
       const creds = await getMwCredentials(coId).catch(() => null);
@@ -233,20 +234,26 @@ export async function POST(request: NextRequest) {
         const [jobStatusResult, activityResult, patchResult] = results;
 
         if (jobStatusResult.status === 'rejected') {
-          console.error('[accept] Moveware job status PATCH failed:', jobStatusResult.reason);
+          const msg = String((jobStatusResult as PromiseRejectedResult).reason);
+          console.error('[accept] Moveware job status PATCH failed:', msg);
+          mwWritebackErrors.push(`Job status PATCH: ${msg}`);
         } else {
           console.log('[accept] Moveware job status set to W');
         }
 
         if (activityResult.status === 'rejected') {
-          console.error('[accept] Moveware activity POST failed:', activityResult.reason);
+          const msg = String((activityResult as PromiseRejectedResult).reason);
+          console.error('[accept] Moveware activity POST failed:', msg);
+          mwWritebackErrors.push(`Activity POST: ${msg}`);
         } else {
           console.log('[accept] Moveware activity diary created');
         }
 
         if (patchResult) {
           if (patchResult.status === 'rejected') {
-            console.error('[accept] Moveware quotation PATCH failed:', patchResult.reason);
+            const msg = String((patchResult as PromiseRejectedResult).reason);
+            console.error('[accept] Moveware quotation PATCH failed:', msg);
+            mwWritebackErrors.push(`Quotation PATCH: ${msg}`);
           } else {
             console.log('[accept] Moveware quotation PATCH succeeded');
           }
@@ -306,6 +313,9 @@ export async function POST(request: NextRequest) {
         success: true,
         data:    { id: localId },
         message: 'Quote accepted successfully',
+        // Included so the browser dev-tools / network tab can reveal any
+        // Moveware write-back failures without needing server log access.
+        ...(mwWritebackErrors.length > 0 && { mwErrors: mwWritebackErrors }),
       },
       { status: 200 },
     );
