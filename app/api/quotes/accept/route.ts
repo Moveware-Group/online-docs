@@ -38,7 +38,7 @@ function buildNotes(opts: {
   selectedCosting: AcceptedCosting | null;
   allCostings: AcceptedCosting[];
 }): string {
-  const CRLF  = '\r\n';
+  const CRLF  = '\n';
   const pad2  = (n: number) => String(n + 1).padStart(2, '0');
   const lines: string[] = [];
 

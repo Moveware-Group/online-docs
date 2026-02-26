@@ -288,31 +288,35 @@ export async function postMwJobActivity(
 ): Promise<unknown> {
   const pad   = (n: number) => String(n).padStart(2, '0');
   const d     = input.acceptedAt;
+  // Date as YYYY-MM-DD (ISO); time as HH:MM for the Start column
   const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const hourStr = String(d.getHours());
+  const startStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-  // The full notes string is pre-built by the accept route (buildNotes)
-  // and passed in via acceptedOptionsSummary — use it directly.
-  const notes = input.acceptedOptionsSummary || '';
+  // Notes: use LF-only (\n) line endings — Moveware strips \r and renders
+  // the remaining \n as visible text when CRLF is sent.
+  const notes = (input.acceptedOptionsSummary || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   const body = {
-    activityDate:   dateStr,
-    activityHours:  timeStr,
-    activityTime:   hourStr,
-    appointment:    false,
-    branch:         input.branchCode || '',
-    completed:      'Y',
-    comment:        'Online Customer Quote Accepted',
-    dateModified:   dateStr,
-    description:    'Online Customer Quote Accepted',
-    diaries:        '',
-    keyaction:      '',
+    // Primary field names used by the Moveware REST activities endpoint
+    date:         dateStr,
+    start:        startStr,
+    hours:        '',
+    // Legacy / alias field names included for compatibility
+    activityDate: dateStr,
+    activityHours: startStr,
+    appointment:  false,
+    branch:       input.branchCode || '',
+    completed:    'Y',
+    comment:      'Online Customer Quote Accepted',
+    dateModified: dateStr,
+    description:  'Online Customer Quote Accepted',
+    diaries:      'N',
+    keyaction:    '',
     notes,
-    type:           'Online Customer Quote Accepted',
-    parentId:       Number(input.jobId),
-    parentNumber:   input.jobId,
-    parentType:     'Job',
+    type:         'Online Customer Quote Accepted',
+    parentId:     Number(input.jobId),
+    parentNumber: input.jobId,
+    parentType:   'Job',
   };
 
   return mwPost(creds, `jobs/${jobId}/activities`, body);
