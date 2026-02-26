@@ -314,7 +314,7 @@ export async function postMwJobActivity(
     completed:      'Y',
     comment:        'Online Customer Quote Accepted',
     dateModified:   dateStr,
-    description:    'Online customer quote accepted',
+    description:    'Online Customer Quote Accepted',
     diaries:        '',
     keyaction:      '',
     notes,
