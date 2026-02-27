@@ -56,8 +56,11 @@ function buildNotes(opts: {
     lines.push('');
     lines.push('Accepted Option(s):');
     lines.push(`Option ${pad2(idx >= 0 ? idx : 0)} - ${opts.selectedCosting.name || 'Unknown option'}`);
-    for (const c of opts.selectedCosting.charges || []) {
-      lines.push(`\u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+    if ((opts.selectedCosting.charges || []).length > 0) {
+      lines.push('Included:');
+      for (const c of opts.selectedCosting.charges || []) {
+        lines.push(` ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+      }
     }
   }
 
@@ -69,8 +72,11 @@ function buildNotes(opts: {
     declined.forEach((opt, i) => {
       const globalIdx = opts.allCostings.findIndex((c) => c.id === opt.id);
       lines.push(`Option ${pad2(globalIdx >= 0 ? globalIdx : i)} - ${opt.name || 'Unknown option'}`);
-      for (const c of opt.charges || []) {
-        lines.push(`\u2022 ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+      if ((opt.charges || []).length > 0) {
+        lines.push('Included:');
+        for (const c of opt.charges || []) {
+          lines.push(` ${c.heading}: ${fmtPrice(c.price)} ${c.currency}`);
+        }
       }
     });
   }

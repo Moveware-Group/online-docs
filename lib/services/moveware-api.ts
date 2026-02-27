@@ -293,26 +293,29 @@ export async function postMwJobActivity(
   // Full ISO datetime — populates Moveware's dateTime / time column in the diary
   const dateTimeStr = `${dateStr}T${startStr}:00.000`;
 
-  // Moveware stores notes with \r\n line endings — use CRLF so the Paragraph
-  // dialog in the desktop client renders each line break correctly.
+  // Normalise to LF-only (\n) — this is what the confirmed working payload uses
   const notes = (input.acceptedOptionsSummary || '')
-    .replace(/\r\n/g, '\n')   // normalise to LF first
-    .replace(/\r/g, '\n')
-    .replace(/\n/g, '\r\n');  // then convert all LF → CRLF
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
 
   const body = {
-    appointment:  false,
-    branch:       input.branchCode || '',
-    comment:      'Online Customer Quote Accepted',
-    date:         dateStr,
-    dateTime:     dateTimeStr,
-    description:  'Online Customer Quote Accepted',
+    activityDate:  dateStr,
+    activityHours: startStr,
+    activityTime:  String(d.getHours()),
+    appointment:   false,
+    comment:       'Online Customer Quote Accepted',
+    completed:     'Y',
+    date:          dateStr,
+    dateModified:  dateStr,
+    dateTime:      dateTimeStr,
+    description:   'Online Customer Quote Accepted',
+    diaries:       '',
+    keyaction:     'Online Customer Quote Accepted',
     notes,
-    parentId:     Number(input.jobId),
-    parentNumber: input.jobId,
-    parentType:   'Job',
-    task:         false,
-    type:         'Online Customer Quote Accepted',
+    parentId:      Number(input.jobId),
+    parentNumber:  input.jobId,
+    parentType:    'Job',
+    type:          'Online Customer Quote Accepted',
   };
 
   // Step 1: Create the activity
