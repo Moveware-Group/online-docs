@@ -303,6 +303,7 @@ export async function postMwJobActivity(
     activityHours: startStr,
     activityTime:  String(d.getHours()),
     appointment:   false,
+    branch:        input.branchCode || '',
     comment:       'Online Customer Quote Accepted',
     completed:     'Y',
     date:          dateStr,
