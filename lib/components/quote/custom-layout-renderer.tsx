@@ -373,6 +373,21 @@ export function CustomLayoutRenderer({
             );
           }
 
+          // FooterSection: full-width, no maxWidth wrapper — mirrors how
+          // HeaderSection renders.  Config can override bgColor / textColor so
+          // each template can have its own footer background colour.
+          if (section.component === 'FooterSection') {
+            return (
+              <div key={section.id} data-section-id={section.id}>
+                <FooterSection
+                  data={data}
+                  bgColorOverride={cfg.bgColor as string | undefined}
+                  textColorOverride={cfg.textColor as string | undefined}
+                />
+              </div>
+            );
+          }
+
           // AcceptanceForm: use the same maxWidth + px-4 wrapper as every
           // other built-in section so width and horizontal padding are identical.
           if (section.component === 'AcceptanceForm') {
@@ -414,8 +429,12 @@ export function CustomLayoutRenderer({
           );
         })}
 
-      {/* Standard footer — always rendered at the bottom of every layout */}
-      <FooterSection data={data} />
+      {/* Fallback footer — only rendered for legacy layouts that pre-date the
+          FooterSection block.  New/saved layouts include FooterSection as an
+          explicit locked section so it is not rendered twice. */}
+      {!config.sections.some((s) => s.component === 'FooterSection') && (
+        <FooterSection data={data} />
+      )}
     </div>
   );
 }
@@ -501,6 +520,15 @@ function RenderSection({
 
     case 'TermsSection':
       return <TermsSection config={cfg} />;
+
+    case 'FooterSection':
+      return (
+        <FooterSection
+          data={data}
+          bgColorOverride={cfg.bgColor as string | undefined}
+          textColorOverride={cfg.textColor as string | undefined}
+        />
+      );
 
     // NextStepsForm and AcceptanceForm are handled by the parent page
     // because they require complex state (signature, date picker, form fields).

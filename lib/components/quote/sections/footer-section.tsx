@@ -2,13 +2,18 @@ import type { QuotePageData } from './types';
 
 interface Props {
   data: QuotePageData;
+  /** Optional per-template background colour override (set via layout block config).
+   *  Takes priority over the branding footerBgColor setting. */
+  bgColorOverride?: string;
+  /** Optional per-template text colour override. */
+  textColorOverride?: string;
 }
 
-export function FooterSection({ data }: Props) {
+export function FooterSection({ data, bgColorOverride, textColorOverride }: Props) {
   const b = data.job.branding ?? {};
 
-  const bgColor      = b.footerBgColor   || '#ffffff';
-  const textColor    = b.footerTextColor  || '#374151';
+  const bgColor      = bgColorOverride   || b.footerBgColor   || '#ffffff';
+  const textColor    = textColorOverride  || b.footerTextColor  || '#374151';
   const primaryColor = b.primaryColor     || data.primaryColor || '#1a56db';
   const logoUrl      = b.logoUrl          || data.logoUrl;
   const companyName  = b.companyName      || data.companyName;

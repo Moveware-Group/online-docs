@@ -39,6 +39,7 @@ import {
   FilterX,
   Settings2,
   Lock,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -333,6 +334,25 @@ function LayoutBuilderContent() {
         const data = await res.json();
         if (data.success && data.data) {
           const loadedConfig = data.data.layoutConfig;
+
+          // Auto-inject a locked FooterSection block if the layout pre-dates it.
+          // This ensures every layout has exactly one footer block at the bottom.
+          if (
+            loadedConfig?.sections &&
+            !loadedConfig.sections.some(
+              (s: { component?: string }) => s.component === 'FooterSection',
+            )
+          ) {
+            loadedConfig.sections.push({
+              id: 'footer',
+              label: 'Footer',
+              type: 'built_in',
+              component: 'FooterSection',
+              visible: true,
+              config: {},
+            });
+          }
+
           setLayoutConfig(loadedConfig);
           setReferenceUrl(data.data.referenceUrl || '');
           setDescription(data.data.description || '');
@@ -1088,7 +1108,7 @@ function LayoutBuilderContent() {
     setEditingBlockIndex(index);
     setEditingBlockContent(html);
     setEditingBlockConfig((section.config as Record<string, unknown>) || {});
-    // Run copy extractor
+    // Run copy extractor (only meaningful for custom_html blocks)
     const { fields, markedHtml: mHtml } = extractCopyFields(html);
     setCopyFields(fields);
     setMarkedHtml(mHtml);
@@ -1625,7 +1645,8 @@ function LayoutBuilderContent() {
                  layoutConfig.sections[editingBlockIndex]?.id ||
                  `Block ${editingBlockIndex + 1}`}
               </span>
-              {/* HTML / Copy toggle */}
+              {/* HTML / Copy toggle — hidden for built-in blocks like FooterSection */}
+              {layoutConfig.sections[editingBlockIndex]?.type === 'custom_html' && (
               <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
                 <button
                   onClick={() => setShowHtmlEditor(false)}
@@ -1644,10 +1665,112 @@ function LayoutBuilderContent() {
                   HTML
                 </button>
               </div>
+              )}
             </div>
 
-            {/* ── COPY FIELDS VIEW ── */}
-            {!showHtmlEditor && (
+            {/* ── FOOTER SECTION COLOUR EDITOR ── */}
+            {layoutConfig.sections[editingBlockIndex]?.component === 'FooterSection' && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                <p className="text-xs text-gray-500">
+                  These colours override the company branding defaults for this template only.
+                  Leave blank to use the branding settings.
+                </p>
+
+                {/* Background colour */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Background Colour
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={(editingBlockConfig.bgColor as string) || '#ffffff'}
+                      onChange={(e) =>
+                        setEditingBlockConfig((prev) => ({ ...prev, bgColor: e.target.value }))
+                      }
+                      className="w-10 h-10 rounded cursor-pointer border border-gray-300 p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={(editingBlockConfig.bgColor as string) || ''}
+                      onChange={(e) =>
+                        setEditingBlockConfig((prev) => ({ ...prev, bgColor: e.target.value }))
+                      }
+                      placeholder="e.g. #1c2d4f  (leave blank for default)"
+                      className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                    />
+                    {editingBlockConfig.bgColor && (
+                      <button
+                        onClick={() => setEditingBlockConfig((prev) => { const c = { ...prev }; delete c.bgColor; return c; })}
+                        title="Reset to branding default"
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Text colour */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">
+                    Text Colour
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={(editingBlockConfig.textColor as string) || '#374151'}
+                      onChange={(e) =>
+                        setEditingBlockConfig((prev) => ({ ...prev, textColor: e.target.value }))
+                      }
+                      className="w-10 h-10 rounded cursor-pointer border border-gray-300 p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={(editingBlockConfig.textColor as string) || ''}
+                      onChange={(e) =>
+                        setEditingBlockConfig((prev) => ({ ...prev, textColor: e.target.value }))
+                      }
+                      placeholder="e.g. #ffffff  (leave blank for default)"
+                      className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                    />
+                    {editingBlockConfig.textColor && (
+                      <button
+                        onClick={() => setEditingBlockConfig((prev) => { const c = { ...prev }; delete c.textColor; return c; })}
+                        title="Reset to branding default"
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Live preview swatch */}
+                {(editingBlockConfig.bgColor || editingBlockConfig.textColor) && (
+                  <div
+                    className="rounded-lg p-4 text-xs border border-gray-200"
+                    style={{
+                      backgroundColor: (editingBlockConfig.bgColor as string) || '#ffffff',
+                      color: (editingBlockConfig.textColor as string) || '#374151',
+                    }}
+                  >
+                    <strong>Preview</strong> — footer will appear with this background and text colour.
+                  </div>
+                )}
+
+                {/* Save */}
+                <button
+                  onClick={saveBlockEdit}
+                  className="w-full py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Save Footer Style
+                </button>
+              </div>
+            )}
+
+            {/* ── COPY FIELDS VIEW (custom_html blocks only) ── */}
+            {layoutConfig.sections[editingBlockIndex]?.type === 'custom_html' && !showHtmlEditor && (
               <div className="flex flex-1 overflow-hidden">
                 {/* Fields */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -1726,8 +1849,8 @@ function LayoutBuilderContent() {
               </div>
             )}
 
-            {/* ── HTML EDITOR VIEW ── */}
-            {showHtmlEditor && (
+            {/* ── HTML EDITOR VIEW (custom_html blocks only) ── */}
+            {layoutConfig.sections[editingBlockIndex]?.type === 'custom_html' && showHtmlEditor && (
               <div className="flex flex-1 overflow-hidden">
                 <div className="flex flex-col flex-1 overflow-hidden border-r border-gray-200">
                   <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 flex-shrink-0">
@@ -1815,7 +1938,8 @@ function LayoutBuilderContent() {
               </div>
             )}
 
-            {/* Editor footer: Save / Cancel */}
+            {/* Editor footer: Save / Cancel — hidden for FooterSection (has its own Save button) */}
+            {layoutConfig.sections[editingBlockIndex]?.component !== 'FooterSection' && (
             <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 bg-white flex-shrink-0">
               <button
                 onClick={saveBlockEdit}
@@ -1832,6 +1956,7 @@ function LayoutBuilderContent() {
               </button>
               <span className="ml-auto text-[10px] text-gray-400">Preview updates on save</span>
             </div>
+            )}
           </div>
 
           ) : (
@@ -1895,6 +2020,7 @@ function LayoutBuilderContent() {
                   const condEditorOpen = conditionEditorIndex === index;
                   const isAcceptanceForm = section.component === 'AcceptanceForm';
                   const formCfgOpen = formConfigEditorIndex === index;
+                  const isFooter = section.component === 'FooterSection';
                   const isLocked = !!(section.component && docTypeDef.lockedBlockComponents.includes(section.component));
 
                   return (
@@ -1929,7 +2055,17 @@ function LayoutBuilderContent() {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-800 truncate">{label}</div>
+                        <div className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">
+                          {label}
+                          {/* Colour swatch for footer blocks */}
+                          {isFooter && (section.config as Record<string,unknown>)?.bgColor && (
+                            <span
+                              className="inline-block w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                              style={{ backgroundColor: String((section.config as Record<string,unknown>).bgColor) }}
+                              title="Footer background colour"
+                            />
+                          )}
+                        </div>
                         <div className="text-xs text-gray-400">{typeTag}</div>
                       </div>
 
@@ -1944,6 +2080,17 @@ function LayoutBuilderContent() {
                           className="p-1 rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                         >
                           <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* Style button (FooterSection only) */}
+                      {isFooter && (
+                        <button
+                          onClick={() => openBlockEditor(index)}
+                          title="Edit footer colours"
+                          className="p-1 rounded text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                        >
+                          <Palette className="w-4 h-4" />
                         </button>
                       )}
 

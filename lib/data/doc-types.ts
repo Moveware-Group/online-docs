@@ -45,7 +45,10 @@ export const DOC_TYPES: DocTypeDefinition[] = [
     icon: 'FileText',
     color: 'blue',
     addableBlocks: ['image', 'html', 'text1col', 'text2col', 'text3col'],
-    lockedBlockComponents: [],
+    // FooterSection is always present at the bottom of every quote layout.
+    // It is locked (cannot be deleted or moved) but its background colour
+    // is configurable via the block's config panel.
+    lockedBlockComponents: ['FooterSection'],
     supportsAI: true,
     status: 'live',
   },

@@ -41,7 +41,8 @@ export interface LayoutSection {
     | "InventoryTable"
     | "NextStepsForm"
     | "AcceptanceForm"
-    | "TermsSection";
+    | "TermsSection"
+    | "FooterSection";
   visible?: boolean;
   config?: Record<string, unknown>;
   /** Optional display condition — block hidden when condition is not met */
