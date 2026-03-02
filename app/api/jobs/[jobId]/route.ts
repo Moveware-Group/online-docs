@@ -80,7 +80,9 @@ const MOCK_JOBS: Record<
 /** Build the branding block from a DB company record. */
 async function resolveBranding(
   coId: string | null,
-  fallbackBrandCode?: string,
+  /** Brand code from the URL ?brand= param; used to select the exact company
+   *  when a tenant operates multiple brands with the same tenantId. */
+  brandCode?: string | null,
 ): Promise<InternalBranding> {
   const defaults: InternalBranding = {
     companyName: 'Moveware',
@@ -103,14 +105,20 @@ async function resolveBranding(
   try {
     let company = null;
     if (coId) {
+      // When a brand code is supplied, target the exact (tenantId, brandCode)
+      // row so multi-brand tenants each resolve to their own Company record.
+      const where = brandCode
+        ? { tenantId: coId, brandCode }
+        : { tenantId: coId };
       company = await prisma.company.findFirst({
-        where: { tenantId: coId },
+        where,
         include: { brandingSettings: true },
       });
     }
-    if (!company && fallbackBrandCode) {
+    if (!company && brandCode) {
+      // Fallback: look up by brandCode alone (e.g. preview mode without coId)
       company = await prisma.company.findFirst({
-        where: { brandCode: fallbackBrandCode },
+        where: { brandCode },
         include: { brandingSettings: true },
         orderBy: { createdAt: 'asc' },
       });
@@ -155,7 +163,9 @@ export async function GET(
 ) {
   try {
     const { jobId } = await params;
-    const coId = new URL(request.url).searchParams.get('coId');
+    const reqUrl = new URL(request.url);
+    const coId  = reqUrl.searchParams.get('coId');
+    const brand = reqUrl.searchParams.get('brand');
 
     if (!jobId) {
       return NextResponse.json(
@@ -164,10 +174,7 @@ export async function GET(
       );
     }
 
-    const branding = await resolveBranding(
-      coId,
-      MOCK_JOBS[jobId]?.brandCode,
-    );
+    const branding = await resolveBranding(coId, brand);
 
     // ── Live Moveware API path ─────────────────────────────────────────────
     if (coId) {

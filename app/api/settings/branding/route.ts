@@ -6,13 +6,20 @@ const DEFAULT_COMPANY_ID = 'default';
 
 export async function GET(request: NextRequest) {
   try {
-    const coId = new URL(request.url).searchParams.get('coId');
+    const url = new URL(request.url);
+    const coId  = url.searchParams.get('coId');
+    const brand = url.searchParams.get('brand');
 
     if (coId) {
-      // Resolve the Moveware tenantId to the internal Company record,
-      // then return that company's branding settings.
+      // When a brand code is provided look up the exact (tenantId, brandCode)
+      // pair so that multi-brand companies each get their own branding.
+      // Fall back to tenantId-only when no brand is specified.
+      const where = brand
+        ? { tenantId: coId, brandCode: brand }
+        : { tenantId: coId };
+
       const company = await prisma.company.findFirst({
-        where: { tenantId: coId },
+        where,
         select: { id: true },
       });
 
