@@ -377,12 +377,13 @@ export function CustomLayoutRenderer({
           // HeaderSection renders.  Config can override bgColor / textColor so
           // each template can have its own footer background colour.
           if (section.component === 'FooterSection') {
+            const footerCfg = (section.config || {}) as Record<string, unknown>;
             return (
               <div key={section.id} data-section-id={section.id}>
                 <FooterSection
                   data={data}
-                  bgColorOverride={cfg.bgColor as string | undefined}
-                  textColorOverride={cfg.textColor as string | undefined}
+                  bgColorOverride={footerCfg.bgColor as string | undefined}
+                  textColorOverride={footerCfg.textColor as string | undefined}
                 />
               </div>
             );
