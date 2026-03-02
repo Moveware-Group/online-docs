@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { brandingService } from '@/lib/services';
+import { prisma } from '@/lib/db';
 
 const DEFAULT_COMPANY_ID = 'default';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const coId = new URL(request.url).searchParams.get('coId');
+
+    if (coId) {
+      // Resolve the Moveware tenantId to the internal Company record,
+      // then return that company's branding settings.
+      const company = await prisma.company.findFirst({
+        where: { tenantId: coId },
+        select: { id: true },
+      });
+
+      if (company) {
+        const branding = await brandingService.getBranding(company.id);
+        if (branding) return NextResponse.json(branding);
+      }
+      // Fall through to default if no company-specific branding found
+    }
+
     const branding = await brandingService.getBranding();
     return NextResponse.json(branding);
   } catch (error) {
