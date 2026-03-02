@@ -72,8 +72,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error('GET roles error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch roles' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('GET roles error:', msg);
+    return NextResponse.json({ success: false, error: `Failed to fetch roles: ${msg}` }, { status: 500 });
   }
 }
 
