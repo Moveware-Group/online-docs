@@ -507,18 +507,22 @@ export default function ReviewPageClient() {
       return;
     }
 
-    // ── Preview / demo mode — loads one question of every type ──────────────
-    if (preview) {
-      setQuestions(PREVIEW_QUESTIONS);
-      setLoading(false);
-      return;
-    }
-
     async function load() {
       setLoading(true);
       setError(null);
       try {
         const base = coId ? `?coId=${encodeURIComponent(coId)}` : '';
+
+        // ── Preview mode: load branding but use hardcoded sample questions ──
+        if (preview) {
+          const brandingRes = await fetch(`/api/settings/branding${base}`);
+          if (brandingRes.ok) {
+            const d = await brandingRes.json();
+            setBranding(d?.data ?? d);
+          }
+          setQuestions(PREVIEW_QUESTIONS);
+          return;
+        }
 
         const [brandingRes, reviewsRes, questionsRes] = await Promise.all([
           fetch(`/api/settings/branding${base}`),
