@@ -87,6 +87,7 @@ async function resolveBranding(
   const defaults: InternalBranding = {
     companyName: 'Moveware',
     logoUrl: '',
+    logoUrlLight: '',
     heroBannerUrl: '',
     footerImageUrl: '',
     primaryColor: '#1E40AF',
