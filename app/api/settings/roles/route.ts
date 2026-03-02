@@ -7,16 +7,52 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth/session';
 
+const DEFAULT_ROLES = [
+  {
+    id: 'role_admin',
+    name: 'Admin',
+    description: 'Full access to all settings, companies, users, and roles',
+    permissions: JSON.stringify(['all']),
+    isSystem: true,
+  },
+  {
+    id: 'role_client',
+    name: 'Client',
+    description: 'Access limited to assigned companies only',
+    permissions: JSON.stringify([]),
+    isSystem: true,
+  },
+];
+
 export async function GET(request: NextRequest) {
   const session = await getSessionUser(request);
   if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const roles = await (prisma as any).role.findMany({
+    let roles = await (prisma as any).role.findMany({
       orderBy: { name: 'asc' },
       include: { _count: { select: { users: true } } },
     });
+
+    // Auto-seed default roles if the table is empty
+    if (roles.length === 0) {
+      for (const r of DEFAULT_ROLES) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (prisma as any).role.upsert({
+            where: { name: r.name },
+            update: {},
+            create: r,
+          });
+        } catch { /* ignore individual failures */ }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      roles = await (prisma as any).role.findMany({
+        orderBy: { name: 'asc' },
+        include: { _count: { select: { users: true } } },
+      });
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = roles.map((r: any) => ({
