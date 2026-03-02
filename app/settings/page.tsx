@@ -356,448 +356,474 @@ function CompanyForm({
     }
   );
   const [showMwPassword, setShowMwPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState<'company' | 'branding' | 'quote' | 'footer' | 'api'>('company');
+
+  const tabs: { id: typeof activeTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'company',  label: 'Company',    icon: <Building2 className="w-3.5 h-3.5" /> },
+    { id: 'branding', label: 'Branding',   icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    { id: 'quote',    label: 'Quote Page', icon: <Layout className="w-3.5 h-3.5" /> },
+    { id: 'footer',   label: 'Footer',     icon: <FileText className="w-3.5 h-3.5" /> },
+    { id: 'api',      label: 'API',        icon: <Code2 className="w-3.5 h-3.5" /> },
+  ];
 
   return (
-    <div className="border border-gray-300 rounded-lg p-6 bg-gray-50">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
-        {company?.id ? 'Edit Company' : 'Add New Company'}
-      </h3>
+    <div className="border border-gray-300 rounded-lg bg-gray-50 overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-white">
+        <h3 className="text-lg font-semibold text-gray-900">
+          {company?.id ? 'Edit Company' : 'Add New Company'}
+        </h3>
+        {company?.companyName && (
+          <p className="text-sm text-gray-500 mt-0.5">{company.companyName} · {company.companyId}{company.brandCode ? ` · ${company.brandCode}` : ''}</p>
+        )}
+      </div>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company ID <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.companyId}
-              onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="12"
-            />
-            <p className="text-xs text-gray-500 mt-1">Numeric company ID</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Brand Code <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.brandCode}
-              onChange={(e) => setFormData({ ...formData, brandCode: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="MWB"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Company Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.companyName}
-            onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Crown Worldwide"
-          />
-        </div>
-
-        {/* Logo Upload */}
-        <ImageUploadField
-          label="Company Logo"
-          description="Standard logo displayed on light/white backgrounds"
-          value={formData.logoUrl}
-          onChange={(url) => setFormData({ ...formData, logoUrl: url })}
-        />
-
-        {/* Light Logo Upload */}
-        <ImageUploadField
-          label="Company Logo (Light / Dark backgrounds)"
-          description="Alternate logo for use on dark backgrounds — e.g. a white version of the logo for a dark-coloured footer"
-          value={formData.logoUrlLight || ''}
-          onChange={(url) => setFormData({ ...formData, logoUrlLight: url })}
-        />
-
-        {/* Hero Banner Upload */}
-        <ImageUploadField
-          label="Hero Banner Image"
-          description="Optional banner image for the quote page header (recommended: 1920x400px)"
-          value={formData.heroBannerUrl || ''}
-          onChange={(url) => setFormData({ ...formData, heroBannerUrl: url })}
-          previewHeight="h-20"
-        />
-
-        {/* Footer Image Upload */}
-        <ImageUploadField
-          label="Footer Image"
-          description="Optional image for the quote page footer"
-          value={formData.footerImageUrl || ''}
-          onChange={(url) => setFormData({ ...formData, footerImageUrl: url })}
-          previewHeight="h-16"
-        />
-
-        {/* Colors */}
-        <div className="grid grid-cols-3 gap-4">
-          <ColorPickerField
-            label="Primary Color"
-            value={formData.primaryColor}
-            onChange={(val) => setFormData({ ...formData, primaryColor: val })}
-          />
-          <ColorPickerField
-            label="Secondary Color"
-            value={formData.secondaryColor}
-            onChange={(val) => setFormData({ ...formData, secondaryColor: val })}
-          />
-          <ColorPickerField
-            label="Tertiary Color"
-            value={formData.tertiaryColor}
-            onChange={(val) => setFormData({ ...formData, tertiaryColor: val })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Font Family
-          </label>
-          <select
-            value={formData.fontFamily}
-            onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-200 bg-white overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
           >
-            {GOOGLE_FONTS.map((font) => (
-              <option key={font} value={font}>
-                {font}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">Used on custom and default quote pages for this company.</p>
-        </div>
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Quote Layout — status + optional template override */}
-        <div className="pt-4 border-t border-gray-200 space-y-3">
-          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <Layout className="w-4 h-4 text-blue-500" />
-            Quote Page Layout
-          </p>
+      {/* Tab panels */}
+      <div className="p-6 space-y-4">
 
-          {/* Layout Builder link */}
-          {formData.id ? (
-            <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${formData.layoutTemplateId ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-              <div className="flex items-center gap-2">
-                {formData.layoutTemplateId ? (
-                  <>
-                    <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-green-800">Layout template assigned</p>
-                      <p className="text-xs text-green-600">This company has a layout template assigned.</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">No layout template assigned</p>
-                      <p className="text-xs text-gray-500">Using the system default layout.</p>
-                    </div>
-                  </>
-                )}
-              </div>
-              <a
-                href={
-                  formData.layoutTemplateId
-                    ? `/settings/layout-builder?templateId=${formData.layoutTemplateId}`
-                    : `/settings/layout-builder?companyId=${formData.id}`
-                }
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors flex-shrink-0"
-              >
-                <Wand2 className="w-3 h-3" />
-                {formData.layoutTemplateId ? 'Edit Layout' : 'Create Layout'}
-              </a>
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500">Save this company first, then create a layout in the Layout Builder.</p>
-          )}
-
-          {/* Part 2: Optional shared template override */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
-              <Tag className="w-3 h-3" />
-              Apply shared template <span className="font-normal text-gray-400">(optional — overrides company layout)</span>
-            </label>
-            <select
-              value={formData.layoutTemplateId || ''}
-              onChange={(e) => setFormData({ ...formData, layoutTemplateId: e.target.value || null })}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-            >
-              <option value="">— Use company&apos;s own layout (no shared template) —</option>
-              {layoutTemplates.filter(t => t.isActive).map((t) => (
-                <option key={t.id} value={t.id}>{t.name} (v{t.version})</option>
-              ))}
-            </select>
-            {layoutTemplates.filter(t => t.isActive).length === 0 && (
-              <p className="text-xs text-gray-400 mt-1">
-                No shared templates yet. Create one in the <button type="button" onClick={() => {}} className="text-blue-500 underline">Custom Layouts</button> tab.
-              </p>
-            )}
-            {formData.layoutTemplateId && (
-              <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                <Check className="w-3 h-3" />
-                Shared template will take priority over the company&apos;s own layout. Per-company images still apply.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Quote Settings */}
-        <div className="pt-4 border-t border-gray-200 space-y-3">
-          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Quote Settings
-          </p>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-2">
-              Measurement System
-            </label>
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'kg' })}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
-                    ? 'text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-                style={
-                  (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
-                    ? { backgroundColor: formData.primaryColor || '#cc0000' }
-                    : {}
-                }
-              >
-                Metric (kg, m³)
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'lbs' })}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  formData.inventoryWeightUnit === 'lbs'
-                    ? 'text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
-                style={
-                  formData.inventoryWeightUnit === 'lbs'
-                    ? { backgroundColor: formData.primaryColor || '#cc0000' }
-                    : {}
-                }
-              >
-                Imperial (lbs, ft³)
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Controls how weight and volume are displayed in the inventory table on the quote page.
-            </p>
-          </div>
-        </div>
-
-        {/* Footer Settings */}
-        <div className="pt-4 border-t border-gray-200 space-y-3">
-          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
-            Footer
-          </p>
-
-          {/* Background + text colour */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Background Colour</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={formData.footerBgColor || '#ffffff'}
-                  onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
-                  className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
-                />
+        {/* ── Company ─────────────────────────────────────────────────────── */}
+        {activeTab === 'company' && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Company ID <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  value={formData.footerBgColor || '#ffffff'}
-                  onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
-                  className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
-                  placeholder="#ffffff"
+                  value={formData.companyId}
+                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="12"
                 />
+                <p className="text-xs text-gray-500 mt-1">Numeric company ID from Moveware</p>
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Text Colour</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={formData.footerTextColor || '#374151'}
-                  onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
-                  className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand Code <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
-                  value={formData.footerTextColor || '#374151'}
-                  onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
-                  className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
-                  placeholder="#374151"
+                  value={formData.brandCode}
+                  onChange={(e) => setFormData({ ...formData, brandCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="MWB"
                 />
+                <p className="text-xs text-gray-500 mt-1">Used in the <code className="bg-gray-100 px-1 rounded">?brand=</code> URL parameter</p>
               </div>
             </div>
-          </div>
-
-          {/* Contact details */}
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 1</label>
-              <input
-                type="text"
-                value={formData.footerAddressLine1 || ''}
-                onChange={(e) => setFormData({ ...formData, footerAddressLine1: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="11 Toohey Street"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2</label>
-              <input
-                type="text"
-                value={formData.footerAddressLine2 || ''}
-                onChange={(e) => setFormData({ ...formData, footerAddressLine2: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Brisbane QLD 4000"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
-              <input
-                type="text"
-                value={formData.footerPhone || ''}
-                onChange={(e) => setFormData({ ...formData, footerPhone: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="+61 7 3000 0000"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-              <input
-                type="email"
-                value={formData.footerEmail || ''}
-                onChange={(e) => setFormData({ ...formData, footerEmail: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="info@company.com.au"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">ABN</label>
-              <input
-                type="text"
-                value={formData.footerAbn || ''}
-                onChange={(e) => setFormData({ ...formData, footerAbn: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="12 345 678 901"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Moveware API Credentials */}
-        <div className="pt-4 border-t border-gray-200 space-y-3">
-          <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
-            Moveware API Credentials
-          </p>
-          <p className="text-xs text-gray-500">
-            Used to fetch live job data from the Moveware REST API. The password is stored securely and never returned to the browser.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                API Username
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={formData.mwUsername || ''}
-                onChange={(e) => setFormData({ ...formData, mwUsername: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="tony.kent@moveconnect.com"
-                autoComplete="off"
+                value={formData.companyName}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Crown Worldwide"
+              />
+            </div>
+          </>
+        )}
+
+        {/* ── Branding ────────────────────────────────────────────────────── */}
+        {activeTab === 'branding' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ImageUploadField
+                label="Company Logo"
+                description="Standard logo for light / white backgrounds"
+                value={formData.logoUrl}
+                onChange={(url) => setFormData({ ...formData, logoUrl: url })}
+              />
+              <ImageUploadField
+                label="Company Logo — Light version"
+                description="Alternate logo for dark backgrounds (e.g. white logo on a dark footer). Selected automatically based on background brightness."
+                value={formData.logoUrlLight || ''}
+                onChange={(url) => setFormData({ ...formData, logoUrlLight: url })}
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                API Password
-                {formData.mwPasswordSet && !formData.mwPassword && (
-                  <span className="ml-1.5 text-green-600 font-normal">● saved</span>
-                )}
-              </label>
-              <div className="relative">
-                <input
-                  type={showMwPassword ? 'text' : 'password'}
-                  value={formData.mwPassword || ''}
-                  onChange={(e) => setFormData({ ...formData, mwPassword: e.target.value })}
-                  className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={formData.mwPasswordSet ? '(leave blank to keep current)' : 'Enter password'}
-                  autoComplete="new-password"
+            <ImageUploadField
+              label="Hero Banner"
+              description="Optional full-width banner behind the quote page header (recommended: 1920 × 400 px)"
+              value={formData.heroBannerUrl || ''}
+              onChange={(url) => setFormData({ ...formData, heroBannerUrl: url })}
+              previewHeight="h-20"
+            />
+
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Brand Colours</p>
+              <div className="grid grid-cols-3 gap-4">
+                <ColorPickerField
+                  label="Primary"
+                  value={formData.primaryColor}
+                  onChange={(val) => setFormData({ ...formData, primaryColor: val })}
                 />
+                <ColorPickerField
+                  label="Secondary"
+                  value={formData.secondaryColor}
+                  onChange={(val) => setFormData({ ...formData, secondaryColor: val })}
+                />
+                <ColorPickerField
+                  label="Tertiary"
+                  value={formData.tertiaryColor}
+                  onChange={(val) => setFormData({ ...formData, tertiaryColor: val })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Font Family</label>
+              <select
+                value={formData.fontFamily}
+                onChange={(e) => setFormData({ ...formData, fontFamily: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                {GOOGLE_FONTS.map((font) => (
+                  <option key={font} value={font}>{font}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Applied to all quote and review pages for this company.</p>
+            </div>
+          </>
+        )}
+
+        {/* ── Quote Page ──────────────────────────────────────────────────── */}
+        {activeTab === 'quote' && (
+          <div className="space-y-4">
+            {/* Layout status + builder link */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 flex items-center gap-1.5 mb-2">
+                <Layout className="w-4 h-4 text-blue-500" />
+                Quote Page Layout
+              </p>
+              {formData.id ? (
+                <div className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${formData.layoutTemplateId ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-center gap-2">
+                    {formData.layoutTemplateId ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-green-800">Layout template assigned</p>
+                          <p className="text-xs text-green-600">This company has a custom layout template.</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">No layout template assigned</p>
+                          <p className="text-xs text-gray-500">Using the system default layout.</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <a
+                    href={
+                      formData.layoutTemplateId
+                        ? `/settings/layout-builder?templateId=${formData.layoutTemplateId}`
+                        : `/settings/layout-builder?companyId=${formData.id}`
+                    }
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-600 hover:bg-purple-50 rounded-lg border border-purple-200 transition-colors flex-shrink-0"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    {formData.layoutTemplateId ? 'Edit Layout' : 'Create Layout'}
+                  </a>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">Save this company first, then create a layout in the Layout Builder.</p>
+              )}
+            </div>
+
+            {/* Shared template override */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                <Tag className="w-3 h-3" />
+                Apply shared template <span className="font-normal text-gray-400">(optional — overrides company layout)</span>
+              </label>
+              <select
+                value={formData.layoutTemplateId || ''}
+                onChange={(e) => setFormData({ ...formData, layoutTemplateId: e.target.value || null })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option value="">— Use company&apos;s own layout (no shared template) —</option>
+                {layoutTemplates.filter(t => t.isActive).map((t) => (
+                  <option key={t.id} value={t.id}>{t.name} (v{t.version})</option>
+                ))}
+              </select>
+              {layoutTemplates.filter(t => t.isActive).length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  No shared templates yet. Create one in the <button type="button" onClick={() => {}} className="text-blue-500 underline">Custom Layouts</button> tab.
+                </p>
+              )}
+              {formData.layoutTemplateId && (
+                <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Shared template takes priority over the company&apos;s own layout. Per-company images still apply.
+                </p>
+              )}
+            </div>
+
+            {/* Measurement system */}
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">Quote Settings</p>
+              <label className="block text-xs font-medium text-gray-600 mb-2">Measurement System</label>
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setShowMwPassword((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  tabIndex={-1}
+                  onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'kg' })}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  style={
+                    (formData.inventoryWeightUnit ?? 'kg') !== 'lbs'
+                      ? { backgroundColor: formData.primaryColor || '#cc0000' }
+                      : {}
+                  }
                 >
-                  {showMwPassword ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  Metric (kg, m³)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, inventoryWeightUnit: 'lbs' })}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    formData.inventoryWeightUnit === 'lbs'
+                      ? 'text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  style={
+                    formData.inventoryWeightUnit === 'lbs'
+                      ? { backgroundColor: formData.primaryColor || '#cc0000' }
+                      : {}
+                  }
+                >
+                  Imperial (lbs, ft³)
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Controls how weight and volume are displayed in the inventory table on the quote page.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Footer ──────────────────────────────────────────────────────── */}
+        {activeTab === 'footer' && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">
+              These details appear in the footer block on all quote and review documents. The logo displayed in the footer is chosen automatically — the light logo is used on dark backgrounds.
+            </p>
+
+            {/* Colours */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Colours</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Background Colour</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={formData.footerBgColor || '#ffffff'}
+                      onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
+                      className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={formData.footerBgColor || '#ffffff'}
+                      onChange={(e) => setFormData({ ...formData, footerBgColor: e.target.value })}
+                      className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Text Colour</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={formData.footerTextColor || '#374151'}
+                      onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
+                      className="w-8 h-8 rounded border border-gray-300 cursor-pointer p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={formData.footerTextColor || '#374151'}
+                      onChange={(e) => setFormData({ ...formData, footerTextColor: e.target.value })}
+                      className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg font-mono"
+                      placeholder="#374151"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact details */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Contact Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 1</label>
+                  <input
+                    type="text"
+                    value={formData.footerAddressLine1 || ''}
+                    onChange={(e) => setFormData({ ...formData, footerAddressLine1: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="11 Toohey Street"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Address Line 2</label>
+                  <input
+                    type="text"
+                    value={formData.footerAddressLine2 || ''}
+                    onChange={(e) => setFormData({ ...formData, footerAddressLine2: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Brisbane QLD 4000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+                  <input
+                    type="text"
+                    value={formData.footerPhone || ''}
+                    onChange={(e) => setFormData({ ...formData, footerPhone: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="+61 7 3000 0000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={formData.footerEmail || ''}
+                    onChange={(e) => setFormData({ ...formData, footerEmail: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="info@company.com.au"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ABN</label>
+                  <input
+                    type="text"
+                    value={formData.footerAbn || ''}
+                    onChange={(e) => setFormData({ ...formData, footerAbn: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="12 345 678 901"
+                  />
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          {(formData.mwUsername || formData.mwPasswordSet) && (
-            <p className="text-xs text-blue-600 flex items-center gap-1">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Live Moveware API calls are enabled for company ID {formData.companyId || '…'}.
+        {/* ── API Credentials ─────────────────────────────────────────────── */}
+        {activeTab === 'api' && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Used to fetch live job data from the Moveware REST API. The password is stored securely and never returned to the browser.
             </p>
-          )}
-        </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-300">
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(formData)}
-            disabled={loading || !formData.companyId || !formData.brandCode || !formData.companyName}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Saving...' : 'Save Company'}
-          </button>
-        </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">API Username</label>
+                <input
+                  type="text"
+                  value={formData.mwUsername || ''}
+                  onChange={(e) => setFormData({ ...formData, mwUsername: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="tony.kent@moveconnect.com"
+                  autoComplete="off"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  API Password
+                  {formData.mwPasswordSet && !formData.mwPassword && (
+                    <span className="ml-1.5 text-green-600 font-normal">● saved</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showMwPassword ? 'text' : 'password'}
+                    value={formData.mwPassword || ''}
+                    onChange={(e) => setFormData({ ...formData, mwPassword: e.target.value })}
+                    className="w-full px-3 py-2 pr-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder={formData.mwPasswordSet ? '(leave blank to keep current)' : 'Enter password'}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMwPassword((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    tabIndex={-1}
+                  >
+                    {showMwPassword ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {(formData.mwUsername || formData.mwPasswordSet) && (
+              <p className="text-xs text-blue-600 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Live Moveware API calls are enabled for company ID {formData.companyId || '…'}.
+              </p>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Save / Cancel — always visible */}
+      <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-white">
+        <button
+          onClick={onCancel}
+          disabled={loading}
+          className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => onSave(formData)}
+          disabled={loading || !formData.companyId || !formData.brandCode || !formData.companyName}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Saving...' : 'Save Company'}
+        </button>
       </div>
     </div>
   );
