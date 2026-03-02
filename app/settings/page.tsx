@@ -1170,11 +1170,17 @@ export default function SettingsPage() {
     setLoadingRoles(true);
     try {
       const res = await fetch('/api/settings/roles', { headers: authHeader });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) setRoles(data.data || []);
+      const data = await res.json();
+      if (data.success) {
+        setRoles(data.data || []);
+      } else {
+        setError(`Roles API error (${res.status}): ${data.error || 'Unknown error'}`);
       }
-    } catch { /* ignore */ } finally { setLoadingRoles(false); }
+    } catch (e) {
+      setError(`Failed to load roles: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoadingRoles(false);
+    }
   };
 
   // Save block HTML changes back to a shared template
