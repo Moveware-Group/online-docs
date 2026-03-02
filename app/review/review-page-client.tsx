@@ -50,7 +50,7 @@ type AnswerMap = Record<string | number, string | string[] | number | null>;
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-/** Star / image-feedback rating (1–5 emoji stars) */
+/** Star rating (1–5 clickable stars) — used for `rating` controlType */
 function StarRating({
   questionId,
   value,
@@ -74,13 +74,70 @@ function StarRating({
           data-qid={questionId}
           className="text-3xl transition-transform hover:scale-110"
         >
-          <span
-            className={star <= (hover || value) ? 'text-yellow-400' : 'text-gray-300'}
-          >
+          <span className={star <= (hover || value) ? 'text-yellow-400' : 'text-gray-300'}>
             ★
           </span>
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Smiley-face feedback — used for `image feedback` controlType.
+ * Renders one emoji button per response option, from most positive (left) to
+ * least positive (right). The emoji set scales to however many responses exist.
+ */
+const FACE_SETS: Record<number, string[]> = {
+  2: ['😊', '😕'],
+  3: ['😁', '😐', '😢'],
+  4: ['😁', '😊', '😐', '😕'],
+  5: ['😁', '😊', '😐', '🙁', '😢'],
+  6: ['😁', '😊', '🙂', '😐', '🙁', '😢'],
+};
+
+function EmojiRating({
+  responses,
+  value,
+  onChange,
+}: {
+  responses: string[];
+  value: string | null;
+  onChange: (v: string) => void;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const count = responses.length || 4;
+  const faces = FACE_SETS[count] ?? FACE_SETS[4];
+
+  return (
+    <div className="flex flex-wrap gap-4 mt-3">
+      {responses.map((label, i) => {
+        const face  = faces[i] ?? '😐';
+        const isOn  = value === label || hovered === label;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onChange(label)}
+            onMouseEnter={() => setHovered(label)}
+            onMouseLeave={() => setHovered(null)}
+            className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 border-2 transition-all ${
+              value === label
+                ? 'border-blue-500 bg-blue-50 scale-105 shadow-sm'
+                : isOn
+                ? 'border-gray-300 bg-gray-50 scale-105'
+                : 'border-transparent'
+            }`}
+          >
+            <span className={`text-4xl leading-none transition-all ${isOn ? 'grayscale-0' : value ? 'grayscale opacity-40' : 'grayscale-0'}`}>
+              {face}
+            </span>
+            <span className={`text-xs text-center max-w-[72px] leading-tight font-medium ${value === label ? 'text-blue-600' : 'text-gray-500'}`}>
+              {label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -294,6 +351,14 @@ function QuestionField({
         );
 
       case 'image feedback':
+        return (
+          <EmojiRating
+            responses={responses.length ? responses : ['Exceeded Expectation', 'Amazing', 'Could have been better', 'Very Unhappy']}
+            value={typeof answer === 'string' ? answer : null}
+            onChange={(v) => handleSingleChange(v)}
+          />
+        );
+
       case 'rating':
         return (
           <StarRating
@@ -375,6 +440,7 @@ const PREVIEW_QUESTIONS: MwQuestion[] = [
     id: 'p5',
     question: 'Please rate the condition of your goods on delivery',
     controlType: 'image feedback',
+    responses: ['Exceeded Expectation', 'Amazing', 'Could have been better', 'Very Unhappy'],
     sort: 5,
     type: 'Service',
   },
