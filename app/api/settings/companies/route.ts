@@ -27,23 +27,36 @@ function normalizeHex(hex: string | undefined | null, fallback: string): string 
  */
 export async function GET() {
   try {
+    // Fetch companies with branding. documentLayouts is only included when the
+    // company_document_layouts table exists (migration may not have run yet on
+    // older deployments), so we fall back gracefully to a simpler query.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const companies = await (prisma as any).company.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        brandingSettings: true,
-        // Include all per-docType layout assignments
-        documentLayouts: {
-          include: { template: { select: { id: true, name: true, docType: true } } },
+    let companies: any[];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      companies = await (prisma as any).company.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          brandingSettings: true,
+          documentLayouts: {
+            include: { template: { select: { id: true, name: true, docType: true } } },
+          },
         },
-      },
-    });
+      });
+    } catch {
+      // Migration not yet run — fall back without documentLayouts
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      companies = await (prisma as any).company.findMany({
+        orderBy: { name: 'asc' },
+        include: { brandingSettings: true },
+      });
+    }
 
     const result = companies.map((company: Record<string, unknown>) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bs = company.brandingSettings as any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const docLayouts = (company.documentLayouts as any[]) ?? [];
+      const docLayouts = (company.documentLayouts as any[] | undefined) ?? [];
 
       // Build a map of docType → { templateId, templateName }
       const docTypeLayouts: Record<string, { templateId: string; templateName: string }> = {};
