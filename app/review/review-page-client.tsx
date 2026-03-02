@@ -640,10 +640,13 @@ export default function ReviewPageClient() {
   const primaryColor = branding?.primaryColor || '#2563eb';
   const logoUrl      = branding?.logoUrl;
 
+  // ── Shared PageShell props (logo always injected once branding is loaded) ──
+  const shellProps = { logoUrl: logoUrl ?? undefined, companyName: undefined };
+
   // ── States ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <PageShell>
+      <PageShell {...shellProps}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: primaryColor }} />
@@ -656,7 +659,7 @@ export default function ReviewPageClient() {
 
   if (!jobId || !token) {
     return (
-      <PageShell>
+      <PageShell {...shellProps}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid Link</h2>
@@ -671,7 +674,7 @@ export default function ReviewPageClient() {
 
   if (submitted) {
     return (
-      <PageShell>
+      <PageShell {...shellProps}>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full text-center">
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -686,7 +689,7 @@ export default function ReviewPageClient() {
   }
 
   return (
-    <PageShell>
+    <PageShell {...shellProps}>
       <div className="min-h-screen bg-gray-50">
         {/* Hero */}
         <section
@@ -694,9 +697,6 @@ export default function ReviewPageClient() {
           style={{ background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}cc)` }}
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Company logo" className="h-10 w-auto mb-6" />
-            ) : null}
             <h1 className="text-3xl sm:text-4xl font-bold mb-3">Share Your Experience</h1>
             <p className="text-lg opacity-90">
               We&apos;d love to hear how your move went. Your feedback helps us improve.
