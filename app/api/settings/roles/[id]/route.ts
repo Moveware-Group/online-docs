@@ -45,7 +45,10 @@ export async function PUT(
     });
   } catch (error) {
     console.error('PUT role error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to update role' }, { status: 500 });
+    const msg = error instanceof Error && error.message.includes('Unique constraint')
+      ? 'A role with this name already exists'
+      : 'Failed to update role';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
 

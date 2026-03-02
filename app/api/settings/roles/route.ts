@@ -67,6 +67,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('POST roles error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create role' }, { status: 500 });
+    const msg = error instanceof Error && error.message.includes('Unique constraint')
+      ? 'A role with this name already exists'
+      : 'Failed to create role';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
