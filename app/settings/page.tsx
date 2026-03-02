@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle, RefreshCw } from 'lucide-react';
+import { Building2, Plus, Loader2, AlertCircle, Check, LogOut, Upload, X, Image as ImageIcon, Wand2, Layout, Trash2, Search, Copy, Tag, ChevronDown, ChevronRight, Users, Pencil, Code2, Save as SaveIcon, HelpCircle, RefreshCw, FileText, Star, CreditCard, FolderOpen } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
 import { PLACEHOLDER_REGISTRY, PLACEHOLDER_CATEGORIES, type PlaceholderCategory } from '@/lib/data/placeholder-registry';
 import { GRACE_STATIC_LAYOUT } from '@/lib/layouts/grace-static';
 import { DEFAULT_STATIC_LAYOUT } from '@/lib/layouts/default-static';
+import { DOC_TYPES, DOC_TYPE_COLORS, type DocTypeId } from '@/lib/data/doc-types';
 
 /** Popular Google Fonts for the company branding font selector */
 const GOOGLE_FONTS = [
@@ -54,7 +55,10 @@ interface CompanyBranding {
   secondaryColor: string;
   tertiaryColor: string;
   fontFamily: string;
+  /** Legacy: quote layout template ID from BrandingSettings */
   layoutTemplateId?: string | null;
+  /** Per-docType layout assignments: { quote: { templateId, templateName }, review: {...}, ... } */
+  docTypeLayouts?: Record<string, { templateId: string; templateName: string }>;
   /** Moveware REST API username (read/write) */
   mwUsername?: string;
   /** True when a password is already stored — password itself is never returned from the API */
@@ -972,6 +976,16 @@ export default function SettingsPage() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyBranding | null>(null);
   const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
+  // Track which company rows have their Layouts section expanded
+  const [expandedLayoutsFor, setExpandedLayoutsFor] = useState<Set<string>>(new Set());
+
+  const toggleLayoutsExpanded = (companyId: string) => {
+    setExpandedLayoutsFor((prev) => {
+      const next = new Set(prev);
+      if (next.has(companyId)) next.delete(companyId); else next.add(companyId);
+      return next;
+    });
+  };
 
   // Layout templates state
   const [layoutTemplates, setLayoutTemplates] = useState<LayoutTemplate[]>([]);
@@ -1623,19 +1637,20 @@ export default function SettingsPage() {
                             title={`Tertiary: ${company.tertiaryColor}`}
                           />
                         </div>
-                        {/* Actions — fixed width so variable label ("Create"/"Edit" Layout) never shifts colours */}
-                        <div className="flex gap-2 flex-shrink-0 w-[272px] justify-end">
-                          <a
-                            href={
-                              company.layoutTemplateId
-                                ? `/settings/layout-builder?templateId=${company.layoutTemplateId}`
-                                : `/settings/layout-builder?companyId=${company.id}`
-                            }
+                        {/* Actions */}
+                        <div className="flex gap-2 flex-shrink-0 justify-end">
+                          <button
+                            onClick={() => company.id && toggleLayoutsExpanded(company.id)}
                             className="px-3 py-1 text-sm text-purple-600 hover:bg-purple-50 rounded transition-colors flex items-center gap-1"
+                            title="Manage layouts for this company"
                           >
                             <Wand2 className="w-3 h-3" />
-                            {company.layoutTemplateId ? 'Edit Layout' : 'Create Layout'}
-                          </a>
+                            Layouts
+                            {company.id && expandedLayoutsFor.has(company.id)
+                              ? <ChevronDown className="w-3 h-3" />
+                              : <ChevronRight className="w-3 h-3" />
+                            }
+                          </button>
                           <button
                             onClick={() => setSelectedCompany(company)}
                             className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -1650,6 +1665,57 @@ export default function SettingsPage() {
                           </button>
                         </div>
                       </div>
+
+                      {/* ── Per-docType Layouts expandable section ── */}
+                      {company.id && expandedLayoutsFor.has(company.id) && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Document Layouts</p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {DOC_TYPES.map((dt) => {
+                              const colors = DOC_TYPE_COLORS[dt.color];
+                              const assignment = company.docTypeLayouts?.[dt.id];
+                              const hasLayout = !!assignment;
+                              const isComingSoon = dt.status === 'coming_soon';
+                              const DocIcon = dt.id === 'quote' ? FileText
+                                : dt.id === 'review' ? Star
+                                : dt.id === 'payment' ? CreditCard
+                                : FolderOpen;
+
+                              // Build layout builder URL
+                              const builderUrl = hasLayout
+                                ? `/settings/layout-builder?templateId=${assignment.templateId}&docType=${dt.id}`
+                                : `/settings/layout-builder?companyId=${company.id}&docType=${dt.id}`;
+
+                              return (
+                                <div
+                                  key={dt.id}
+                                  className={`rounded-xl border p-3 flex flex-col gap-2 ${isComingSoon ? 'opacity-50' : ''} ${colors.border} ${colors.bg}`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <DocIcon className={`w-4 h-4 flex-shrink-0 ${colors.text}`} />
+                                    <span className={`text-xs font-semibold ${colors.text}`}>{dt.shortLabel}</span>
+                                    {isComingSoon && (
+                                      <span className="ml-auto text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">Soon</span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-gray-500 leading-tight">{dt.description}</p>
+                                  {isComingSoon ? (
+                                    <span className="text-xs text-gray-400 italic">Coming soon</span>
+                                  ) : (
+                                    <a
+                                      href={builderUrl}
+                                      className={`mt-auto inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${colors.text} ${colors.border} ${colors.hover} bg-white`}
+                                    >
+                                      <Wand2 className="w-3 h-3" />
+                                      {hasLayout ? 'Edit Layout' : 'Create Layout'}
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ));
                 })()}

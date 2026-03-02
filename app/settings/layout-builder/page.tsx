@@ -38,6 +38,7 @@ import {
   Filter,
   FilterX,
   Settings2,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '@/lib/contexts/auth-context';
 import { LoginForm } from '@/lib/components/auth/login-form';
@@ -52,6 +53,12 @@ import {
   PLACEHOLDER_CATEGORIES,
   type PlaceholderCategory,
 } from '@/lib/data/placeholder-registry';
+import {
+  DOC_TYPES,
+  DOC_TYPE_MAP,
+  DOC_TYPE_COLORS,
+  type DocTypeId,
+} from '@/lib/data/doc-types';
 
 // ---------------------------------------------------------------------------
 // Smart copy extractor — DOMParser-based text field extraction
@@ -160,6 +167,9 @@ function LayoutBuilderContent() {
   const searchParams = useSearchParams();
   const preselectedCompanyId = searchParams.get('companyId');
   const preselectedTemplateId = searchParams.get('templateId');
+  const docTypeParam = (searchParams.get('docType') || 'quote') as DocTypeId;
+  const docTypeDef = DOC_TYPE_MAP[docTypeParam] ?? DOC_TYPE_MAP['quote'];
+  const docTypeColors = DOC_TYPE_COLORS[docTypeDef.color];
 
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
@@ -318,7 +328,7 @@ function LayoutBuilderContent() {
 
   const loadExistingLayout = async (companyId: string) => {
     try {
-      const res = await fetch(`/api/layouts/${companyId}`);
+      const res = await fetch(`/api/layouts/${companyId}?docType=${encodeURIComponent(docTypeParam)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data) {
@@ -696,7 +706,7 @@ function LayoutBuilderContent() {
         return;
       }
 
-      // Company mode: PUT /api/layouts/[companyId] now creates or updates a
+      // Company mode: PUT /api/layouts/[companyId] creates or updates a
       // LayoutTemplate for the company and assigns it automatically.
       if (!selectedCompany) return;
       const res = await fetch(`/api/layouts/${selectedCompany.id}`, {
@@ -704,6 +714,7 @@ function LayoutBuilderContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           layoutConfig,
+          docType: docTypeParam,
           referenceUrl: referenceUrl || null,
           referenceFile: referenceFilePath || null,
           description: description || null,
@@ -726,8 +737,9 @@ function LayoutBuilderContent() {
       }
 
       setSaved(true);
-      setStatusMessage('Layout saved and activated! All quotes for this company will now use this layout.');
-      addAssistantMessage('Layout saved successfully! All future quotes for this company will use this custom layout.');
+      const docLabel = docTypeDef.label;
+      setStatusMessage(`${docLabel} layout saved and activated!`);
+      addAssistantMessage(`${docLabel} layout saved successfully!`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -921,6 +933,12 @@ function LayoutBuilderContent() {
 
   /** Starter HTML templates for each addable block type */
   const BLOCK_TEMPLATES = {
+    logo: {
+      label: 'Logo',
+      html: `<div style="padding:0 32px;margin-bottom:32px;text-align:center;">
+  <img src="{{branding.logoUrl}}" alt="{{branding.companyName}}" style="max-height:64px;display:inline-block;" />
+</div>`,
+    },
     image: {
       label: 'Image',
       html: `<div style="padding:0 32px;margin-bottom:50px;">
@@ -1191,6 +1209,10 @@ function LayoutBuilderContent() {
             <Wand2 className="w-5 h-5 text-blue-600" />
             AI Layout Builder
           </h1>
+          {/* Doc type badge */}
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border ${docTypeColors.badge} ${docTypeColors.border}`}>
+            {docTypeDef.shortLabel}
+          </span>
           {editingTemplateId && (
             <span className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full border border-purple-200">
               <LayoutTemplate className="w-3 h-3" />
@@ -1873,31 +1895,37 @@ function LayoutBuilderContent() {
                   const condEditorOpen = conditionEditorIndex === index;
                   const isAcceptanceForm = section.component === 'AcceptanceForm';
                   const formCfgOpen = formConfigEditorIndex === index;
+                  const isLocked = !!(section.component && docTypeDef.lockedBlockComponents.includes(section.component));
 
                   return (
                     <div key={section.id || index} className="rounded-lg overflow-hidden">
                     <div
-                      draggable
-                      onDragStart={() => handleDragStartBlock(index)}
+                      draggable={!isLocked}
+                      onDragStart={() => !isLocked && handleDragStartBlock(index)}
                       onDragOver={(e) => handleDragOverBlock(e, index)}
-                      onDrop={() => handleDropBlock(index)}
+                      onDrop={() => !isLocked && handleDropBlock(index)}
                       onDragEnd={handleDragEndBlock}
                       className={`flex items-center gap-2 px-3 py-2.5 border transition-all select-none ${
-                        isDraggingThis
-                          ? 'opacity-40 border-blue-400 bg-blue-50'
-                          : isOver
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : formCfgOpen
-                              ? 'border-purple-300 bg-purple-50 border-b-0 rounded-t-lg'
-                              : condEditorOpen
-                              ? 'border-amber-300 bg-amber-50 border-b-0 rounded-t-lg'
-                              : isHidden
-                                ? 'border-gray-200 bg-gray-50 opacity-60 rounded-lg'
-                                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm rounded-lg'
+                        isLocked
+                          ? 'border-gray-200 bg-gray-50 rounded-lg cursor-default'
+                          : isDraggingThis
+                            ? 'opacity-40 border-blue-400 bg-blue-50'
+                            : isOver
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
+                              : formCfgOpen
+                                ? 'border-purple-300 bg-purple-50 border-b-0 rounded-t-lg'
+                                : condEditorOpen
+                                  ? 'border-amber-300 bg-amber-50 border-b-0 rounded-t-lg'
+                                  : isHidden
+                                    ? 'border-gray-200 bg-gray-50 opacity-60 rounded-lg'
+                                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm rounded-lg'
                       }`}
                     >
-                      {/* Drag handle */}
-                      <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+                      {/* Drag handle — hidden for locked system blocks */}
+                      {isLocked
+                        ? <Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" title="System block — cannot be moved or deleted" />
+                        : <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+                      }
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
@@ -1945,6 +1973,8 @@ function LayoutBuilderContent() {
                         {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
 
+                      {/* Duplicate / Condition / Delete — hidden for locked system blocks */}
+                      {!isLocked && (<>
                       {/* Duplicate button */}
                       <button
                         onClick={() => handleDuplicateBlock(index)}
@@ -1978,6 +2008,7 @@ function LayoutBuilderContent() {
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
+                      </>)}
                     </div>
 
                     {/* ── Inline acceptance form field config panel ── */}
@@ -2148,10 +2179,35 @@ function LayoutBuilderContent() {
                   </button>
                 </div>
 
-                {/* Block type grid */}
+                {/* Block type grid — filtered to this doc type's addable blocks */}
+                {(() => {
+                  const allowed = new Set(docTypeDef.addableBlocks as string[]);
+                  const showLogo    = allowed.has('logo');
+                  const showImage   = allowed.has('image');
+                  const showHtml    = allowed.has('html');
+                  const showText    = allowed.has('text1col') || allowed.has('text2col') || allowed.has('text3col');
+                  return (
                 <div className="p-5 space-y-4">
 
+                  {/* Logo (non-quote doc types) */}
+                  {showLogo && (<>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Branding</p>
+                  <button
+                    onClick={() => handleAddBlock('logo')}
+                    className="w-full flex items-center gap-4 px-4 py-3.5 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
+                      <ImageIcon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800 group-hover:text-blue-700">Logo</div>
+                      <div className="text-xs text-gray-400 mt-0.5">Company logo from branding settings</div>
+                    </div>
+                  </button>
+                  </>)}
+
                   {/* Image */}
+                  {showImage && (<>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Media</p>
                   <button
                     onClick={() => handleAddBlock('image')}
@@ -2165,8 +2221,10 @@ function LayoutBuilderContent() {
                       <div className="text-xs text-gray-400 mt-0.5">Full-width image with rounded card container</div>
                     </div>
                   </button>
+                  </>)}
 
                   {/* HTML */}
+                  {showHtml && (<>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Developer</p>
                   <button
                     onClick={() => handleAddBlock('html')}
@@ -2180,11 +2238,14 @@ function LayoutBuilderContent() {
                       <div className="text-xs text-gray-400 mt-0.5">Blank HTML block — full control over markup and styles</div>
                     </div>
                   </button>
+                  </>)}
 
                   {/* Text blocks */}
+                  {showText && (<>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Text Blocks</p>
                   <div className="grid grid-cols-3 gap-3">
                     {/* 1 Column */}
+                    {allowed.has('text1col') && (
                     <button
                       onClick={() => handleAddBlock('text1col')}
                       className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
@@ -2200,8 +2261,10 @@ function LayoutBuilderContent() {
                         </div>
                       </div>
                     </button>
+                    )}
 
                     {/* 2 Columns */}
+                    {allowed.has('text2col') && (
                     <button
                       onClick={() => handleAddBlock('text2col')}
                       className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
@@ -2217,8 +2280,10 @@ function LayoutBuilderContent() {
                         </div>
                       </div>
                     </button>
+                    )}
 
                     {/* 3 Columns */}
+                    {allowed.has('text3col') && (
                     <button
                       onClick={() => handleAddBlock('text3col')}
                       className="flex flex-col items-center gap-2.5 px-3 py-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all group"
@@ -2235,9 +2300,12 @@ function LayoutBuilderContent() {
                         </div>
                       </div>
                     </button>
+                    )}
                   </div>
+                  </>)}
 
                 </div>
+                ); })()}
 
                 {/* Footer note */}
                 <div className="px-5 pb-4">
