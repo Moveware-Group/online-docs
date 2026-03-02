@@ -14,6 +14,7 @@ type MwControlType =
   | 'Combo'
   | 'Signature'
   | 'image feedback'
+  | 'rating'
   | 'heading';
 
 interface MwQuestion {
@@ -293,6 +294,7 @@ function QuestionField({
         );
 
       case 'image feedback':
+      case 'rating':
         return (
           <StarRating
             questionId={id}
@@ -336,13 +338,89 @@ function QuestionField({
   );
 }
 
+// ─── Preview / demo questions (one per controlType) ──────────────────────────
+
+const PREVIEW_QUESTIONS: MwQuestion[] = [
+  {
+    id: 'p1',
+    question: 'Your Move Experience',
+    controlType: 'heading',
+    sort: 1,
+    type: 'General',
+  },
+  {
+    id: 'p2',
+    question: 'How would you rate your overall experience?',
+    controlType: 'rating',
+    sort: 2,
+    type: 'General',
+  },
+  {
+    id: 'p3',
+    question: 'Which aspects of the service stood out? (select all that apply)',
+    controlType: 'checkbox',
+    responses: ['Punctuality', 'Care of goods', 'Friendly crew', 'Value for money', 'Communication'],
+    sort: 3,
+    type: 'General',
+  },
+  {
+    id: 'p4',
+    question: 'How did you find the crew on the day?',
+    controlType: 'radio',
+    responses: ['Excellent', 'Good', 'Average', 'Below average'],
+    sort: 4,
+    type: 'Service',
+  },
+  {
+    id: 'p5',
+    question: 'Please rate the condition of your goods on delivery',
+    controlType: 'image feedback',
+    sort: 5,
+    type: 'Service',
+  },
+  {
+    id: 'p6',
+    question: 'Would you use us again?',
+    controlType: 'Combo',
+    responses: ['Definitely', 'Probably', 'Not sure', 'Probably not', 'Definitely not'],
+    sort: 6,
+    type: 'Service',
+  },
+  {
+    id: 'p7',
+    question: 'Please describe any damage or issues (only shown if checkbox above includes "Care of goods")',
+    controlType: 'radio',
+    responses: ['No issues', 'Minor scratch', 'Significant damage'],
+    conditionalParent: 'p3',
+    conditionalAnswer: 'Care of goods',
+    sort: 7,
+    type: 'Service',
+    showEditor: 'Y',
+  },
+  {
+    id: 'p8',
+    question: 'Declared value of goods (for insurance reference)',
+    controlType: 'Valuation',
+    sort: 8,
+    type: 'Insurance',
+  },
+  {
+    id: 'p9',
+    question: 'Please sign below to confirm your review',
+    controlType: 'Signature',
+    sort: 9,
+    type: 'Insurance',
+  },
+];
+
 // ─── Main page component ──────────────────────────────────────────────────────
 
 export default function ReviewPageClient() {
   const searchParams = useSearchParams();
-  const jobId  = searchParams.get('jobId');
-  const token  = searchParams.get('token');
-  const coId   = searchParams.get('coId');
+  const jobId   = searchParams.get('jobId');
+  const token   = searchParams.get('token');
+  const coId    = searchParams.get('coId');
+  const preview = searchParams.get('preview') === '1';
 
   const [branding,   setBranding]   = useState<BrandingSettings | null>(null);
   const [reviews,    setReviews]    = useState<MwReview[]>([]);
@@ -357,8 +435,15 @@ export default function ReviewPageClient() {
 
   // ── Fetch data ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!jobId || !token) {
+    if (!preview && (!jobId || !token)) {
       setError('Missing required parameters: jobId and token');
+      setLoading(false);
+      return;
+    }
+
+    // ── Preview / demo mode — loads one question of every type ──────────────
+    if (preview) {
+      setQuestions(PREVIEW_QUESTIONS);
       setLoading(false);
       return;
     }
@@ -398,7 +483,7 @@ export default function ReviewPageClient() {
           list.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
           setQuestions(list);
         } else {
-          // Fallback: no questions configured — show a simple star rating
+          // Fallback: no questions configured
           setQuestions([]);
         }
       } catch (err) {
@@ -411,7 +496,7 @@ export default function ReviewPageClient() {
 
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, token, coId]);
+  }, [jobId, token, coId, preview]);
 
   // ── Conditional visibility ─────────────────────────────────────────────────
   const isVisible = useCallback(
@@ -555,7 +640,12 @@ export default function ReviewPageClient() {
 
         {/* Form */}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 -mt-6 pb-16">
-          <form onSubmit={handleSubmit}>
+          {preview && (
+            <div className="mb-4 px-4 py-2 bg-amber-100 border border-amber-300 rounded-lg text-amber-800 text-sm font-medium text-center">
+              Preview mode — sample questions shown. Submissions are not saved.
+            </div>
+          )}
+          <form onSubmit={preview ? (e) => e.preventDefault() : handleSubmit}>
             <div className="space-y-6">
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
