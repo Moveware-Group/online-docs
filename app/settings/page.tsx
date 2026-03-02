@@ -1767,6 +1767,26 @@ export default function SettingsPage() {
                             }
                           </button>
                           <button
+                            onClick={() => {
+                              // Clone: copy all settings, strip the DB id and clear
+                              // brandCode so the user must choose a new one for this brand.
+                              const { id: _id, ...rest } = company;
+                              void _id;
+                              setIsAddingCompany(true);
+                              setSelectedCompany({
+                                ...rest,
+                                brandCode: '',
+                                companyName: `${company.companyName} (Copy)`,
+                                layoutTemplateId: null,
+                              });
+                            }}
+                            className="px-3 py-1 text-sm text-green-700 hover:bg-green-50 rounded transition-colors flex items-center gap-1"
+                            title="Duplicate this company — useful for creating a new brand with the same settings"
+                          >
+                            <Copy className="w-3 h-3" />
+                            Clone
+                          </button>
+                          <button
                             onClick={() => setSelectedCompany(company)}
                             className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           >
