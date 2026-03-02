@@ -1521,9 +1521,9 @@ export default function SettingsPage() {
           <nav className="flex gap-1" aria-label="Tabs">
             {([
               { id: 'companies', label: 'Companies', icon: <Building2 className="w-4 h-4" /> },
-              { id: 'layouts', label: 'Layout Templates', icon: <Layout className="w-4 h-4" /> },
-              // Users and Roles tabs only visible to admins
-              ...(user?.isAdmin ? [
+              // Layout Templates, Users and Roles tabs only visible to admins
+              ...(user?.isAdmin || user?.role === 'admin' ? [
+                { id: 'layouts', label: 'Layout Templates', icon: <Layout className="w-4 h-4" /> },
                 { id: 'users', label: 'Users', icon: <Users className="w-4 h-4" /> },
                 { id: 'roles', label: 'Roles', icon: <Shield className="w-4 h-4" /> },
               ] : []),
