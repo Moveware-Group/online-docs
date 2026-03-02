@@ -16,7 +16,6 @@ import {
   patchMwQuoteAcceptance,
   patchMwJobStatus,
   postMwJobActivity,
-  type MwQuoteAcceptanceCharge,
 } from '@/lib/services/moveware-api';
 
 /** Format a price without redundant decimals: 1050 → "1050", 1050.5 → "1050.50" */
@@ -169,10 +168,6 @@ export async function POST(request: NextRequest) {
       const creds = await getMwCredentials(coId).catch(() => null);
 
       if (creds) {
-        const insuredValueNum = insuredValue
-          ? parseFloat(insuredValue.replace(/[^0-9.]/g, '')) || 0
-          : 0;
-
         const activityNotes = buildNotes({
           agreedToTerms,
           purchaseOrderNumber,
@@ -210,34 +205,13 @@ export async function POST(request: NextRequest) {
 
         // ── Quotation PATCH also requires quoteId ────────────────────────
         if (quoteId) {
-          const mwCharges: MwQuoteAcceptanceCharge[] = (selectedCosting?.charges ?? []).map((c) => ({
-            id:          c.id,
-            description: c.heading,
-            value:       c.price,
-            valueInc:    c.price,
-            valueEx:     c.price,
-            quantity:    String(c.quantity ?? 1),
-            included:    c.included,
-          }));
-
           basePromises.push(
             patchMwQuoteAcceptance(creds, jobId, quoteId, {
-              signatureDate:      acceptedAt.toISOString(),
-              signatureName,
-              signatureImage:     signatureData,
-              accepted:           true,
-              termsAndConditions: agreedToTerms,
-              comments:           specialRequirements,
-              jobOrder:           purchaseOrderNumber || undefined,
-              estimatedMove:      reloFromDate ? toIso(reloFromDate) : undefined,
-              insuredValue:       insuredValueNum || undefined,
-              selectedOptions:    selectedCosting
-                ? [{ id: selectedCosting.id, charges: mwCharges }]
-                : [],
+              quotationDate: acceptedAt.toISOString().slice(0, 10), // YYYY-MM-DD
             }),
           );
         } else {
-          console.warn('[accept] No quoteId — skipping quotation PATCH (job status + activity will still be posted)');
+          console.warn('[accept] No quoteId — skipping quotation PATCH (activity will still be posted)');
         }
 
         const results = await Promise.allSettled(basePromises);

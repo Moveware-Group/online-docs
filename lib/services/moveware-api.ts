@@ -154,6 +154,13 @@ export async function fetchMwQuotationOptions(
 // Write-back types
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface MwQuoteAcceptanceInput {
+  /** YYYY-MM-DD date of the acceptance */
+  quotationDate: string;
+}
+
+// Kept for when Moveware's API adds support for sending selected options/charges
+// on the quotation PATCH endpoint.
 export interface MwQuoteAcceptanceCharge {
   id: string | number;
   description: string;
@@ -162,32 +169,6 @@ export interface MwQuoteAcceptanceCharge {
   valueEx: number;
   quantity: string;
   included: boolean;
-}
-
-export interface MwQuoteAcceptanceInput {
-  /** ISO 8601 date string for the signature timestamp */
-  signatureDate: string;
-  /** Customer's full name */
-  signatureName: string;
-  /** Base64 PNG data-URI of the drawn signature */
-  signatureImage: string;
-  /** true = Accepted, false = Declined */
-  accepted: boolean;
-  /** Agreed to T&Cs */
-  termsAndConditions: boolean;
-  /** Free-text comments / special requirements */
-  comments?: string;
-  /** Purchase order number (maps to job.jobOrder) */
-  jobOrder?: string;
-  /** Estimated move / relocation date as ISO string (maps to job.estimatedMove) */
-  estimatedMove?: string;
-  /** Insurance value in dollars (maps to job.services.insurance.value) */
-  insuredValue?: number;
-  /** Full option records with their charge line items */
-  selectedOptions: Array<{
-    id: string | number;
-    charges?: MwQuoteAcceptanceCharge[];
-  }>;
 }
 
 export interface MwJobActivityInput {
@@ -207,9 +188,8 @@ export interface MwJobActivityInput {
 /**
  * PATCH /{{coId}}/api/jobs/{{jobId}}/quotations/{{quoteId}}
  *
- * Submits the customer's acceptance decision, option selection, signature,
- * job details, and charge line items back to Moveware using the consolidated
- * quotations endpoint.
+ * Marks the quotation as Accepted.
+ * NOTE: Selected options/charges will be added once Moveware's API supports it.
  */
 export async function patchMwQuoteAcceptance(
   creds: MwCredentials,
@@ -217,38 +197,10 @@ export async function patchMwQuoteAcceptance(
   quoteId: string,
   input: MwQuoteAcceptanceInput,
 ): Promise<unknown> {
-  const body: Record<string, unknown> = {
-    status:             input.accepted ? 'Accepted' : 'Declined',
-    termsAndConditions: input.termsAndConditions,
-    comments:           input.comments || '',
-    signature: {
-      name:  input.signatureName,
-      date:  input.signatureDate,
-      image: input.signatureImage,
-    },
-    options: input.selectedOptions.map((opt) => ({
-      id:       String(opt.id),
-      selected: input.accepted,
-      charges:  (opt.charges ?? []).map((c) => ({
-        id:          String(c.id),
-        description: c.description,
-        value:       c.value,
-        valueInc:    c.valueInc,
-        valueEx:     c.valueEx,
-        quantity:    c.quantity,
-        included:    c.included,
-      })),
-    })),
+  const body = {
+    quotationDate: input.quotationDate,
+    status:        'Accepted',
   };
-
-  // Include job-level fields only when they carry meaningful data
-  const jobBlock: Record<string, unknown> = {};
-  if (input.jobOrder)      jobBlock.jobOrder      = input.jobOrder;
-  if (input.estimatedMove) jobBlock.estimatedMove = input.estimatedMove;
-  if (input.insuredValue && input.insuredValue > 0) {
-    jobBlock.services = { insurance: { value: input.insuredValue } };
-  }
-  if (Object.keys(jobBlock).length > 0) body.job = jobBlock;
 
   return mwPatch(creds, `jobs/${jobId}/quotations/${quoteId}`, body);
 }
