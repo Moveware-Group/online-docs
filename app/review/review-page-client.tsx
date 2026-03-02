@@ -25,7 +25,7 @@ interface MwQuestion {
   conditionalAnswer?: string | null;
   responses?: string[];
   showEditor?: 'Y' | 'N';
-  sort?: number;
+  sort?: number | string;
   type?: string;
 }
 
@@ -549,8 +549,8 @@ export default function ReviewPageClient() {
             : Array.isArray(raw?.results)
             ? raw.results
             : [];
-          // Sort by `sort` field ascending
-          list.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+          // Sort by `sort` field ascending — values may be zero-padded strings ("001","010")
+          list.sort((a, b) => String(a.sort ?? '').localeCompare(String(b.sort ?? '')));
           setQuestions(list);
         } else {
           // Fallback: no questions configured
