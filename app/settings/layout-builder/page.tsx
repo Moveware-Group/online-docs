@@ -2058,7 +2058,7 @@ function LayoutBuilderContent() {
                         <div className="text-sm font-medium text-gray-800 truncate flex items-center gap-1.5">
                           {label}
                           {/* Colour swatch for footer blocks */}
-                          {isFooter && (section.config as Record<string,unknown>)?.bgColor && (
+                          {isFooter && !!(section.config as Record<string,unknown>)?.bgColor && (
                             <span
                               className="inline-block w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
                               style={{ backgroundColor: String((section.config as Record<string,unknown>).bgColor) }}
