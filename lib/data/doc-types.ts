@@ -61,8 +61,9 @@ export const DOC_TYPES: DocTypeDefinition[] = [
     color: 'yellow',
     // Header logo, intro copy (1-col text), image, and custom HTML paragraph blocks
     addableBlocks: ['logo', 'text1col', 'image', 'html'],
-    // The review questions block is always present and cannot be removed
-    lockedBlockComponents: ['ReviewQuestions'],
+    // ReviewQuestions is the core form block — always present, cannot be removed.
+    // FooterSection is locked at the bottom just like on quote layouts.
+    lockedBlockComponents: ['ReviewQuestions', 'FooterSection'],
     supportsAI: false,
     status: 'live',
   },

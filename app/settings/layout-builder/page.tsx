@@ -60,6 +60,8 @@ import {
   DOC_TYPE_COLORS,
   type DocTypeId,
 } from '@/lib/data/doc-types';
+import { DEFAULT_STATIC_LAYOUT } from '@/lib/layouts/default-static';
+import { DEFAULT_REVIEW_LAYOUT } from '@/lib/layouts/default-review';
 
 // ---------------------------------------------------------------------------
 // Smart copy extractor — DOMParser-based text field extraction
@@ -158,6 +160,24 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+// ---------------------------------------------------------------------------
+// Default starter layouts by doc type
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the built-in starter LayoutConfig for a given doc type.
+ * Used to seed the builder when no existing layout is found for a company.
+ */
+function getDefaultLayoutForDocType(docType: DocTypeId): LayoutConfig {
+  switch (docType) {
+    case 'review':
+      return DEFAULT_REVIEW_LAYOUT as unknown as LayoutConfig;
+    case 'quote':
+    default:
+      return DEFAULT_STATIC_LAYOUT as unknown as LayoutConfig;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -377,8 +397,20 @@ function LayoutBuilderContent() {
         }
       }
     } catch {
-      // No existing layout — that's fine
+      // No existing layout — seed with the default starter for this doc type
     }
+
+    // If we still have no layout config, seed with the built-in default so the
+    // builder always opens with a sensible starting point rather than a blank canvas.
+    setLayoutConfig((prev) => {
+      if (prev) return prev; // already loaded
+      const starter = getDefaultLayoutForDocType(docTypeParam);
+      setStatusMessage(
+        `Starting from the default ${docTypeDef.label} layout. Customise the blocks, then click "Approve & Save" to apply to this company.`,
+      );
+      setLeftPanelTab('blocks');
+      return starter;
+    });
   };
 
   /** Upgrade a legacy single-block layout to the current multi-block grace-static format */

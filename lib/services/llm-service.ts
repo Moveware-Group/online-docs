@@ -42,7 +42,8 @@ export interface LayoutSection {
     | "NextStepsForm"
     | "AcceptanceForm"
     | "TermsSection"
-    | "FooterSection";
+    | "FooterSection"
+    | "ReviewQuestions";
   visible?: boolean;
   config?: Record<string, unknown>;
   /** Optional display condition — block hidden when condition is not met */
