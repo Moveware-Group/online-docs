@@ -315,7 +315,7 @@ export async function PUT(
           templateVersion = updated.version;
         } else {
           // Create a new template and link it via CompanyDocumentLayout
-          const docTypeLabel = docType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+          const docTypeLabel = docType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const created = await (prisma as any).layoutTemplate.create({
             data: {
