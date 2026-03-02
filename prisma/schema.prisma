@@ -40,6 +40,8 @@ model Company {
   heroSettings      HeroSettings?
   copySettings      CopySettings?
   quotes            Quote[]
+  documentLayouts   CompanyDocumentLayout[]
+
   @@unique([tenantId, brandCode])
   @@index([id])
   @@index([name])
@@ -125,15 +127,44 @@ model LayoutTemplate {
   version         Int      @default(1)
   isActive        Boolean  @default(true) @map("is_active")
   isDefault       Boolean  @default(false) @map("is_default")
+  // Document type this template is designed for: quote | review | payment | document_request
+  docType         String   @default("quote") @db.VarChar(50) @map("doc_type")
   createdBy       String?  @map("created_by")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  // Companies that have been assigned this template
-  brandingSettings BrandingSettings[]
+  // Companies that have been assigned this template (legacy quote path)
+  brandingSettings    BrandingSettings[]
+  // Per-docType assignments
+  companyDocLayouts   CompanyDocumentLayout[]
 
   @@index([name])
+  @@index([docType])
   @@map("layout_templates")
+}
+
+// CompanyDocumentLayout — junction table linking a Company to a LayoutTemplate
+// for a specific document type.
+// The legacy quote layout is still stored in BrandingSettings.layoutTemplateId
+// for backward compatibility. All other doc types (review, payment,
+// document_request) use this table.
+model CompanyDocumentLayout {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  // quote | review | payment | document_request
+  docType    String   @db.VarChar(50) @map("doc_type")
+  templateId String   @map("template_id")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company  Company        @relation(fields: [companyId],  references: [id], onDelete: Cascade)
+  template LayoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, docType])
+  @@index([companyId])
+  @@index([docType])
+  @@map("company_document_layouts")
 }
 
 model CopySettings {

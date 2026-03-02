@@ -27,31 +27,71 @@ function normalizeHex(hex: string | undefined | null, fallback: string): string 
  */
 export async function GET() {
   try {
-    const companies = await prisma.company.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        brandingSettings: true,
-      },
-    });
+    // Fetch companies with branding. documentLayouts is only included when the
+    // company_document_layouts table exists (migration may not have run yet on
+    // older deployments), so we fall back gracefully to a simpler query.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let companies: any[];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      companies = await (prisma as any).company.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          brandingSettings: true,
+          documentLayouts: {
+            include: { template: { select: { id: true, name: true, docType: true } } },
+          },
+        },
+      });
+    } catch {
+      // Migration not yet run — fall back without documentLayouts
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      companies = await (prisma as any).company.findMany({
+        orderBy: { name: 'asc' },
+        include: { brandingSettings: true },
+      });
+    }
 
-    const result = companies.map((company) => {
-      // Cast to access mwUsername/mwPassword until `npx prisma generate` updates the client types
+    const result = companies.map((company: Record<string, unknown>) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const bs = company.brandingSettings as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docLayouts = (company.documentLayouts as any[] | undefined) ?? [];
+
+      // Build a map of docType → { templateId, templateName }
+      const docTypeLayouts: Record<string, { templateId: string; templateName: string }> = {};
+      for (const dl of docLayouts) {
+        if (dl.template) {
+          docTypeLayouts[dl.docType] = {
+            templateId: dl.template.id,
+            templateName: dl.template.name,
+          };
+        }
+      }
+      // Legacy quote layout from BrandingSettings — include it too
+      if (bs?.layoutTemplateId && !docTypeLayouts.quote) {
+        docTypeLayouts.quote = {
+          templateId: bs.layoutTemplateId,
+          templateName: 'Quote Layout',
+        };
+      }
+
       return {
         id: company.id,
-        companyId: company.tenantId,
-        brandCode: company.brandCode,
-        companyName: company.name,
-        logoUrl: company.logoUrl || bs?.logoUrl || '',
+        companyId: (company as Record<string, string>).tenantId,
+        brandCode: (company as Record<string, string>).brandCode,
+        companyName: (company as Record<string, string>).name,
+        logoUrl: (company as Record<string, string | null>).logoUrl || bs?.logoUrl || '',
         heroBannerUrl: bs?.heroBannerUrl || '',
         footerImageUrl: bs?.footerImageUrl || '',
-        primaryColor: company.primaryColor || bs?.primaryColor || '#cc0000',
-        secondaryColor: company.secondaryColor || bs?.secondaryColor || '#ffffff',
-        tertiaryColor: company.tertiaryColor || '#5a5a5a',
+        primaryColor: (company as Record<string, string>).primaryColor || bs?.primaryColor || '#cc0000',
+        secondaryColor: (company as Record<string, string>).secondaryColor || bs?.secondaryColor || '#ffffff',
+        tertiaryColor: (company as Record<string, string>).tertiaryColor || '#5a5a5a',
         fontFamily: bs?.fontFamily || 'Inter',
-        // Assigned layout template — drives Create vs Edit Layout button in the UI
+        // Legacy field — kept for backward compatibility
         layoutTemplateId: bs?.layoutTemplateId || null,
+        // Per-docType layout assignments
+        docTypeLayouts,
         // Moveware API credentials — password is never returned to the browser
         mwUsername: bs?.mwUsername || '',
         mwPasswordSet: !!(bs?.mwPassword),
