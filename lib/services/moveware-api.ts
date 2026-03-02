@@ -150,6 +150,31 @@ export async function fetchMwQuotationOptions(
   return mwGet(creds, `jobs/${jobId}/quotations/${quoteId}?include=options`);
 }
 
+/** GET /{{coId}}/api/jobs/{{jobId}}/reviews — lists review records for the job */
+export async function fetchMwReviews(
+  creds: MwCredentials,
+  jobId: string,
+): Promise<unknown> {
+  return mwGet(creds, `jobs/${jobId}/reviews`);
+}
+
+/** GET /{{coId}}/api/jobs/{{jobId}}/questions — returns survey/review questions */
+export async function fetchMwQuestions(
+  creds: MwCredentials,
+  jobId: string,
+): Promise<unknown> {
+  return mwGet(creds, `jobs/${jobId}/questions`);
+}
+
+/** POST /{{coId}}/api/jobs/{{jobId}}/reviews — submits review answers */
+export async function postMwReview(
+  creds: MwCredentials,
+  jobId: string,
+  body: unknown,
+): Promise<unknown> {
+  return mwPost(creds, `jobs/${jobId}/reviews`, body);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Write-back types
 // ─────────────────────────────────────────────────────────────────────────────
