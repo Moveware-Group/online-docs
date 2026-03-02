@@ -1699,7 +1699,7 @@ function LayoutBuilderContent() {
                       placeholder="e.g. #1c2d4f  (leave blank for default)"
                       className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
                     />
-                    {editingBlockConfig.bgColor && (
+                    {!!editingBlockConfig.bgColor && (
                       <button
                         onClick={() => setEditingBlockConfig((prev) => { const c = { ...prev }; delete c.bgColor; return c; })}
                         title="Reset to branding default"
@@ -1734,7 +1734,7 @@ function LayoutBuilderContent() {
                       placeholder="e.g. #ffffff  (leave blank for default)"
                       className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
                     />
-                    {editingBlockConfig.textColor && (
+                    {!!editingBlockConfig.textColor && (
                       <button
                         onClick={() => setEditingBlockConfig((prev) => { const c = { ...prev }; delete c.textColor; return c; })}
                         title="Reset to branding default"
@@ -1747,7 +1747,7 @@ function LayoutBuilderContent() {
                 </div>
 
                 {/* Live preview swatch */}
-                {(editingBlockConfig.bgColor || editingBlockConfig.textColor) && (
+                {(!!editingBlockConfig.bgColor || !!editingBlockConfig.textColor) && (
                   <div
                     className="rounded-lg p-4 text-xs border border-gray-200"
                     style={{
