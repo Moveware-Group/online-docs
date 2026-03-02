@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "online-docs",
+      name: "online-docs-dev",
       script: "npm",
       args: "start",
       cwd: __dirname,
@@ -18,7 +18,7 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
     {
-      name: "online-docs-prod",
+      name: "online-docs",
       script: "npm",
       args: "start",
       cwd: "/var/www/online-docs",
