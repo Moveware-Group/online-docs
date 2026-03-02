@@ -1923,7 +1923,7 @@ function LayoutBuilderContent() {
                     >
                       {/* Drag handle — hidden for locked system blocks */}
                       {isLocked
-                        ? <Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" title="System block — cannot be moved or deleted" />
+                        ? <span title="System block — cannot be moved or deleted"><Lock className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" /></span>
                         : <GripVertical className="w-4 h-4 text-gray-400 flex-shrink-0 cursor-grab active:cursor-grabbing" />
                       }
 
