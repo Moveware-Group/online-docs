@@ -107,6 +107,7 @@ function QuotePageContent() {
   const searchParams = useSearchParams();
   const jobId = searchParams.get('jobId');
   const companyId = searchParams.get('coId');
+  const brand = searchParams.get('brand');
   const quoteId = searchParams.get('quoteId');
   const shouldPrint = searchParams.get('print') === 'true';
   const acceptanceId = searchParams.get('acceptanceId');
@@ -544,8 +545,16 @@ function QuotePageContent() {
       setLoading(true);
       setError(null);
 
+      // Build a shared query-string that includes coId and, when present, brand.
+      // The brand param allows multi-brand tenants to resolve to the correct
+      // Company record (same tenantId but different brandCode).
+      const qs = [
+        `coId=${encodeURIComponent(coIdParam)}`,
+        brand ? `brand=${encodeURIComponent(brand)}` : '',
+      ].filter(Boolean).join('&');
+
       // Fetch job details with company ID
-      const jobResponse = await fetch(`/api/jobs/${jobIdParam}?coId=${coIdParam}`);
+      const jobResponse = await fetch(`/api/jobs/${jobIdParam}?${qs}`);
       const jobResult = await jobResponse.json();
 
       if (!jobResponse.ok || !jobResult.success) {
@@ -553,7 +562,7 @@ function QuotePageContent() {
       }
 
       // Fetch inventory with company ID
-      const inventoryResponse = await fetch(`/api/jobs/${jobIdParam}/inventory?coId=${coIdParam}`);
+      const inventoryResponse = await fetch(`/api/jobs/${jobIdParam}/inventory?${qs}`);
       const inventoryResult = await inventoryResponse.json();
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[quote] inventory source="${inventoryResult.source}" count=${inventoryResult.count}`);
@@ -563,8 +572,8 @@ function QuotePageContent() {
       // provided (single API call returns all options with charges, inclusions
       // and exclusions).  Fall back to the legacy /options endpoint otherwise.
       const costingsUrl = quoteIdParam
-        ? `/api/jobs/${jobIdParam}/quotations/${quoteIdParam}?coId=${coIdParam}`
-        : `/api/jobs/${jobIdParam}/costings?coId=${coIdParam}`;
+        ? `/api/jobs/${jobIdParam}/quotations/${quoteIdParam}?${qs}`
+        : `/api/jobs/${jobIdParam}/costings?${qs}`;
 
       const costingsResponse = await fetch(costingsUrl);
       const costingsResult = await costingsResponse.json();
@@ -580,7 +589,7 @@ function QuotePageContent() {
       // In preview mode (Layout Builder iframe) the postMessage handler will
       // override this with the latest in-editor config after it arrives.
       try {
-        const layoutRes = await fetch(`/api/layouts/${coIdParam}`);
+        const layoutRes = await fetch(`/api/layouts/${coIdParam}?${qs}`);
         if (layoutRes.ok) {
           const layoutData = await layoutRes.json();
           if (layoutData.success && layoutData.data?.layoutConfig && layoutData.data?.isActive) {
@@ -604,7 +613,11 @@ function QuotePageContent() {
     try {
       setSyncing(true);
       
-      const syncResponse = await fetch(`/api/jobs/${jobId}/sync?coId=${companyId}`, {
+      const syncQs = [
+        `coId=${encodeURIComponent(companyId)}`,
+        brand ? `brand=${encodeURIComponent(brand)}` : '',
+      ].filter(Boolean).join('&');
+      const syncResponse = await fetch(`/api/jobs/${jobId}/sync?${syncQs}`, {
         method: 'POST',
       });
       
@@ -786,6 +799,7 @@ function QuotePageContent() {
       const tyParams = new URLSearchParams();
       if (jobId)     tyParams.set('jobId',   jobId);
       if (companyId) tyParams.set('coId',    companyId);
+      if (brand)     tyParams.set('brand',   brand);
       if (quoteId)   tyParams.set('quoteId', quoteId);
       window.location.href = `/thank-you?${tyParams.toString()}`;
     } catch (err) {

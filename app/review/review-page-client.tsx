@@ -486,6 +486,7 @@ export default function ReviewPageClient() {
   const jobId   = searchParams.get('jobId');
   const token   = searchParams.get('token');
   const coId    = searchParams.get('coId');
+  const brand   = searchParams.get('brand');
   const preview = searchParams.get('preview') === '1';
 
   const [branding,   setBranding]   = useState<BrandingSettings | null>(null);
@@ -511,11 +512,15 @@ export default function ReviewPageClient() {
       setLoading(true);
       setError(null);
       try {
-        const base = coId ? `?coId=${encodeURIComponent(coId)}` : '';
+        const base = [
+          coId  ? `coId=${encodeURIComponent(coId)}`   : '',
+          brand ? `brand=${encodeURIComponent(brand)}` : '',
+        ].filter(Boolean).join('&');
+        const baseQ = base ? `?${base}` : '';
 
         // ── Preview mode: load branding but use hardcoded sample questions ──
         if (preview) {
-          const brandingRes = await fetch(`/api/settings/branding${base}`);
+          const brandingRes = await fetch(`/api/settings/branding${baseQ}`);
           if (brandingRes.ok) {
             const d = await brandingRes.json();
             setBranding(d?.data ?? d);
@@ -525,9 +530,9 @@ export default function ReviewPageClient() {
         }
 
         const [brandingRes, reviewsRes, questionsRes] = await Promise.all([
-          fetch(`/api/settings/branding${base}`),
-          fetch(`/api/jobs/${jobId}/reviews${base}`),
-          fetch(`/api/jobs/${jobId}/questions${base}`),
+          fetch(`/api/settings/branding${baseQ}`),
+          fetch(`/api/jobs/${jobId}/reviews${baseQ}`),
+          fetch(`/api/jobs/${jobId}/questions${baseQ}`),
         ]);
 
         if (brandingRes.ok) {
@@ -566,7 +571,7 @@ export default function ReviewPageClient() {
 
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, token, coId, preview]);
+  }, [jobId, token, coId, brand, preview]);
 
   // ── Conditional visibility ─────────────────────────────────────────────────
   const isVisible = useCallback(

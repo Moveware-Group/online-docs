@@ -26,16 +26,18 @@ import { prisma } from "@/lib/db";
  */
 async function mergeCompanyBrandingIntoLayout(
   companyId: string,
-  layoutConfig: { globalStyles?: Record<string, string> }
+  layoutConfig: { globalStyles?: Record<string, string> },
+  brandCode?: string | null,
 ): Promise<typeof layoutConfig> {
   try {
-    const company = await prisma.company.findFirst({
-      where: {
-        OR: [{ id: companyId }, { tenantId: companyId }],
-      },
-      include: { brandingSettings: true },
-    });
-    const branding = company?.brandingSettings;
+    const resolved = await resolveCompany(companyId, brandCode);
+    const companyWithBranding = resolved
+      ? await prisma.company.findUnique({
+          where: { id: resolved.id },
+          include: { brandingSettings: true },
+        })
+      : null;
+    const branding = companyWithBranding?.brandingSettings;
     if (!branding) return layoutConfig;
 
     const overrides: Record<string, string> = {};
@@ -57,8 +59,18 @@ async function mergeCompanyBrandingIntoLayout(
   }
 }
 
-/** Resolve a company record from either its internal ID or its tenantId (coId). */
-async function resolveCompany(companyId: string) {
+/** Resolve a company record from either its internal ID or its tenantId (coId).
+ *  When brandCode is provided the lookup targets the exact (tenantId, brandCode)
+ *  pair so that multi-brand tenants each map to their own Company record. */
+async function resolveCompany(companyId: string, brandCode?: string | null) {
+  if (brandCode) {
+    // Prefer exact match on (tenantId, brandCode); fall through to id lookup
+    const byBrand = await prisma.company.findFirst({
+      where: { tenantId: companyId, brandCode },
+      select: { id: true, name: true, brandCode: true, tenantId: true },
+    });
+    if (byBrand) return byBrand;
+  }
   return prisma.company.findFirst({
     where: { OR: [{ id: companyId }, { tenantId: companyId }] },
     select: { id: true, name: true, brandCode: true, tenantId: true },
@@ -79,7 +91,9 @@ export async function GET(
 ) {
   try {
     const { companyId } = await params;
-    const docType = new URL(request.url).searchParams.get("docType") || "quote";
+    const layoutUrl = new URL(request.url);
+    const docType = layoutUrl.searchParams.get("docType") || "quote";
+    const brand   = layoutUrl.searchParams.get("brand");
 
     if (!companyId) {
       return NextResponse.json(
@@ -88,7 +102,7 @@ export async function GET(
       );
     }
 
-    const company = await resolveCompany(companyId);
+    const company = await resolveCompany(companyId, brand);
 
     // ── Priority 1: CompanyDocumentLayout for this (company, docType) ────────
     if (company) {
@@ -100,7 +114,7 @@ export async function GET(
         });
         if (cdl?.template?.isActive) {
           const layoutConfig = parseConfig(cdl.template.layoutConfig);
-          const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig);
+          const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig, company.brandCode);
           return NextResponse.json({
             success: true,
             data: {
@@ -131,7 +145,7 @@ export async function GET(
           });
           if (tmpl?.isActive) {
             const layoutConfig = parseConfig(tmpl.layoutConfig);
-            const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig);
+            const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig, company.brandCode);
             return NextResponse.json({
               success: true,
               data: {
@@ -161,7 +175,7 @@ export async function GET(
 
       if (fallback) {
         const layoutConfig = parseConfig(fallback.layoutConfig);
-        const merged = await mergeCompanyBrandingIntoLayout(company?.id ?? companyId, layoutConfig);
+        const merged = await mergeCompanyBrandingIntoLayout(company?.id ?? companyId, layoutConfig, company?.brandCode ?? brand);
         return NextResponse.json({
           success: true,
           data: {
