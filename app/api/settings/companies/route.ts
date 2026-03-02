@@ -249,20 +249,8 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // ── Create new company ──
-      company = await prisma.company.create({
-        data: {
-          name: companyName.trim(),
-          apiKey: randomUUID(),
-          tenantId: companyId.toString().trim(),
-          brandCode: brandCode.trim(),
-          primaryColor: normPrimary,
-          secondaryColor: normSecondary,
-          tertiaryColor: normTertiary,
-          logoUrl: logoUrl || null,
-        },
-      });
-
-      // Look up the default template (if one has been marked) to auto-assign
+      // Look up the default template (if one has been marked) to auto-assign.
+      // Done outside the transaction since it is read-only and pre-dates it.
       let defaultTemplateId: string | null = null;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,30 +263,49 @@ export async function POST(request: NextRequest) {
         // isDefault column may not exist yet (pre-migration) — proceed without it
       }
 
-      // Create branding settings, optionally wiring up the default template.
-      const newBrandingData: Record<string, unknown> = {
-        companyId: company.id,
-        logoUrl: logoUrl || null,
-        logoUrlLight: logoUrlLight || null,
-        heroBannerUrl: heroBannerUrl || null,
-        footerImageUrl: footerImageUrl || null,
-        primaryColor: normPrimary,
-        secondaryColor: normSecondary,
-        fontFamily: fontFamily || 'Inter',
-        mwUsername: mwUsername?.trim() || null,
-        mwPassword: mwPassword?.trim() || null,
-        inventoryWeightUnit: inventoryWeightUnit || 'kg',
-        footerBgColor:      footerBgColor      || '#ffffff',
-        footerTextColor:    footerTextColor     || '#374151',
-        footerAddressLine1: footerAddressLine1  || null,
-        footerAddressLine2: footerAddressLine2  || null,
-        footerPhone:        footerPhone         || null,
-        footerEmail:        footerEmail         || null,
-        footerAbn:          footerAbn           || null,
-        ...(defaultTemplateId ? { layoutTemplateId: defaultTemplateId } : {}),
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (prisma.brandingSettings.create as any)({ data: newBrandingData });
+      // Wrap both writes in a transaction so a failure in brandingSettings.create
+      // cannot leave an orphaned Company row (which would cause a false-positive
+      // "already exists" error on the next save attempt).
+      company = await prisma.$transaction(async (tx) => {
+        const co = await tx.company.create({
+          data: {
+            name: companyName.trim(),
+            apiKey: randomUUID(),
+            tenantId: companyId.toString().trim(),
+            brandCode: brandCode.trim(),
+            primaryColor: normPrimary,
+            secondaryColor: normSecondary,
+            tertiaryColor: normTertiary,
+            logoUrl: logoUrl || null,
+          },
+        });
+
+        const newBrandingData: Record<string, unknown> = {
+          companyId: co.id,
+          logoUrl: logoUrl || null,
+          logoUrlLight: logoUrlLight || null,
+          heroBannerUrl: heroBannerUrl || null,
+          footerImageUrl: footerImageUrl || null,
+          primaryColor: normPrimary,
+          secondaryColor: normSecondary,
+          fontFamily: fontFamily || 'Inter',
+          mwUsername: mwUsername?.trim() || null,
+          mwPassword: mwPassword?.trim() || null,
+          inventoryWeightUnit: inventoryWeightUnit || 'kg',
+          footerBgColor:      footerBgColor      || '#ffffff',
+          footerTextColor:    footerTextColor     || '#374151',
+          footerAddressLine1: footerAddressLine1  || null,
+          footerAddressLine2: footerAddressLine2  || null,
+          footerPhone:        footerPhone         || null,
+          footerEmail:        footerEmail         || null,
+          footerAbn:          footerAbn           || null,
+          ...(defaultTemplateId ? { layoutTemplateId: defaultTemplateId } : {}),
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (tx.brandingSettings.create as any)({ data: newBrandingData });
+
+        return co;
+      });
     }
 
     // Return response in the same shape the GET endpoint uses
