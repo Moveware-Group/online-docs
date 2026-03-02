@@ -127,7 +127,7 @@ model LayoutTemplate {
   version         Int      @default(1)
   isActive        Boolean  @default(true) @map("is_active")
   isDefault       Boolean  @default(false) @map("is_default")
-  /** Document type this template is designed for: quote | review | payment | document_request */
+  // Document type this template is designed for: quote | review | payment | document_request
   docType         String   @default("quote") @db.VarChar(50) @map("doc_type")
   createdBy       String?  @map("created_by")
   createdAt       DateTime @default(now()) @map("created_at")
@@ -143,18 +143,15 @@ model LayoutTemplate {
   @@map("layout_templates")
 }
 
-/**
- * CompanyDocumentLayout — junction table linking a Company to a LayoutTemplate
- * for a specific document type.
- *
- * The legacy quote layout is still stored in BrandingSettings.layoutTemplateId
- * for backward compatibility.  All other doc types (review, payment,
- * document_request) use this table.  Over time the quote path can migrate here too.
- */
+// CompanyDocumentLayout — junction table linking a Company to a LayoutTemplate
+// for a specific document type.
+// The legacy quote layout is still stored in BrandingSettings.layoutTemplateId
+// for backward compatibility. All other doc types (review, payment,
+// document_request) use this table.
 model CompanyDocumentLayout {
   id         String   @id @default(cuid())
   companyId  String   @map("company_id")
-  /** quote | review | payment | document_request */
+  // quote | review | payment | document_request
   docType    String   @db.VarChar(50) @map("doc_type")
   templateId String   @map("template_id")
   isActive   Boolean  @default(true) @map("is_active")
