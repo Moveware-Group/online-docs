@@ -1116,7 +1116,7 @@ export default function SettingsPage() {
     const loadSettings = async () => {
       setLoadingData(true);
       try {
-        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const companiesRes = await fetch('/api/settings/companies', { headers: authHeaders });
         if (companiesRes.ok) {
           const companiesData = await companiesRes.json();
@@ -1153,7 +1153,7 @@ export default function SettingsPage() {
   }, [isAuthenticated]);
 
   // ── Users / Roles load functions ─────────────────────────────────────────
-  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const loadUsers = async () => {
     setLoadingUsers(true);
