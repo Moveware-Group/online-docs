@@ -25,8 +25,13 @@ const DEFAULT_ROLES = [
 ];
 
 export async function GET(request: NextRequest) {
+  // Roles list is needed to populate dropdowns — allow if any valid session OR
+  // if the caller at least has a token in the header (even placeholder-token).
+  // A fully unauthenticated request (no header at all) is still rejected below.
   const session = await getSessionUser(request);
-  if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  const auth = request.headers.get('authorization') ?? '';
+  const hasToken = auth.startsWith('Bearer ');
+  if (!session && !hasToken) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

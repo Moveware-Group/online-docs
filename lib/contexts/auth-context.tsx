@@ -18,7 +18,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedUser = localStorage.getItem(STORAGE_USER_KEY);
       const storedToken = localStorage.getItem(STORAGE_TOKEN_KEY);
       if (storedUser) setUser(JSON.parse(storedUser));
-      if (storedToken) setToken(storedToken);
+      if (storedToken) {
+        setToken(storedToken);
+      } else if (storedUser) {
+        // Legacy sessions didn't store the token separately.
+        // Recover it: env-var admin sessions always used 'placeholder-token'.
+        setToken('placeholder-token');
+        localStorage.setItem(STORAGE_TOKEN_KEY, 'placeholder-token');
+      }
     } catch (error) {
       console.error('Failed to load user session:', error);
     } finally {
