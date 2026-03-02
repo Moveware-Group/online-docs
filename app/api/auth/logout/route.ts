@@ -1,34 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { deleteSession } from '@/lib/auth/session';
 
-/**
- * Logout endpoint
- * Clears authentication session
- */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    // In a real implementation, this would:
-    // 1. Invalidate the user's session token
-    // 2. Clear server-side session data
-    // 3. Revoke any refresh tokens
-
-    // For now, we just return success
-    // The client will handle clearing localStorage
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Logged out successfully',
-      },
-      { status: 200 }
-    );
+    const auth = request.headers.get('authorization') ?? '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (token && token !== 'placeholder-token') {
+      await deleteSession(token);
+    }
+    return NextResponse.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Error during logout',
-      },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: 'Error during logout' }, { status: 500 });
   }
 }

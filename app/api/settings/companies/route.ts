@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { randomUUID } from 'crypto';
+import { getSessionUser } from '@/lib/auth/session';
 
 /**
  * Expand shorthand hex (#RGB) to full 6-char form (#RRGGBB).
@@ -25,7 +26,16 @@ function normalizeHex(hex: string | undefined | null, fallback: string): string 
  * Fetch all companies with their branding settings.
  * Returns data shaped to match the frontend CompanyBranding interface.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Determine which companies this caller is allowed to see.
+  // Unauthenticated requests (no token) get full access for backward compatibility
+  // with the public quote/review pages that don't pass auth headers.
+  // Authenticated non-admin users only see their assigned companies.
+  const session = await getSessionUser(request);
+  const companyFilter = session && !session.isAdmin && session.companyIds.length > 0
+    ? { id: { in: session.companyIds } }
+    : undefined;
+
   try {
     // Fetch companies with branding. documentLayouts is only included when the
     // company_document_layouts table exists (migration may not have run yet on
@@ -35,6 +45,7 @@ export async function GET() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       companies = await (prisma as any).company.findMany({
+        where: companyFilter,
         orderBy: { name: 'asc' },
         include: {
           brandingSettings: true,
@@ -47,6 +58,7 @@ export async function GET() {
       // Migration not yet run — fall back without documentLayouts
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       companies = await (prisma as any).company.findMany({
+        where: companyFilter,
         orderBy: { name: 'asc' },
         include: { brandingSettings: true },
       });
