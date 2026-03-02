@@ -15,7 +15,24 @@ export function FooterSection({ data, bgColorOverride, textColorOverride }: Prop
   const bgColor      = bgColorOverride   || b.footerBgColor   || '#ffffff';
   const textColor    = textColorOverride  || b.footerTextColor  || '#374151';
   const primaryColor = b.primaryColor     || data.primaryColor || '#1a56db';
-  const logoUrl      = b.logoUrl          || data.logoUrl;
+
+  // Determine whether the footer background is dark so we can pick the right logo.
+  // A simple luminance check: parse the hex and compare brightness.
+  const isDarkBg = (() => {
+    const hex = bgColor.replace('#', '');
+    if (hex.length !== 6) return false;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const bl = parseInt(hex.slice(4, 6), 16);
+    // Perceived luminance formula (ITU-R BT.709)
+    return (0.2126 * r + 0.7152 * g + 0.0722 * bl) < 128;
+  })();
+
+  // Prefer the light logo on dark backgrounds; fall back to the standard logo.
+  const logoUrl = (isDarkBg && b.logoUrlLight)
+    ? b.logoUrlLight
+    : (b.logoUrl || data.logoUrl);
+
   const companyName  = b.companyName      || data.companyName;
   const year         = new Date().getFullYear();
 

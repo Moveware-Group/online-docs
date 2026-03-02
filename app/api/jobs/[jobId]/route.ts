@@ -131,6 +131,7 @@ async function resolveBranding(
     return {
       companyName: company.name,
       logoUrl: bs?.logoUrl ?? company.logoUrl ?? '',
+      logoUrlLight: bs?.logoUrlLight ?? '',
       heroBannerUrl: bs?.heroBannerUrl ?? '',
       footerImageUrl: bs?.footerImageUrl ?? '',
       primaryColor:

@@ -98,6 +98,7 @@ model BrandingSettings {
   id                 String   @id @default(cuid())
   companyId          String   @unique @map("company_id")
   logoUrl            String?  @map("logo_url")
+  logoUrlLight       String?  @map("logo_url_light")
   heroBannerUrl      String?  @map("hero_banner_url") @db.VarChar(500)
   footerImageUrl     String?  @map("footer_image_url") @db.VarChar(500)
   primaryColor       String   @default("#2563eb") @map("primary_color")

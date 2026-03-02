@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
         brandCode: (company as Record<string, string>).brandCode,
         companyName: (company as Record<string, string>).name,
         logoUrl: (company as Record<string, string | null>).logoUrl || bs?.logoUrl || '',
+        logoUrlLight: bs?.logoUrlLight || '',
         heroBannerUrl: bs?.heroBannerUrl || '',
         footerImageUrl: bs?.footerImageUrl || '',
         primaryColor: (company as Record<string, string>).primaryColor || bs?.primaryColor || '#cc0000',
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
       logoUrl,
       heroBannerUrl,
       footerImageUrl,
+      logoUrlLight,
       primaryColor,
       secondaryColor,
       tertiaryColor,
@@ -221,6 +223,7 @@ export async function POST(request: NextRequest) {
       // fields without Prisma-generated-type errors (run `npx prisma generate` to resolve).
       const brandingBase: Record<string, unknown> = {
         logoUrl: logoUrl || null,
+        logoUrlLight: logoUrlLight || null,
         heroBannerUrl: heroBannerUrl || null,
         footerImageUrl: footerImageUrl || null,
         primaryColor: normPrimary,
@@ -276,6 +279,7 @@ export async function POST(request: NextRequest) {
       const newBrandingData: Record<string, unknown> = {
         companyId: company.id,
         logoUrl: logoUrl || null,
+        logoUrlLight: logoUrlLight || null,
         heroBannerUrl: heroBannerUrl || null,
         footerImageUrl: footerImageUrl || null,
         primaryColor: normPrimary,

@@ -49,6 +49,8 @@ interface CompanyBranding {
   brandCode: string;
   companyName: string;
   logoUrl: string;
+  /** Light/alternate logo for use on dark backgrounds (e.g. white logo on a dark footer) */
+  logoUrlLight?: string;
   heroBannerUrl?: string;
   footerImageUrl?: string;
   primaryColor: string;
@@ -332,6 +334,7 @@ function CompanyForm({
       brandCode: '',
       companyName: '',
       logoUrl: '',
+      logoUrlLight: '',
       heroBannerUrl: '',
       footerImageUrl: '',
       primaryColor: '#cc0000',
@@ -406,8 +409,17 @@ function CompanyForm({
         {/* Logo Upload */}
         <ImageUploadField
           label="Company Logo"
+          description="Standard logo displayed on light/white backgrounds"
           value={formData.logoUrl}
           onChange={(url) => setFormData({ ...formData, logoUrl: url })}
+        />
+
+        {/* Light Logo Upload */}
+        <ImageUploadField
+          label="Company Logo (Light / Dark backgrounds)"
+          description="Alternate logo for use on dark backgrounds — e.g. a white version of the logo for a dark-coloured footer"
+          value={formData.logoUrlLight || ''}
+          onChange={(url) => setFormData({ ...formData, logoUrlLight: url })}
         />
 
         {/* Hero Banner Upload */}
@@ -1598,6 +1610,7 @@ export default function SettingsPage() {
                       brandCode: '',
                       companyName: '',
                       logoUrl: '',
+                      logoUrlLight: '',
                       heroBannerUrl: '',
                       footerImageUrl: '',
                       primaryColor: '#cc0000',

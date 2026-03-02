@@ -31,6 +31,7 @@ export interface Job {
   branding?: {
     companyName?: string;
     logoUrl?: string;
+    logoUrlLight?: string;
     heroBannerUrl?: string;
     footerImageUrl?: string;
     primaryColor?: string;

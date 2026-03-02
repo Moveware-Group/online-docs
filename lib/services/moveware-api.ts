@@ -404,6 +404,8 @@ function toArray(raw: unknown, ...extraKeys: string[]): Record<string, unknown>[
 export type InternalBranding = {
   companyName: string;
   logoUrl: string;
+  /** Alternate logo for use on dark backgrounds (e.g. white logo on dark footer) */
+  logoUrlLight: string;
   heroBannerUrl: string;
   footerImageUrl: string;
   primaryColor: string;
