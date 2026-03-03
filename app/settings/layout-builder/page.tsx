@@ -404,6 +404,7 @@ function LayoutBuilderContent() {
   const [editingBlockIndex, setEditingBlockIndex] = useState<number | null>(null);
   const [editingBlockContent, setEditingBlockContent] = useState('');
   const [showHtmlEditor, setShowHtmlEditor] = useState(false);
+  const [showPlaceholderPanel, setShowPlaceholderPanel] = useState(true);
   const [copyFields, setCopyFields] = useState<CopyField[]>([]);
   const [markedHtml, setMarkedHtml] = useState('');
   const editBlockTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1822,22 +1823,37 @@ function LayoutBuilderContent() {
               </span>
               {/* HTML / Copy toggle — hidden for built-in blocks like FooterSection */}
               {layoutConfig.sections[editingBlockIndex]?.type === 'custom_html' && (
-              <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                  <button
+                    onClick={() => setShowHtmlEditor(false)}
+                    className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${!showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Copy Fields
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Sync HTML editor with latest copy fields before switching
+                      if (!showHtmlEditor) setEditingBlockContent(reconstructFromCopyFields(markedHtml, copyFields));
+                      setShowHtmlEditor(true);
+                    }}
+                    className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    HTML
+                  </button>
+                </div>
+                {/* Placeholder panel toggle */}
                 <button
-                  onClick={() => setShowHtmlEditor(false)}
-                  className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${!showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                  onClick={() => setShowPlaceholderPanel((v) => !v)}
+                  title={showPlaceholderPanel ? 'Hide placeholder panel' : 'Show placeholder panel'}
+                  className={`flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg border transition-colors ${
+                    showPlaceholderPanel
+                      ? 'border-gray-200 bg-white text-gray-500 hover:bg-gray-100'
+                      : 'border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                  }`}
                 >
-                  Copy Fields
-                </button>
-                <button
-                  onClick={() => {
-                    // Sync HTML editor with latest copy fields before switching
-                    if (!showHtmlEditor) setEditingBlockContent(reconstructFromCopyFields(markedHtml, copyFields));
-                    setShowHtmlEditor(true);
-                  }}
-                  className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${showHtmlEditor ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
-                >
-                  HTML
+                  <Code2 className="w-3 h-3" />
+                  {showPlaceholderPanel ? 'Hide' : '{{}}'} 
                 </button>
               </div>
               )}
@@ -2006,6 +2022,7 @@ function LayoutBuilderContent() {
                   })}
                 </div>
                 {/* Placeholder picker */}
+                {showPlaceholderPanel && (
                 <div className="w-40 flex-shrink-0 overflow-y-auto bg-gray-50 border-l border-gray-200">
                   <div className="px-2 py-2 border-b border-gray-200 sticky top-0 bg-gray-50">
                     <p className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Insert</p>
@@ -2038,6 +2055,7 @@ function LayoutBuilderContent() {
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
 
@@ -2056,6 +2074,7 @@ function LayoutBuilderContent() {
                     spellCheck={false}
                   />
                 </div>
+                {showPlaceholderPanel && (
                 <div className="w-44 flex-shrink-0 overflow-y-auto bg-white">
                   <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 sticky top-0">
                     <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Placeholders</p>
@@ -2090,6 +2109,7 @@ function LayoutBuilderContent() {
                     })}
                   </div>
                 </div>
+                )}
               </div>
             )}
 
