@@ -14,7 +14,9 @@
 import { prisma } from '@/lib/db';
 
 const DEFAULT_BASE_URL =
-  process.env.MOVEWARE_API_BASE_URL ?? 'https://rest.moveware-test.app';
+  process.env.MOVEWARE_API_BASE_URL ??
+  process.env.MOVEWARE_API_URL ??
+  'https://rest.moveware-test.app';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Credential helpers
