@@ -72,31 +72,37 @@ interface CopyField {
   label: string;
   value: string;
   sentinel: string;
+  /** HTML tag the text node lives inside — drives input type in the editor */
+  elementTag?: string;
 }
 
 /** Labels inferred from a text node's parent element tag */
 const TAG_LABELS: Record<string, string> = {
-  h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Subheading',
+  h1: 'Heading', h2: 'Subheading', h3: 'Heading 3', h4: 'Subheading',
   h5: 'Subheading', h6: 'Subheading',
-  p: 'Paragraph', span: 'Text', a: 'Link', button: 'Button',
+  p: 'Copy', span: 'Text', a: 'Link', button: 'Button',
   td: 'Table Cell', th: 'Table Header', li: 'List Item',
   label: 'Label', div: 'Text Block',
 };
+
+/** Tags that should render as a single-line input rather than a textarea */
+const SINGLE_LINE_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'button', 'a', 'label', 'th']);
 
 /** Extract editable text fields from raw HTML. Returns fields + sentinelled HTML. */
 function extractCopyFields(html: string): { fields: CopyField[]; markedHtml: string } {
   if (typeof window === 'undefined') return { fields: [], markedHtml: html };
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  const fields: CopyField[] = [];
-  let counter = 0;
 
-  // Count by label to build distinct names
-  const labelCounts: Record<string, number> = {};
+  // First pass: collect all fields with their base labels and tags so we know
+  // how many times each base label appears. This lets us only append a count
+  // when there are genuinely multiple instances (e.g. two <h1> elements).
+  interface RawField { raw: string; baseLabel: string; tag: string; textNode: Text; }
+  const rawFields: RawField[] = [];
+  const labelTotals: Record<string, number> = {};
 
-  const getLabel = (node: Text): string => {
+  const getBaseLabel = (node: Text): string => {
     const raw = (node.textContent || '').trim();
-    // If the entire text node is a single placeholder, show the key name as the label
     const placeholderMatch = raw.match(/^\{\{([^}]+)\}\}$/);
     if (placeholderMatch) return `{{${placeholderMatch[1]}}}`;
     const parent = node.parentElement;
@@ -111,25 +117,14 @@ function extractCopyFields(html: string): { fields: CopyField[]; markedHtml: str
       const trimmed = raw.trim();
       if (trimmed.length < 2) return;
       if (/^\s+$/.test(trimmed)) return;
-      // Skip Handlebars block helpers ({{#each}}, {{/each}}, etc.) — not editable copy
       if (/^\{\{[#/!^]/.test(trimmed)) return;
-      // Skip CSS-like content inside <style>
       const parentTag = (textNode.parentElement?.tagName || '').toUpperCase();
       if (['STYLE', 'SCRIPT', 'INPUT', 'SELECT', 'TEXTAREA'].includes(parentTag)) return;
 
-      const baseLabel = getLabel(textNode);
-      labelCounts[baseLabel] = (labelCounts[baseLabel] || 0) + 1;
-      const isPurePlaceholder = /^\{\{[^}]+\}\}$/.test(trimmed);
-      // Regular text: always numbered ("Text Block 1", "Text Block 2", …)
-      // Pure placeholder: only add a count when there are duplicates ("{{customerName}}", "{{customerName}} (2)")
-      const label = isPurePlaceholder
-        ? (labelCounts[baseLabel] > 1 ? `${baseLabel} (${labelCounts[baseLabel]})` : baseLabel)
-        : `${baseLabel} ${labelCounts[baseLabel]}`;
-      const sentinel = `__COPY_${counter}__`;
-
-      fields.push({ id: String(counter), label, value: raw, sentinel });
-      textNode.textContent = sentinel;
-      counter++;
+      const baseLabel = getBaseLabel(textNode);
+      const tag = (textNode.parentElement?.tagName || '').toLowerCase();
+      labelTotals[baseLabel] = (labelTotals[baseLabel] || 0) + 1;
+      rawFields.push({ raw, baseLabel, tag, textNode });
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const skipTags = ['STYLE', 'SCRIPT', 'INPUT', 'SELECT', 'TEXTAREA'];
       if (skipTags.includes((node as Element).tagName)) return;
@@ -138,6 +133,31 @@ function extractCopyFields(html: string): { fields: CopyField[]; markedHtml: str
   };
 
   walk(doc.body);
+
+  // Second pass: build final CopyField list, only numbering when there are multiples
+  const fields: CopyField[] = [];
+  const labelCountSeen: Record<string, number> = {};
+
+  rawFields.forEach((rf, idx) => {
+    const isPurePlaceholder = /^\{\{[^}]+\}\}$/.test(rf.raw.trim());
+    const total = labelTotals[rf.baseLabel] || 1;
+    labelCountSeen[rf.baseLabel] = (labelCountSeen[rf.baseLabel] || 0) + 1;
+    const nth = labelCountSeen[rf.baseLabel];
+
+    let label: string;
+    if (isPurePlaceholder) {
+      // Placeholders: show raw key; only number on duplicates
+      label = total > 1 ? `${rf.baseLabel} (${nth})` : rf.baseLabel;
+    } else {
+      // Regular text: only append number when there are multiple of this type
+      label = total > 1 ? `${rf.baseLabel} ${nth}` : rf.baseLabel;
+    }
+
+    const sentinel = `__COPY_${idx}__`;
+    fields.push({ id: String(idx), label, value: rf.raw, sentinel, elementTag: rf.tag });
+    rf.textNode.textContent = sentinel;
+  });
+
   return { fields, markedHtml: doc.body.innerHTML };
 }
 
@@ -1812,8 +1832,18 @@ function LayoutBuilderContent() {
                       <p className="text-xs mt-1">Switch to HTML view to edit raw markup.</p>
                     </div>
                   ) : copyFields.map((field) => {
-                    // Detect if this field holds a pure placeholder value like {{quoteDate}}
                     const isPlaceholder = /^\s*\{\{[^}]+\}\}\s*$/.test(field.value);
+                    const isSingleLine = !isPlaceholder && SINGLE_LINE_TAGS.has(field.elementTag || '');
+                    const baseInputClass = `w-full px-2 py-1.5 text-xs rounded focus:outline-none focus:ring-1 ${
+                      isPlaceholder
+                        ? 'border border-blue-200 bg-blue-50 font-mono text-blue-700 focus:ring-blue-400'
+                        : 'border border-gray-300 focus:ring-blue-400'
+                    }`;
+                    const handleChange = (val: string) => {
+                      setCopyFields(copyFields.map((f) =>
+                        f.id === field.id ? { ...f, value: val } : f
+                      ));
+                    };
                     return (
                       <div key={field.id}>
                         <label className={`block text-xs font-medium mb-1 ${isPlaceholder ? 'text-blue-600' : 'text-gray-600'}`}>
@@ -1822,22 +1852,26 @@ function LayoutBuilderContent() {
                             <span className="ml-1.5 px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-semibold uppercase tracking-wide">dynamic</span>
                           )}
                         </label>
-                        <textarea
-                          value={field.value}
-                          onChange={(e) => {
-                            const updated = copyFields.map((f) =>
-                              f.id === field.id ? { ...f, value: e.target.value } : f
-                            );
-                            setCopyFields(updated);
-                          }}
-                          rows={field.value.length > 120 ? 4 : 2}
-                          className={`w-full px-2 py-1.5 text-xs rounded focus:outline-none focus:ring-1 resize-none ${
-                            isPlaceholder
-                              ? 'border border-blue-200 bg-blue-50 font-mono text-blue-700 focus:ring-blue-400'
-                              : 'border border-gray-300 focus:ring-blue-400'
-                          }`}
-                          placeholder={isPlaceholder ? 'Enter a placeholder e.g. {{quoteDate}}' : undefined}
-                        />
+
+                        {isSingleLine ? (
+                          /* Single-line input for headings and button/link labels */
+                          <input
+                            type="text"
+                            value={field.value}
+                            onChange={(e) => handleChange(e.target.value)}
+                            className={baseInputClass}
+                          />
+                        ) : (
+                          /* Multi-line textarea for copy, paragraphs, and placeholders */
+                          <textarea
+                            value={field.value}
+                            onChange={(e) => handleChange(e.target.value)}
+                            rows={isPlaceholder ? 1 : field.value.length > 200 ? 6 : field.value.length > 80 ? 4 : 3}
+                            className={`${baseInputClass} resize-none`}
+                            placeholder={isPlaceholder ? 'Enter a placeholder e.g. {{quoteDate}}' : undefined}
+                          />
+                        )}
+
                         {isPlaceholder && (
                           <p className="text-[9px] text-blue-500 mt-0.5">Dynamic data — change the placeholder key from the right panel</p>
                         )}
