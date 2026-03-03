@@ -1340,17 +1340,19 @@ function LayoutBuilderContent() {
   };
 
   /**
-   * Returns true when the block being edited has image max-height config keys
-   * (either already set, or when the block label / id suggests it is a banner).
+   * Returns true when the block being edited contains an <img> element in its
+   * HTML — the only case where image max-height config is meaningful.
+   * Also returns true when the block already has max-height keys stored in its
+   * config (backward-compatibility with older saved layouts).
    */
   const editingBlockIsImage = (): boolean => {
     if (editingBlockIndex === null || !layoutConfig) return false;
+    const alreadyHasKeys = 'desktopMaxHeight' in editingBlockConfig;
+    if (alreadyHasKeys) return true;
+    // Only show for custom_html blocks that actually contain an <img> tag
     const section = layoutConfig.sections[editingBlockIndex];
-    const hasKeys = 'desktopMaxHeight' in editingBlockConfig;
-    const nameHint = /banner|footer.?image|hero/i.test(
-      `${section.label || ''} ${section.id || ''}`,
-    );
-    return hasKeys || nameHint;
+    if (section.type !== 'custom_html') return false;
+    return /<img[\s>]/i.test(section.html || '');
   };
 
   const addAssistantMessage = (content: string) => {
