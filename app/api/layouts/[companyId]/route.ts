@@ -104,6 +104,8 @@ export async function GET(
 
     const company = await resolveCompany(companyId, brand);
 
+    console.log(`[layouts/GET] companyId=${companyId} brand=${brand} docType=${docType} → resolved company: id=${company?.id} name=${company?.name} brandCode=${company?.brandCode} tenantId=${company?.tenantId}`);
+
     // ── Priority 1: CompanyDocumentLayout for this (company, docType) ────────
     if (company) {
       try {
@@ -112,6 +114,7 @@ export async function GET(
           where: { companyId_docType: { companyId: company.id, docType } },
           include: { template: true },
         });
+        console.log(`[layouts/GET] Priority1 CDL: ${cdl ? `templateId=${cdl.templateId} isActive=${cdl.template?.isActive}` : 'none'}`);
         if (cdl?.template?.isActive) {
           const layoutConfig = parseConfig(cdl.template.layoutConfig);
           const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig, company.brandCode);
@@ -138,11 +141,14 @@ export async function GET(
           select: { layoutTemplateId: true },
         }) as { layoutTemplateId?: string | null } | null;
 
+        console.log(`[layouts/GET] Priority2 BrandingSettings.layoutTemplateId=${branding?.layoutTemplateId ?? 'null'}`);
+
         if (branding?.layoutTemplateId) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const tmpl = await (prisma as any).layoutTemplate.findUnique({
             where: { id: branding.layoutTemplateId },
           });
+          console.log(`[layouts/GET] Priority2 template: ${tmpl ? `name="${tmpl.name}" isActive=${tmpl.isActive}` : 'not found'}`);
           if (tmpl?.isActive) {
             const layoutConfig = parseConfig(tmpl.layoutConfig);
             const merged = await mergeCompanyBrandingIntoLayout(company.id, layoutConfig, company.brandCode);
@@ -172,6 +178,8 @@ export async function GET(
       const fallback = defaultTmpl ?? (docType === "quote" ? await (prisma as any).layoutTemplate.findFirst({
         where: { isDefault: true, isActive: true },
       }) : null);
+
+      console.log(`[layouts/GET] Priority3 global default: ${fallback ? `name="${fallback.name}"` : 'none'}`);
 
       if (fallback) {
         const layoutConfig = parseConfig(fallback.layoutConfig);
