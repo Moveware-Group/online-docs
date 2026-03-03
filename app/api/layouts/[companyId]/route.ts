@@ -354,8 +354,9 @@ export async function PUT(
           });
         }
       } catch (e) {
-        console.error("[layouts/PUT] companyDocumentLayout error:", e);
-        throw e;
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[layouts/PUT] companyDocumentLayout error:", msg, e);
+        throw new Error(`companyDocumentLayout: ${msg}`);
       }
     }
 
@@ -394,8 +395,9 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Error saving layout:", error);
+    const msg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { success: false, error: "Failed to save layout" },
+      { success: false, error: `Failed to save layout: ${msg}` },
       { status: 500 },
     );
   }
