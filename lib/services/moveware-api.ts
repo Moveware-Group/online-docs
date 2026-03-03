@@ -757,10 +757,15 @@ export function adaptMwQuotationOptions(raw: unknown): InternalCosting[] {
 
     // Total price: use the option-level valueInclusive; fall back to summing
     // included charges' rateInclusive when the option total isn't populated yet.
-    const optionValueInclusive = num(pick(option, 'valueInclusive', 'totalAmount'));
+    const optionValueInclusive = num(pick(option, 'valueInclusive', 'totalAmount', 'totalInclusive', 'grandTotal'));
+    // Use the same included-check as the charge mapper (handles 'Y', true, 1)
+    const isIncluded = (c: Record<string, unknown>) => {
+      const v = c.included;
+      return v === true || v === 'true' || v === 'Y' || v === 1;
+    };
     const chargesSum = rawCharges
-      .filter((c) => c.included === true)
-      .reduce((sum, c) => sum + num(pick(c, 'rateInclusive', 'valueInclusive')), 0);
+      .filter(isIncluded)
+      .reduce((sum, c) => sum + num(pick(c, 'rateInclusive', 'rate', 'price', 'valueInclusive')), 0);
     const totalPrice = optionValueInclusive > 0 ? optionValueInclusive : chargesSum;
 
     const netTotal = totalPrice > 0 ? (totalPrice / 1.1).toFixed(2) : '0.00';
