@@ -900,6 +900,190 @@ function QuotePageContent() {
     setCurrentPage(1);
   };
 
+  // ── Acceptance form card ──────────────────────────────────────────────────
+  // Defined here (outside both render paths) so it is used identically by
+  // the custom layout renderer (passed as acceptanceFormSlot) AND by the base
+  // layout template — guaranteeing the card class, padding, and border-radius
+  // are always the same regardless of which render path is active.
+  const acceptanceFormSlot = (
+    <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 style={{ color: primaryColor, fontSize: '22px', fontWeight: 700, margin: '0 0 16px 0', paddingBottom: '16px', borderBottom: '1px solid #e0e0e0' }}>
+          Accept quote
+        </h3>
+
+        <p style={{ fontSize: '13px', color: '#777', lineHeight: '1.7', margin: '0 0 20px 0' }}>
+          Please review the details of this proposal carefully before accepting. By accepting the quote you acknowledge and agree to the terms and conditions outlined in this proposal.
+        </p>
+
+        {/* Validation error */}
+        {errors.selectedCosting && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+            {errors.selectedCosting}
+          </div>
+        )}
+
+        {/* Form fields — visibility driven by acceptanceCfg */}
+        {(acShowSignatureName || acShowReloFromDate || acShowInsuredValue || acShowPurchaseOrderNumber || acShowSpecialRequirements) && (
+          <div className="space-y-4 mb-6">
+            {(acShowSignatureName || acShowReloFromDate) && (
+              <div className="grid md:grid-cols-2 gap-4">
+                {acShowSignatureName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Signature Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={signatureName}
+                      onChange={(e) => { setSignatureName(e.target.value); if (errors.signatureName) setErrors({ ...errors, signatureName: '' }); }}
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.signatureName ? 'border-red-500' : 'border-gray-300'}`}
+                      style={{ outlineColor: primaryColor }}
+                    />
+                    {errors.signatureName && <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>}
+                  </div>
+                )}
+                {acShowReloFromDate && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
+                    </label>
+                    <DatePicker
+                      selected={reloFromDate}
+                      onChange={(date: Date | null) => { setReloFromDate(date); if (errors.reloFromDate) setErrors({ ...errors, reloFromDate: '' }); }}
+                      dateFormat="dd/MM/yyyy"
+                      placeholderText="Select move date"
+                      minDate={new Date()}
+                      showPopperArrow={false}
+                      showMonthDropdown
+                      showYearDropdown
+                      dropdownMode="select"
+                      yearDropdownItemNumber={15}
+                      scrollableYearDropdown
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.reloFromDate ? 'border-red-500' : 'border-gray-300'}`}
+                      wrapperClassName="w-full"
+                    />
+                    {errors.reloFromDate && <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+            {(acShowInsuredValue || acShowPurchaseOrderNumber) && (
+              <div className="grid md:grid-cols-2 gap-4">
+                {acShowInsuredValue && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Insured value <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={insuredValue}
+                      onChange={(e) => { setInsuredValue(e.target.value); if (errors.insuredValue) setErrors({ ...errors, insuredValue: '' }); }}
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.insuredValue ? 'border-red-500' : 'border-gray-300'}`}
+                      style={{ outlineColor: primaryColor }}
+                    />
+                    {errors.insuredValue && <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>}
+                  </div>
+                )}
+                {acShowPurchaseOrderNumber && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Purchase order number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={purchaseOrderNumber}
+                      onChange={(e) => { setPurchaseOrderNumber(e.target.value); if (errors.purchaseOrderNumber) setErrors({ ...errors, purchaseOrderNumber: '' }); }}
+                      className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'}`}
+                      style={{ outlineColor: primaryColor }}
+                    />
+                    {errors.purchaseOrderNumber && <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>}
+                  </div>
+                )}
+              </div>
+            )}
+            {acShowSpecialRequirements && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Add any special requirements here
+                </label>
+                <textarea
+                  value={specialRequirements}
+                  onChange={(e) => setSpecialRequirements(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
+                  style={{ outlineColor: primaryColor }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Signature Canvas */}
+        <div className="mb-6">
+          <SignatureCanvas
+            value={signature}
+            onChange={(sig) => { setSignature(sig); if (errors.signature) setErrors({ ...errors, signature: '' }); }}
+            error={errors.signature}
+          />
+          {errors.signature && <p className="mt-1 text-sm text-red-600">{errors.signature}</p>}
+        </div>
+
+        {/* Terms & Conditions */}
+        <div className="mb-6">
+          <a href="#" className="hover:underline text-sm inline-flex items-center gap-1 mb-3" style={{ color: primaryColor }}>
+            Read Terms &amp; Conditions here
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-1 w-4 h-4"
+              style={{ accentColor: primaryColor }}
+            />
+            <span className="text-sm text-gray-700">I have read and agree to your Terms &amp; Conditions</span>
+          </label>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-3 no-print">
+          <button className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 font-semibold rounded hover:bg-gray-400 transition-colors">
+            Decline
+          </button>
+          <button
+            onClick={generatePDF}
+            disabled={generatingPdf}
+            style={{ backgroundColor: generatingPdf ? '#e5e7eb' : primaryColor }}
+            className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {generatingPdf ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Print / Save PDF
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleAcceptQuote}
+            disabled={!isFormValid() || submitting}
+            style={{ backgroundColor: isFormValid() && !submitting ? primaryColor : '#e5e7eb' }}
+            className="flex-1 px-6 py-3 text-white font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? 'Submitting...' : 'Accept'}
+          </button>
+        </div>
+      </div>
+  );
+
   // ---- Custom Layout Rendering ----
   if (customLayout) {
     // globalStyles from the layout config take priority — this lets the Layout Builder
@@ -937,191 +1121,6 @@ function QuotePageContent() {
       inventoryCurrentPage: currentPage,
       inventoryTotalPages: invTotalPages,
     };
-
-    // ── Acceptance form rendered as a React slot ──────────────────────────────
-    // This replaces the old custom HTML acceptance block so that SignatureCanvas,
-    // DatePicker and all form state work exactly as in the default template.
-    // It is styled to match the grace card pattern used by all other blocks.
-    const acceptanceFormSlot = (
-      // No outer width wrapper — the CustomLayoutRenderer provides maxWidth + px-4
-      // for AcceptanceForm sections, matching every other built-in section exactly.
-      <div className="bg-white rounded-lg shadow" style={{ padding: '28px 24px' }}>
-          <h3 style={{ color: primaryColor, fontSize: '22px', fontWeight: 700, margin: '0 0 16px 0', paddingBottom: '16px', borderBottom: '1px solid #e0e0e0' }}>
-            Accept quote
-          </h3>
-
-          <p style={{ fontSize: '13px', color: '#777', lineHeight: '1.7', margin: '0 0 20px 0' }}>
-            Please review the details of this proposal carefully before accepting. By accepting the quote you acknowledge and agree to the terms and conditions outlined in this proposal.
-          </p>
-
-          {/* Validation error */}
-          {errors.selectedCosting && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-              {errors.selectedCosting}
-            </div>
-          )}
-
-          {/* Form fields — visibility driven by acceptanceCfg */}
-          {(acShowSignatureName || acShowReloFromDate || acShowInsuredValue || acShowPurchaseOrderNumber || acShowSpecialRequirements) && (
-            <div className="space-y-4 mb-6">
-              {(acShowSignatureName || acShowReloFromDate) && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {acShowSignatureName && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Signature Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={signatureName}
-                        onChange={(e) => { setSignatureName(e.target.value); if (errors.signatureName) setErrors({ ...errors, signatureName: '' }); }}
-                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.signatureName ? 'border-red-500' : 'border-gray-300'}`}
-                        style={{ outlineColor: primaryColor }}
-                      />
-                      {errors.signatureName && <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>}
-                    </div>
-                  )}
-                  {acShowReloFromDate && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
-                      </label>
-                      <DatePicker
-                        selected={reloFromDate}
-                        onChange={(date: Date | null) => { setReloFromDate(date); if (errors.reloFromDate) setErrors({ ...errors, reloFromDate: '' }); }}
-                        dateFormat="dd/MM/yyyy"
-                        placeholderText="Select move date"
-                        minDate={new Date()}
-                        showPopperArrow={false}
-                        showMonthDropdown
-                        showYearDropdown
-                        dropdownMode="select"
-                        yearDropdownItemNumber={15}
-                        scrollableYearDropdown
-                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.reloFromDate ? 'border-red-500' : 'border-gray-300'}`}
-                        wrapperClassName="w-full"
-                      />
-                      {errors.reloFromDate && <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>}
-                    </div>
-                  )}
-                </div>
-              )}
-              {(acShowInsuredValue || acShowPurchaseOrderNumber) && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {acShowInsuredValue && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Insured value <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={insuredValue}
-                        onChange={(e) => { setInsuredValue(e.target.value); if (errors.insuredValue) setErrors({ ...errors, insuredValue: '' }); }}
-                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.insuredValue ? 'border-red-500' : 'border-gray-300'}`}
-                        style={{ outlineColor: primaryColor }}
-                      />
-                      {errors.insuredValue && <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>}
-                    </div>
-                  )}
-                  {acShowPurchaseOrderNumber && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Purchase order number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={purchaseOrderNumber}
-                        onChange={(e) => { setPurchaseOrderNumber(e.target.value); if (errors.purchaseOrderNumber) setErrors({ ...errors, purchaseOrderNumber: '' }); }}
-                        className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'}`}
-                        style={{ outlineColor: primaryColor }}
-                      />
-                      {errors.purchaseOrderNumber && <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>}
-                    </div>
-                  )}
-                </div>
-              )}
-              {acShowSpecialRequirements && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Add any special requirements here
-                  </label>
-                  <textarea
-                    value={specialRequirements}
-                    onChange={(e) => setSpecialRequirements(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
-                    style={{ outlineColor: primaryColor }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Signature Canvas */}
-          <div className="mb-6">
-            <SignatureCanvas
-              value={signature}
-              onChange={(sig) => { setSignature(sig); if (errors.signature) setErrors({ ...errors, signature: '' }); }}
-              error={errors.signature}
-            />
-            {errors.signature && <p className="mt-1 text-sm text-red-600">{errors.signature}</p>}
-          </div>
-
-          {/* Terms & Conditions */}
-          <div className="mb-6">
-            <a href="#" className="hover:underline text-sm inline-flex items-center gap-1 mb-3" style={{ color: primaryColor }}>
-              Read Terms &amp; Conditions here
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-            <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-1 w-4 h-4"
-                style={{ accentColor: primaryColor }}
-              />
-              <span className="text-sm text-gray-700">I have read and agree to your Terms &amp; Conditions</span>
-            </label>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-3 no-print">
-            <button className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 font-semibold rounded hover:bg-gray-400 transition-colors">
-              Decline
-            </button>
-            <button
-              onClick={generatePDF}
-              disabled={generatingPdf}
-              style={{ backgroundColor: generatingPdf ? '#e5e7eb' : primaryColor }}
-              className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {generatingPdf ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  Print / Save PDF
-                </>
-              )}
-            </button>
-            <button
-              onClick={handleAcceptQuote}
-              disabled={!isFormValid() || submitting}
-              style={{ backgroundColor: isFormValid() && !submitting ? primaryColor : '#e5e7eb' }}
-              className="flex-1 px-6 py-3 text-white font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Submitting...' : 'Accept'}
-            </button>
-          </div>
-        </div>
-    );
 
     return (
       <PageShell includeHeader={false}>
@@ -1814,203 +1813,10 @@ function QuotePageContent() {
               </div>
             </div>
 
-            <p className="text-sm text-gray-700 mb-6 border-t pt-6">
-              To confirm the service, please fill in the fields below, sign and accept. If the pricing options are not matching your requirements, 
-              please decline the quote and provide the information as for the reasons why and we will make sure to update our quote if requested.
-            </p>
-
-            {/* Validation Error Message */}
-            {errors.selectedCosting && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-                {errors.selectedCosting}
-              </div>
-            )}
-
-            {/* Form Fields */}
-            <div className="space-y-4 mb-6">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Signature Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={signatureName}
-                    onChange={(e) => {
-                      setSignatureName(e.target.value);
-                      if (errors.signatureName) {
-                        setErrors({ ...errors, signatureName: '' });
-                      }
-                    }}
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
-                      errors.signatureName ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    style={{ outlineColor: primaryColor }}
-                  />
-                  {errors.signatureName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.signatureName}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Relo From date: DD/MM/YYYY <span className="text-red-500">*</span>
-                  </label>
-                  <DatePicker
-                    selected={reloFromDate}
-                    onChange={(date: Date | null) => {
-                      setReloFromDate(date);
-                      if (errors.reloFromDate) {
-                        setErrors({ ...errors, reloFromDate: '' });
-                      }
-                    }}
-                    dateFormat="dd/MM/yyyy"
-                    placeholderText="Select move date"
-                    minDate={new Date()}
-                    showPopperArrow={false}
-                    showMonthDropdown
-                    showYearDropdown
-                    dropdownMode="select"
-                    yearDropdownItemNumber={15}
-                    scrollableYearDropdown
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
-                      errors.reloFromDate ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    calendarClassName="custom-calendar"
-                    wrapperClassName="w-full"
-                  />
-                  {errors.reloFromDate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.reloFromDate}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Insured value <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={insuredValue}
-                    onChange={(e) => {
-                      setInsuredValue(e.target.value);
-                      if (errors.insuredValue) {
-                        setErrors({ ...errors, insuredValue: '' });
-                      }
-                    }}
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
-                      errors.insuredValue ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    style={{ outlineColor: primaryColor }}
-                  />
-                  {errors.insuredValue && (
-                    <p className="mt-1 text-sm text-red-600">{errors.insuredValue}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Purchase order number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={purchaseOrderNumber}
-                    onChange={(e) => {
-                      setPurchaseOrderNumber(e.target.value);
-                      if (errors.purchaseOrderNumber) {
-                        setErrors({ ...errors, purchaseOrderNumber: '' });
-                      }
-                    }}
-                    className={`w-full px-3 py-2 border rounded focus:ring-2 focus:border-transparent ${
-                      errors.purchaseOrderNumber ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    style={{ outlineColor: primaryColor }}
-                  />
-                  {errors.purchaseOrderNumber && (
-                    <p className="mt-1 text-sm text-red-600">{errors.purchaseOrderNumber}</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Add any special requirements here
-                </label>
-                <textarea
-                  value={specialRequirements}
-                  onChange={(e) => setSpecialRequirements(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:border-transparent"
-                  style={{ outlineColor: primaryColor }}
-                />
-              </div>
-            </div>
-
-            {/* Signature Canvas */}
-            <div className="mb-6">
-              <SignatureCanvas
-                value={signature}
-                onChange={(sig) => {
-                  setSignature(sig);
-                  if (errors.signature) {
-                    setErrors({ ...errors, signature: '' });
-                  }
-                }}
-                error={errors.signature}
-              />
-              {errors.signature && (
-                <p className="mt-1 text-sm text-red-600">{errors.signature}</p>
-              )}
-            </div>
-
-            {/* Terms Checkbox */}
-            <div className="mb-6">
-              <a href="#" className="hover:underline text-sm inline-flex items-center gap-1 mb-3" style={{ color: primaryColor }}>
-                Read Terms & Conditions here
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-              <label className="flex items-start gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreedToTerms}
-                  onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  className="mt-1 w-4 h-4"
-                />
-                <span className="text-sm text-gray-700">I have read and agree to your Terms & Conditions</span>
-              </label>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-4 no-print">
-              <button className="flex-1 px-6 py-3 bg-gray-300 text-gray-700 font-semibold rounded hover:bg-gray-400 transition-colors">
-                Decline
-              </button>
-              <button 
-                onClick={generatePDF}
-                disabled={generatingPdf}
-                style={{ backgroundColor: generatingPdf ? '#e5e7eb' : primaryColor }}
-                className="flex-1 px-6 py-3 text-white font-semibold rounded hover:opacity-90 transition-opacity disabled:cursor-not-allowed"
-              >
-                {generatingPdf ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Generating...
-                  </span>
-                ) : (
-                  'Create PDF'
-                )}
-              </button>
-              <button 
-                onClick={handleAcceptQuote}
-                disabled={!isFormValid() || submitting}
-                style={{ backgroundColor: isFormValid() && !submitting ? primaryColor : '#e5e7eb' }}
-                className="flex-1 px-6 py-3 text-white font-semibold rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Submitting...' : 'Accept'}
-              </button>
-            </div>
           </div>
+
+          {/* Acceptance form — shared card, same class as every other section */}
+          {acceptanceFormSlot}
 
           {/* Terms & Conditions - Moved to end */}
           <div className="bg-white rounded-lg shadow p-6 mb-6">
