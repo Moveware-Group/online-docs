@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import {
@@ -180,6 +180,127 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+}
+
+// ---------------------------------------------------------------------------
+// Rich text field (contenteditable WYSIWYG — no external dependency)
+// ---------------------------------------------------------------------------
+
+/** Tags that should use the rich text editor instead of a plain textarea */
+const RICH_TEXT_TAGS = new Set(['p', 'div', 'li', 'td', 'blockquote']);
+
+/**
+ * A minimal WYSIWYG editor backed by a `contenteditable` div.
+ * Stores and emits innerHTML so basic formatting (bold, italic, links, lists)
+ * is preserved in the HTML template.
+ */
+function RichTextField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Track the last value we pushed into the DOM so we can skip re-setting
+  // innerHTML when the user is actively typing (which would reset the cursor).
+  const lastPushed = useRef<string | null>(null);
+
+  // Set initial content imperatively on mount only.
+  // Using dangerouslySetInnerHTML + contentEditable together causes React
+  // cursor-position bugs, so we manage the DOM directly.
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.innerHTML = value;
+      lastPushed.current = value;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When value changes from *outside* (e.g. placeholder insert) and differs
+  // from what we last emitted, sync the DOM.
+  useEffect(() => {
+    if (ref.current && value !== lastPushed.current) {
+      const sel = window.getSelection();
+      ref.current.innerHTML = value;
+      lastPushed.current = value;
+      // Restore cursor to end so it feels natural after an external update
+      if (sel && ref.current.childNodes.length > 0) {
+        const range = document.createRange();
+        range.selectNodeContents(ref.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  }, [value]);
+
+  const handleInput = useCallback(() => {
+    const html = ref.current?.innerHTML ?? '';
+    lastPushed.current = html;
+    onChange(html);
+  }, [onChange]);
+
+  // Use mousedown (not click) so we don't lose selection when clicking toolbar
+  const exec = useCallback((cmd: string, arg?: string) => {
+    ref.current?.focus();
+    document.execCommand(cmd, false, arg ?? undefined);
+    handleInput();
+  }, [handleInput]);
+
+  return (
+    <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-blue-400 focus-within:border-transparent">
+      {/* Toolbar */}
+      <div className="flex items-center gap-0.5 px-2 py-1 bg-gray-50 border-b border-gray-200 flex-wrap">
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('bold'); }}
+          className="px-1.5 py-0.5 text-xs font-bold text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          title="Bold (Ctrl+B)"
+        >B</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('italic'); }}
+          className="px-1.5 py-0.5 text-xs italic text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          title="Italic (Ctrl+I)"
+        >I</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('underline'); }}
+          className="px-1.5 py-0.5 text-xs underline text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          title="Underline (Ctrl+U)"
+        >U</button>
+        <span className="w-px h-3 bg-gray-300 mx-0.5 self-center" />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }}
+          className="px-1.5 py-0.5 text-xs text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          title="Bullet list"
+        >• List</button>
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('insertOrderedList'); }}
+          className="px-1.5 py-0.5 text-xs text-gray-700 rounded hover:bg-gray-200 transition-colors"
+          title="Numbered list"
+        >1. List</button>
+        <span className="w-px h-3 bg-gray-300 mx-0.5 self-center" />
+        <button
+          type="button"
+          onMouseDown={(e) => { e.preventDefault(); exec('removeFormat'); }}
+          className="px-1.5 py-0.5 text-[10px] text-gray-400 rounded hover:bg-gray-200 transition-colors"
+          title="Remove formatting"
+        >Clear</button>
+      </div>
+      {/* Editable area */}
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        className="px-2 py-2 text-xs min-h-[72px] max-h-48 overflow-y-auto focus:outline-none leading-relaxed [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+      />
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1834,11 +1955,7 @@ function LayoutBuilderContent() {
                   ) : copyFields.map((field) => {
                     const isPlaceholder = /^\s*\{\{[^}]+\}\}\s*$/.test(field.value);
                     const isSingleLine = !isPlaceholder && SINGLE_LINE_TAGS.has(field.elementTag || '');
-                    const baseInputClass = `w-full px-2 py-1.5 text-xs rounded focus:outline-none focus:ring-1 ${
-                      isPlaceholder
-                        ? 'border border-blue-200 bg-blue-50 font-mono text-blue-700 focus:ring-blue-400'
-                        : 'border border-gray-300 focus:ring-blue-400'
-                    }`;
+                    const isRichText   = !isPlaceholder && !isSingleLine && RICH_TEXT_TAGS.has(field.elementTag || '');
                     const handleChange = (val: string) => {
                       setCopyFields(copyFields.map((f) =>
                         f.id === field.id ? { ...f, value: val } : f
@@ -1859,15 +1976,22 @@ function LayoutBuilderContent() {
                             type="text"
                             value={field.value}
                             onChange={(e) => handleChange(e.target.value)}
-                            className={baseInputClass}
+                            className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
                           />
+                        ) : isRichText ? (
+                          /* Rich text editor for paragraph / div / list content */
+                          <RichTextField value={field.value} onChange={handleChange} />
                         ) : (
-                          /* Multi-line textarea for copy, paragraphs, and placeholders */
+                          /* Plain textarea for placeholders and other elements */
                           <textarea
                             value={field.value}
                             onChange={(e) => handleChange(e.target.value)}
-                            rows={isPlaceholder ? 1 : field.value.length > 200 ? 6 : field.value.length > 80 ? 4 : 3}
-                            className={`${baseInputClass} resize-none`}
+                            rows={isPlaceholder ? 1 : 3}
+                            className={`w-full px-2 py-1.5 text-xs rounded focus:outline-none focus:ring-1 resize-none ${
+                              isPlaceholder
+                                ? 'border border-blue-200 bg-blue-50 font-mono text-blue-700 focus:ring-blue-400'
+                                : 'border border-gray-300 focus:ring-blue-400'
+                            }`}
                             placeholder={isPlaceholder ? 'Enter a placeholder e.g. {{quoteDate}}' : undefined}
                           />
                         )}
