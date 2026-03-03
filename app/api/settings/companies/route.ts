@@ -316,6 +316,7 @@ export async function POST(request: NextRequest) {
       brandCode: company.brandCode,
       companyName: company.name,
       logoUrl: company.logoUrl || '',
+      logoUrlLight: logoUrlLight || '',
       heroBannerUrl: heroBannerUrl || '',
       footerImageUrl: footerImageUrl || '',
       primaryColor: company.primaryColor,
@@ -324,6 +325,14 @@ export async function POST(request: NextRequest) {
       fontFamily: fontFamily || 'Inter',
       mwUsername: mwUsername?.trim() || '',
       mwPasswordSet: !!(mwPassword?.trim()),
+      inventoryWeightUnit: (inventoryWeightUnit as 'kg' | 'lbs') || 'kg',
+      footerBgColor:      footerBgColor      || '#ffffff',
+      footerTextColor:    footerTextColor     || '#374151',
+      footerAddressLine1: footerAddressLine1  || '',
+      footerAddressLine2: footerAddressLine2  || '',
+      footerPhone:        footerPhone         || '',
+      footerEmail:        footerEmail         || '',
+      footerAbn:          footerAbn           || '',
     };
 
     return NextResponse.json(response);
