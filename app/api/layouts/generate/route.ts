@@ -66,7 +66,7 @@ function cleanHtmlForLLM(rawHtml: string): string {
 // ---------------------------------------------------------------------------
 
 async function extractBestImageFromZip(
-  zip: JSZip,
+  zip: Awaited<ReturnType<typeof JSZip.loadAsync>>,
 ): Promise<{ data: string; mediaType: string; filename: string } | null> {
   const imageFiles = Object.values(zip.files).filter(
     (entry) => !entry.dir && /\.(png|jpe?g|webp)$/i.test(entry.name),
