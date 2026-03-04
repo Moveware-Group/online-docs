@@ -158,6 +158,18 @@ Study the image carefully. Replicate the visual design section by section:
 4. Use the same column layouts (grid/flex) as the reference
 5. Match table styling if present (header colors, row styling, borders)
 6. Do NOT add creative improvements — copy what you see
+
+## When Replicating from Reference HTML
+
+When reference HTML source code is provided, it is the AUTHORITATIVE layout to reproduce:
+1. Reproduce the EXACT DOM structure — same nesting, same element types, same order
+2. Copy all inline styles verbatim (colors, padding, margins, font sizes, backgrounds)
+3. Preserve table structures exactly — same number of columns, same header styles, same cell alignment
+4. Preserve grid/flexbox layouts — if the reference uses a 2-column flex layout for addresses, do the same
+5. Replace hard-coded data with template variables but keep all surrounding HTML/CSS identical
+6. If both HTML and an image are provided, use the HTML for structure and the image to verify visual fidelity
+7. Do NOT simplify complex layouts into simpler ones — if the reference has a specific table with 5 columns, output 5 columns
+8. Do NOT reinterpret the design — if it uses a dark blue header bar, use the exact same hex color, not a "similar" shade
 `;
 
 // ---------------------------------------------------------------------------
@@ -334,7 +346,7 @@ async function callOpenAI(
 
   const response = await client.chat.completions.create({
     model: "gpt-4o",
-    max_tokens: 8192,
+    max_tokens: 16384,
     messages,
     response_format: { type: "json_object" },
   });
@@ -878,7 +890,12 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
 
   if (hasUploadedFile) {
     const fileType = input.referenceFileData!.mediaType === "application/pdf" ? "PDF" : "image";
-    parts.push(`\nA reference ${fileType} is attached. Study it carefully and replicate the layout you see — match the header design, section order, colors, spacing, and structure exactly. Do not add creative improvements.`);
+    const hasHtmlToo = !!input.referenceFileContent;
+    if (hasHtmlToo) {
+      parts.push(`\nA reference ${fileType} is attached alongside the HTML source. Use the image to understand the EXACT visual appearance (colors, spacing, alignment) and the HTML to understand the DOM structure. Replicate both faithfully.`);
+    } else {
+      parts.push(`\nA reference ${fileType} is attached. Study it carefully and replicate the layout you see — match the header design, section order, colors, spacing, and structure exactly. Do not add creative improvements.`);
+    }
   }
 
   let screenshotData: ReferenceFileData | null = null;
@@ -911,10 +928,27 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   }
 
   if (input.referenceFileContent) {
-    const content = input.referenceFileContent.substring(0, 30000);
+    const content = input.referenceFileContent.substring(0, 80000);
     const looksLikeHtml = /<html|<body|<div|<table/i.test(content);
     if (looksLikeHtml) {
-      parts.push(`\nReference HTML provided (authoritative structure source):\n\`\`\`html\n${content}\n\`\`\`\nUse this DOM structure to place placeholders accurately.`);
+      parts.push(`\n## CRITICAL — Reference HTML (authoritative source)
+
+The following HTML is the EXACT layout to replicate. This is NOT a suggestion — reproduce the structure, order, colors, spacing, fonts, and table layouts precisely.
+
+\`\`\`html
+${content}
+\`\`\`
+
+Instructions for using this HTML:
+1. Reproduce every visible section in the same order as the HTML
+2. Copy inline styles, colors (hex values), font sizes, padding, and margins exactly
+3. Preserve the exact table structure (columns, header colors, cell alignment)
+4. Preserve the exact grid/flex layout used for multi-column sections (e.g. addresses side by side)
+5. Replace hard-coded customer data with the appropriate template variables (e.g. replace a customer name with {{customerName}}, addresses with {{job.upliftLine1}} etc.)
+6. Replace hard-coded inventory rows with {{#each inventory}}...{{/each}} loops
+7. Replace hard-coded pricing/costings with {{#each costings}}...{{/each}} loops
+8. Keep the company logo as {{branding.logoUrl}} and company name as {{branding.companyName}}
+9. Do NOT simplify, reinterpret, or "improve" the layout — match it exactly as-is`);
     } else {
       parts.push(`\nExtracted text from reference file:\n${content}`);
     }

@@ -19,6 +19,98 @@ import { existsSync } from "fs";
 import path from "path";
 import JSZip from "jszip";
 
+// ---------------------------------------------------------------------------
+// HTML cleaning — strip non-structural content so the LLM gets the actual
+// layout markup instead of scripts, massive CSS, and base64 blobs.
+// ---------------------------------------------------------------------------
+
+function cleanHtmlForLLM(rawHtml: string): string {
+  let html = rawHtml;
+
+  // Remove <script> tags and their content
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+
+  // Remove <noscript> tags
+  html = html.replace(/<noscript[\s\S]*?<\/noscript>/gi, "");
+
+  // Remove HTML comments
+  html = html.replace(/<!--[\s\S]*?-->/g, "");
+
+  // Remove <link> stylesheet tags (external CSS refs that are useless without fetching)
+  html = html.replace(/<link\s[^>]*rel\s*=\s*["']stylesheet["'][^>]*\/?>/gi, "");
+
+  // Remove <style> blocks — inline styles on elements are kept, but big CSS blocks waste tokens
+  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
+
+  // Remove base64 data URIs (images encoded inline can be huge)
+  html = html.replace(/data:[^"'\s)]+;base64,[A-Za-z0-9+/=]+/g, "data:removed");
+
+  // Remove SVG blocks (often very large, not useful for layout structure)
+  html = html.replace(/<svg[\s\S]*?<\/svg>/gi, '<span>[svg-icon]</span>');
+
+  // Extract body only if present
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) {
+    html = bodyMatch[1];
+  }
+
+  // Collapse excessive whitespace
+  html = html.replace(/\n\s*\n\s*\n/g, "\n\n");
+  html = html.replace(/[ \t]{4,}/g, "  ");
+
+  return html.trim();
+}
+
+// ---------------------------------------------------------------------------
+// Extract the best image from a ZIP to use as a visual reference
+// ---------------------------------------------------------------------------
+
+async function extractBestImageFromZip(
+  zip: JSZip,
+): Promise<{ data: string; mediaType: string; filename: string } | null> {
+  const imageFiles = Object.values(zip.files).filter(
+    (entry) => !entry.dir && /\.(png|jpe?g|webp)$/i.test(entry.name),
+  );
+
+  if (imageFiles.length === 0) return null;
+
+  // Score images: prefer larger files and names suggesting banners/screenshots
+  const scored = await Promise.all(
+    imageFiles.map(async (entry) => {
+      const buf = await entry.async("nodebuffer");
+      const name = entry.name.toLowerCase();
+      let score = buf.length; // base score = file size
+      if (/banner|screenshot|preview|hero|header/i.test(name)) score *= 3;
+      if (/logo/i.test(name)) score *= 0.5; // logos are small, less useful as layout ref
+      return { entry, buf, score };
+    }),
+  );
+
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+
+  // Skip if the image is tiny (< 5KB) — probably an icon
+  if (best.buf.length < 5 * 1024) return null;
+
+  // Cap at 4MB to stay within API limits
+  if (best.buf.length > 4 * 1024 * 1024) return null;
+
+  const ext = path.extname(best.entry.name).toLowerCase();
+  const mediaType =
+    ext === ".png" ? "image/png" :
+    ext === ".webp" ? "image/webp" : "image/jpeg";
+
+  console.log(
+    `[Generate] Selected ZIP image as visual reference: ${best.entry.name} (${(best.buf.length / 1024).toFixed(1)}KB)`,
+  );
+
+  return {
+    data: best.buf.toString("base64"),
+    mediaType,
+    filename: path.basename(best.entry.name),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -103,15 +195,15 @@ export async function POST(request: NextRequest) {
             else if (ext === ".html" || ext === ".htm") mediaType = "text/html";
             else if (ext === ".zip") mediaType = "application/zip";
 
-            // For HTML references, pass raw HTML content directly into prompt context.
-            // This gives the model exact DOM structure to map placeholders against.
             if (mediaType === "text/html") {
-              const htmlText = fileBuffer.toString("utf-8");
-              effectiveReferenceFileContent = htmlText;
-              console.log(`[Generate] Loaded HTML reference (${(htmlText.length / 1024).toFixed(2)}KB text)`);
+              const rawHtml = fileBuffer.toString("utf-8");
+              const cleanedHtml = cleanHtmlForLLM(rawHtml);
+              effectiveReferenceFileContent = cleanedHtml;
+              console.log(`[Generate] Loaded HTML reference (raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB)`);
             } else if (mediaType === "application/zip") {
-              // Extract HTML from a "Save page complete" style ZIP bundle
               const zip = await JSZip.loadAsync(fileBuffer);
+
+              // --- Extract HTML ---
               const htmlCandidates = Object.values(zip.files).filter(
                 (entry) => !entry.dir && /\.(html?|xhtml)$/i.test(entry.name),
               );
@@ -120,16 +212,23 @@ export async function POST(request: NextRequest) {
                 throw new Error("ZIP file contains no HTML files");
               }
 
-              // Prefer index/home-like names, otherwise the first HTML file
               const preferred =
                 htmlCandidates.find((e) => /index|quote|home/i.test(e.name)) ||
                 htmlCandidates[0];
 
-              const htmlText = await preferred.async("string");
-              effectiveReferenceFileContent = htmlText;
+              const rawHtml = await preferred.async("string");
+              const cleanedHtml = cleanHtmlForLLM(rawHtml);
+              effectiveReferenceFileContent = cleanedHtml;
               console.log(
-                `[Generate] Loaded HTML from ZIP (${preferred.name}, ${(htmlText.length / 1024).toFixed(2)}KB text)`,
+                `[Generate] Loaded HTML from ZIP (${preferred.name}, raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB)`,
               );
+
+              // --- Extract best image as visual reference ---
+              const zipImage = await extractBestImageFromZip(zip);
+              if (zipImage) {
+                referenceFileData = zipImage;
+                console.log(`[Generate] Using ZIP image as visual reference: ${zipImage.filename}`);
+              }
             } else {
               referenceFileData = {
                 data: base64,
