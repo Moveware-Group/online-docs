@@ -151,25 +151,35 @@ Note: Template syntax uses double braces around variable names, and hash-each fo
 
 ## When Replicating a Reference Image
 
-Study the image carefully. Replicate the visual design section by section:
-1. Match the header design (colors, gradients, logo position, text layout)
-2. Preserve the exact section order from top to bottom
-3. Match colors, spacing, typography, and layout structure
-4. Use the same column layouts (grid/flex) as the reference
-5. Match table styling if present (header colors, row styling, borders)
-6. Do NOT add creative improvements — copy what you see
+Study the image carefully and replicate the EXACT visual design you see. This is NOT a suggestion — your output must look identical to the reference:
+
+1. **Header/Top area**: Match the exact colors, logo position, any banner images, gradient or solid color bars, and text placement
+2. **Section order**: Reproduce every visible section in the SAME order from top to bottom. Do not skip, reorder, or merge sections
+3. **Colors**: Use the EXACT hex colors you see — if the header is red, use the specific red from the reference (e.g. #DB2919), not a generic red
+4. **Typography**: Match font sizes, weights (bold vs light), and text alignment
+5. **Layout structure**: If you see two columns side by side (e.g. addresses), use a flex/grid two-column layout. Do not stack them vertically
+6. **Tables**: Match the exact table structure — same columns, same header background color, same row styling
+7. **Cards/sections**: Match background colors (white cards on grey background, etc.), border radius, padding, and shadows
+8. **Signature/acceptance areas**: If the reference has a signature pad, acceptance button, or form area, include it
+9. **Footer**: Match footer images, contact info layout, and background
+10. **Do NOT add creative improvements** — copy what you see, even if you think a different design would be "better"
+11. **Do NOT fall back to a generic template** — if you can see the layout, replicate IT, not some default design
 
 ## When Replicating from Reference HTML
 
-When reference HTML source code is provided, it is the AUTHORITATIVE layout to reproduce:
-1. Reproduce the EXACT DOM structure — same nesting, same element types, same order
-2. Copy all inline styles verbatim (colors, padding, margins, font sizes, backgrounds)
-3. Preserve table structures exactly — same number of columns, same header styles, same cell alignment
-4. Preserve grid/flexbox layouts — if the reference uses a 2-column flex layout for addresses, do the same
-5. Replace hard-coded data with template variables but keep all surrounding HTML/CSS identical
-6. If both HTML and an image are provided, use the HTML for structure and the image to verify visual fidelity
-7. Do NOT simplify complex layouts into simpler ones — if the reference has a specific table with 5 columns, output 5 columns
-8. Do NOT reinterpret the design — if it uses a dark blue header bar, use the exact same hex color, not a "similar" shade
+The reference HTML may come from an Angular, React, or other SPA framework and will include:
+- Framework-specific wrapper elements (e.g. lib-dynamic-container, lib-plain-html, app-root) — these are layout containers
+- Utility CSS classes (e.g. bg-primary, flex-row, md:w-4) — a color mapping legend is provided above the HTML
+- The actual visible content (headings, text, images, tables) is nested inside these wrappers
+
+How to interpret the HTML:
+1. Read through the HTML and identify each visual SECTION (header bar, hero image, thank you card, locations card, pricing, acceptance, footer)
+2. Use the CSS class names + the color legend to determine actual colors. For example: "bg-primary" + "color-sf-primary: 219,41,29" means background-color: rgb(219,41,29) which is red
+3. Layout classes: "flex-row" = horizontal layout, "flex-col" = vertical layout, "md:w-4" = ~33% width, "md:w-8" = ~67% width, "md:w-6" = 50%, "row" = full-width container
+4. Replace hard-coded data with template variables but keep the EXACT visual structure
+5. For images referenced in the HTML (banner_3.png, logo.png, etc.), use the appropriate branding variables (branding.logoUrl) or bannerImageUrl/footerImageUrl if provided
+6. Do NOT simplify the layout — if the reference has 6 distinct sections, output 6 distinct sections
+7. Do NOT ignore sections — if there is a pricing table, an acceptance/signature area, or a footer, include them ALL
 `;
 
 // ---------------------------------------------------------------------------
@@ -345,7 +355,7 @@ async function callOpenAI(
   }
 
   const response = await client.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.2",
     max_tokens: 16384,
     messages,
     response_format: { type: "json_object" },
@@ -368,19 +378,9 @@ async function callLLM(
   );
 
   try {
-    // Image-first routing: OpenAI vision generally performs better for screenshot replication.
-    if (hasImageReference) {
-      console.log("[LLM] Image reference detected, preferring OpenAI vision path");
-      return await callOpenAI(
-        systemPrompt,
-        userMessage,
-        conversationHistory,
-        referenceFileData,
-      );
-    }
-
+    // Anthropic (Claude) handles both images and PDFs natively and produces
+    // more faithful layout replications. Use it as default for all references.
     if (provider === "openai") {
-      // OpenAI doesn't support PDF documents, only images
       if (referenceFileData && !referenceFileData.mediaType.startsWith("image/")) {
         console.warn("[LLM] OpenAI does not support PDF documents, falling back to Anthropic");
         return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
@@ -392,6 +392,7 @@ async function callLLM(
         referenceFileData,
       );
     }
+    console.log(`[LLM] Using Anthropic (Claude) — has image: ${hasImageReference}, has reference: ${!!referenceFileData}`);
     return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
   } catch (primaryError) {
     console.warn(`Primary LLM (${provider}) failed, trying fallback:`, primaryError);

@@ -20,95 +20,152 @@ import path from "path";
 import JSZip from "jszip";
 
 // ---------------------------------------------------------------------------
-// HTML cleaning — strip non-structural content so the LLM gets the actual
-// layout markup instead of scripts, massive CSS, and base64 blobs.
+// CSS variable extraction — pull color definitions from <html style="...">
+// so the LLM knows what utility classes like bg-primary actually mean.
 // ---------------------------------------------------------------------------
 
-function cleanHtmlForLLM(rawHtml: string): string {
+function extractCssColorContext(rawHtml: string): string {
+  const htmlTagMatch = rawHtml.match(/<html[^>]*style\s*=\s*["']([^"']+)["']/i);
+  if (!htmlTagMatch) return "";
+
+  const styleAttr = htmlTagMatch[1];
+  const vars: Record<string, string> = {};
+  const varRegex = /--([\w-]+)\s*:\s*([^;]+)/g;
+  let m;
+  while ((m = varRegex.exec(styleAttr)) !== null) {
+    vars[m[1]] = m[2].trim();
+  }
+
+  if (Object.keys(vars).length === 0) return "";
+
+  const lines: string[] = ["Color/theme variables from the original page:"];
+  for (const [name, value] of Object.entries(vars)) {
+    if (/color|primary|secondary|tertiary|grey|white|black|error|success|warning/i.test(name)) {
+      const rgbValues = value.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+      if (rgbValues) {
+        const hex = "#" + [rgbValues[1], rgbValues[2], rgbValues[3]]
+          .map(v => parseInt(v).toString(16).padStart(2, "0"))
+          .join("");
+        lines.push(`  --${name}: rgb(${value}) = ${hex}`);
+      } else {
+        lines.push(`  --${name}: ${value}`);
+      }
+    }
+  }
+
+  lines.push("");
+  lines.push("CSS class meanings (from the framework):");
+  lines.push("  bg-primary = background uses --color-sf-primary (brand red)");
+  lines.push("  color-on-primary = text color for primary background (white)");
+  lines.push("  bg-secondary = background uses --color-sf-secondary");
+  lines.push("  color-primary = text color uses --color-sf-primary");
+  lines.push("  color-tertiary = text color uses --color-sf-tertiary");
+  lines.push("  bg-light-grey = light grey background");
+  lines.push("  bg-white = white background");
+  lines.push("  flex-row = horizontal flex layout, flex-col = vertical flex layout");
+  lines.push("  md:w-4 = ~33% width column, md:w-8 = ~67% width column, md:w-6 = 50%");
+  lines.push("  row = 12-column grid row, pad-md/pad-lg = medium/large padding");
+  lines.push("  card = elevated card container, border-radius-lg = rounded corners");
+  lines.push("  font-weight-7 = bold, font-weight-2 = light");
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// HTML cleaning — strip framework noise so the LLM gets meaningful structure.
+// Handles Angular (lib-*, app-*), React, and generic SPA output.
+// ---------------------------------------------------------------------------
+
+function cleanHtmlForLLM(rawHtml: string): { cleanedHtml: string; colorContext: string; imageAssets: string[] } {
+  const colorContext = extractCssColorContext(rawHtml);
+
   let html = rawHtml;
 
-  // Remove <script> tags and their content
+  // Remove <script>, <noscript>, <style>, <link stylesheet>, HTML comments
   html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
-
-  // Remove <noscript> tags
   html = html.replace(/<noscript[\s\S]*?<\/noscript>/gi, "");
-
-  // Remove HTML comments
+  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
+  html = html.replace(/<link\s[^>]*rel\s*=\s*["']stylesheet["'][^>]*\/?>/gi, "");
   html = html.replace(/<!--[\s\S]*?-->/g, "");
 
-  // Remove <link> stylesheet tags (external CSS refs that are useless without fetching)
-  html = html.replace(/<link\s[^>]*rel\s*=\s*["']stylesheet["'][^>]*\/?>/gi, "");
+  // Remove base64 data URIs
+  html = html.replace(/data:[^"'\s)]+;base64,[A-Za-z0-9+/=]{100,}/g, "data:removed");
 
-  // Remove <style> blocks — inline styles on elements are kept, but big CSS blocks waste tokens
-  html = html.replace(/<style[\s\S]*?<\/style>/gi, "");
+  // Remove SVG blocks
+  html = html.replace(/<svg[\s\S]*?<\/svg>/gi, "[svg-icon]");
 
-  // Remove base64 data URIs (images encoded inline can be huge)
-  html = html.replace(/data:[^"'\s)]+;base64,[A-Za-z0-9+/=]+/g, "data:removed");
-
-  // Remove SVG blocks (often very large, not useful for layout structure)
-  html = html.replace(/<svg[\s\S]*?<\/svg>/gi, '<span>[svg-icon]</span>');
-
-  // Extract body only if present
+  // Extract body only
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   if (bodyMatch) {
     html = bodyMatch[1];
   }
 
-  // Collapse excessive whitespace
-  html = html.replace(/\n\s*\n\s*\n/g, "\n\n");
-  html = html.replace(/[ \t]{4,}/g, "  ");
+  // Collect image asset paths/URLs before any further processing
+  const imageAssets: string[] = [];
+  const imgRegex = /src\s*=\s*["']([^"']+\.(?:png|jpe?g|webp|gif))[^"']*["']/gi;
+  let imgMatch;
+  while ((imgMatch = imgRegex.exec(html)) !== null) {
+    const src = imgMatch[1].replace(/^\.\//, "");
+    if (!imageAssets.includes(src)) imageAssets.push(src);
+  }
 
-  return html.trim();
+  // --- Angular / Moveware framework cleanup ---
+
+  // Strip Angular attributes: _ngcontent-*, _nghost-*, ng-version, ng-reflect-*
+  html = html.replace(/\s+(?:_ngcontent|_nghost|ng-version|ng-reflect)[a-z0-9-]*(?:\s*=\s*"[^"]*")?/gi, "");
+
+  // Unwrap Angular framework container elements — keep their CSS classes as
+  // data attributes on a standard div so the LLM knows the layout intent.
+  // lib-dynamic-container → div, lib-plain-html → (unwrap completely)
+  html = html.replace(/<lib-dynamic-container([^>]*)>/gi, '<div$1>');
+  html = html.replace(/<\/lib-dynamic-container>/gi, '</div>');
+
+  // lib-plain-html wraps a single <div> — unwrap the outer tag
+  html = html.replace(/<lib-plain-html[^>]*>\s*/gi, "");
+  html = html.replace(/\s*<\/lib-plain-html>/gi, "");
+
+  // lib-image → keep as div with image role
+  html = html.replace(/<lib-image([^>]*)>/gi, '<div$1>');
+  html = html.replace(/<\/lib-image>/gi, '</div>');
+
+  // Unwrap app-root, app-rms, router-outlet
+  html = html.replace(/<(?:app-root|app-rms|router-outlet)[^>]*>\s*/gi, "");
+  html = html.replace(/<\/(?:app-root|app-rms)>/gi, "");
+
+  // Unwrap <form> tags (these are Angular reactive forms, not real forms for us)
+  html = html.replace(/<form[^>]*>\s*/gi, "");
+  html = html.replace(/<\/form>/gi, "");
+
+  // Remove empty divs and containers
+  html = html.replace(/<div[^>]*>\s*<\/div>/gi, "");
+
+  // Remove elements with "e-hidden" class (Angular hidden overlays/modals)
+  html = html.replace(/<div[^>]*class="[^"]*e-hidden[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
+
+  // Remove id attributes (UUIDs that are just noise)
+  html = html.replace(/\s+id="[0-9a-f]{8}-[0-9a-f-]+"/gi, "");
+
+  // Remove "novalidate" and Angular form attributes
+  html = html.replace(/\s+(?:novalidate|ng-untouched|ng-pristine|ng-valid|ng-invalid)/gi, "");
+
+  // Clean up extra whitespace
+  html = html.replace(/\n\s*\n\s*\n/g, "\n");
+  html = html.replace(/[ \t]{3,}/g, " ");
+  html = html.replace(/>\s+</g, ">\n<");
+
+  return { cleanedHtml: html.trim(), colorContext, imageAssets };
 }
 
 // ---------------------------------------------------------------------------
-// Extract the best image from a ZIP to use as a visual reference
+// List image asset filenames from a ZIP (for prompt context, not visual ref)
 // ---------------------------------------------------------------------------
 
-async function extractBestImageFromZip(
+function listZipImageAssets(
   zip: Awaited<ReturnType<typeof JSZip.loadAsync>>,
-): Promise<{ data: string; mediaType: string; filename: string } | null> {
-  const imageFiles = Object.values(zip.files).filter(
-    (entry) => !entry.dir && /\.(png|jpe?g|webp)$/i.test(entry.name),
-  );
-
-  if (imageFiles.length === 0) return null;
-
-  // Score images: prefer larger files and names suggesting banners/screenshots
-  const scored = await Promise.all(
-    imageFiles.map(async (entry) => {
-      const buf = await entry.async("nodebuffer");
-      const name = entry.name.toLowerCase();
-      let score = buf.length; // base score = file size
-      if (/banner|screenshot|preview|hero|header/i.test(name)) score *= 3;
-      if (/logo/i.test(name)) score *= 0.5; // logos are small, less useful as layout ref
-      return { entry, buf, score };
-    }),
-  );
-
-  scored.sort((a, b) => b.score - a.score);
-  const best = scored[0];
-
-  // Skip if the image is tiny (< 5KB) — probably an icon
-  if (best.buf.length < 5 * 1024) return null;
-
-  // Cap at 4MB to stay within API limits
-  if (best.buf.length > 4 * 1024 * 1024) return null;
-
-  const ext = path.extname(best.entry.name).toLowerCase();
-  const mediaType =
-    ext === ".png" ? "image/png" :
-    ext === ".webp" ? "image/webp" : "image/jpeg";
-
-  console.log(
-    `[Generate] Selected ZIP image as visual reference: ${best.entry.name} (${(best.buf.length / 1024).toFixed(1)}KB)`,
-  );
-
-  return {
-    data: best.buf.toString("base64"),
-    mediaType,
-    filename: path.basename(best.entry.name),
-  };
+): string[] {
+  return Object.values(zip.files)
+    .filter((entry) => !entry.dir && /\.(png|jpe?g|webp|gif)$/i.test(entry.name))
+    .map((entry) => path.basename(entry.name));
 }
 
 export async function POST(request: NextRequest) {
@@ -197,13 +254,17 @@ export async function POST(request: NextRequest) {
 
             if (mediaType === "text/html") {
               const rawHtml = fileBuffer.toString("utf-8");
-              const cleanedHtml = cleanHtmlForLLM(rawHtml);
-              effectiveReferenceFileContent = cleanedHtml;
-              console.log(`[Generate] Loaded HTML reference (raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB)`);
+              const { cleanedHtml, colorContext, imageAssets } = cleanHtmlForLLM(rawHtml);
+              effectiveReferenceFileContent = colorContext
+                ? `${colorContext}\n\n---\n\nCleaned HTML structure:\n${cleanedHtml}`
+                : cleanedHtml;
+              if (imageAssets.length > 0) {
+                effectiveReferenceFileContent += `\n\nImage assets found: ${imageAssets.join(", ")}`;
+              }
+              console.log(`[Generate] Loaded HTML reference (raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB, colors: ${colorContext ? "yes" : "no"})`);
             } else if (mediaType === "application/zip") {
               const zip = await JSZip.loadAsync(fileBuffer);
 
-              // --- Extract HTML ---
               const htmlCandidates = Object.values(zip.files).filter(
                 (entry) => !entry.dir && /\.(html?|xhtml)$/i.test(entry.name),
               );
@@ -217,18 +278,22 @@ export async function POST(request: NextRequest) {
                 htmlCandidates[0];
 
               const rawHtml = await preferred.async("string");
-              const cleanedHtml = cleanHtmlForLLM(rawHtml);
-              effectiveReferenceFileContent = cleanedHtml;
-              console.log(
-                `[Generate] Loaded HTML from ZIP (${preferred.name}, raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB)`,
-              );
+              const { cleanedHtml, colorContext, imageAssets } = cleanHtmlForLLM(rawHtml);
 
-              // --- Extract best image as visual reference ---
-              const zipImage = await extractBestImageFromZip(zip);
-              if (zipImage) {
-                referenceFileData = zipImage;
-                console.log(`[Generate] Using ZIP image as visual reference: ${zipImage.filename}`);
+              // Also list image assets from the ZIP itself
+              const zipImages = listZipImageAssets(zip);
+              const allImages = [...new Set([...imageAssets, ...zipImages])];
+
+              effectiveReferenceFileContent = colorContext
+                ? `${colorContext}\n\n---\n\nCleaned HTML structure:\n${cleanedHtml}`
+                : cleanedHtml;
+              if (allImages.length > 0) {
+                effectiveReferenceFileContent += `\n\nImage assets in ZIP (these are page content assets like banners/logos, NOT layout screenshots): ${allImages.join(", ")}`;
               }
+
+              console.log(
+                `[Generate] Loaded HTML from ZIP (${preferred.name}, raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB, colors: ${colorContext ? "yes" : "no"}, images: ${allImages.length})`,
+              );
             } else {
               referenceFileData = {
                 data: base64,
