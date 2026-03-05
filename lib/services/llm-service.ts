@@ -283,8 +283,10 @@ async function callAnthropic(
 
   console.log("[Anthropic] Sending request to Claude API...");
   console.log(`[Anthropic] Message content blocks: ${JSON.stringify(messageContent.map(b => b.type))}`);
+  const anthropicModel = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
+  console.log(`[Anthropic] Using model: ${anthropicModel}`);
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: anthropicModel,
     max_tokens: 32768,
     system: systemPrompt,
     messages,
@@ -354,8 +356,10 @@ async function callOpenAI(
     messages.push({ role: "user", content: userMessage });
   }
 
+  const openaiModel = process.env.OPENAI_MODEL || "gpt-5.2";
+  console.log(`[OpenAI] Using model: ${openaiModel}`);
   const response = await client.chat.completions.create({
-    model: "gpt-5.2",
+    model: openaiModel,
     max_tokens: 16384,
     messages,
     response_format: { type: "json_object" },
@@ -395,9 +399,11 @@ async function callLLM(
     console.log(`[LLM] Using Anthropic (Claude) — has image: ${hasImageReference}, has reference: ${!!referenceFileData}`);
     return await callAnthropic(systemPrompt, userMessage, conversationHistory, referenceFileData);
   } catch (primaryError) {
-    console.warn(`Primary LLM (${provider}) failed, trying fallback:`, primaryError);
+    const primaryMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+    const fallbackProvider = provider === "openai" ? "anthropic" : "openai";
+    console.error(`[LLM] Primary (${provider}) failed: ${primaryMsg}`);
+    console.warn(`[LLM] Trying fallback provider: ${fallbackProvider}`);
 
-    // Try fallback provider
     try {
       if (provider === "openai") {
         return await callAnthropic(
@@ -414,9 +420,11 @@ async function callLLM(
         referenceFileData,
       );
     } catch (fallbackError) {
-      console.error("Both LLM providers failed:", fallbackError);
+      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.error(`[LLM] Fallback (${fallbackProvider}) also failed: ${fallbackMsg}`);
+      console.error(`[LLM] Both providers failed. Primary (${provider}): ${primaryMsg} | Fallback (${fallbackProvider}): ${fallbackMsg}`);
       throw new Error(
-        "AI service unavailable. Please check your API keys and try again.",
+        `AI service unavailable. Primary (${provider}): ${primaryMsg}. Fallback (${fallbackProvider}): ${fallbackMsg}`,
       );
     }
   }
