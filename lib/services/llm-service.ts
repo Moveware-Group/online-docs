@@ -401,6 +401,14 @@ async function callLLM(
 function extractJSON(text: string): string {
   console.log("[LLM Service] AI response length:", text.length);
 
+  // Detect when the LLM returned HTML instead of JSON — this happens when
+  // a fetched reference URL's HTML leaks into the response.
+  const trimmed = text.trim();
+  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+    console.error("[LLM Service] AI returned HTML instead of JSON. First 200 chars:", trimmed.substring(0, 200));
+    throw new Error("AI returned HTML instead of JSON. This usually means the reference URL returned a web page that confused the AI. Try uploading a screenshot or PDF instead of using a URL.");
+  }
+
   // 1. Try markdown code fence first
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
   if (fenceMatch) {
@@ -884,28 +892,38 @@ You are given a reference layout below. Your ONLY job is to reproduce it faithfu
   let urlCaptureError: string | null = null;
 
   if (input.referenceUrl) {
-    const { html: referenceContent, screenshot, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
+    const isFigmaUrl = /figma\.com\/(design|file|board|make)\//i.test(input.referenceUrl);
 
-    if (screenshot) {
-      const base64Screenshot = screenshot.toString("base64");
-      screenshotData = {
-        data: base64Screenshot,
-        mediaType: "image/png",
-        filename: "reference-screenshot.png",
-      };
-      console.log(`[LLM Service] Captured screenshot of reference URL (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
-      parts.push(`\nA screenshot of the reference URL (${input.referenceUrl}) is attached. Replicate its layout exactly.`);
-    }
+    if (isFigmaUrl) {
+      // Figma URLs can't be fetched as regular pages — they're JS-rendered apps
+      // that return an empty shell. Just note the URL for context.
+      console.log(`[LLM Service] Figma URL detected — skipping HTML fetch: ${input.referenceUrl}`);
+      parts.push(`\nThe user provided a Figma design reference: ${input.referenceUrl}`);
+      parts.push(`Note: The Figma URL cannot be fetched directly. Use the user's description and any uploaded reference file to generate the layout.`);
+    } else {
+      const { html: referenceContent, screenshot, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
 
-    if (referenceContent) {
-      const truncatedHtml = referenceContent.substring(0, 30000);
-      parts.push(`\nReference HTML source:\n\`\`\`html\n${truncatedHtml}\n\`\`\`\nUse this HTML to understand the exact structure, colors, and styles.`);
-    }
+      if (screenshot) {
+        const base64Screenshot = screenshot.toString("base64");
+        screenshotData = {
+          data: base64Screenshot,
+          mediaType: "image/png",
+          filename: "reference-screenshot.png",
+        };
+        console.log(`[LLM Service] Captured screenshot of reference URL (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
+        parts.push(`\nA screenshot of the reference URL (${input.referenceUrl}) is attached. Replicate its layout exactly.`);
+      }
 
-    if (!screenshot && !referenceContent) {
-      urlCaptureError = fetchError || "unknown error";
-      console.error(`[LLM Service] Cannot fetch reference URL. Error: ${urlCaptureError}`);
-      parts.push(`\nNote: Could not capture the reference URL (${urlCaptureError}). Rely on the user's description instead.`);
+      if (referenceContent) {
+        const truncatedHtml = referenceContent.substring(0, 30000);
+        parts.push(`\nReference HTML source:\n\`\`\`html\n${truncatedHtml}\n\`\`\`\nUse this HTML to understand the exact structure, colors, and styles.`);
+      }
+
+      if (!screenshot && !referenceContent) {
+        urlCaptureError = fetchError || "unknown error";
+        console.error(`[LLM Service] Cannot fetch reference URL. Error: ${urlCaptureError}`);
+        parts.push(`\nNote: Could not capture the reference URL (${urlCaptureError}). Rely on the user's description instead.`);
+      }
     }
   }
 
