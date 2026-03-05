@@ -281,19 +281,21 @@ async function callAnthropic(
 
   messages.push({ role: "user", content: messageContent });
 
-  console.log("[Anthropic] Sending request to Claude API...");
+  console.log("[Anthropic] Sending request to Claude API (streaming)...");
   console.log(`[Anthropic] Message content blocks: ${JSON.stringify(messageContent.map(b => b.type))}`);
   const anthropicModel = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
   console.log(`[Anthropic] Using model: ${anthropicModel}`);
-  const response = await client.messages.create({
+
+  const stream = await client.messages.stream({
     model: anthropicModel,
     max_tokens: 32768,
     system: systemPrompt,
     messages,
   });
 
-  console.log("[Anthropic] Received response from Claude API");
-  const textBlock = response.content.find((b) => b.type === "text");
+  const finalMessage = await stream.finalMessage();
+  console.log("[Anthropic] Received streamed response from Claude API");
+  const textBlock = finalMessage.content.find((b) => b.type === "text");
   return textBlock ? textBlock.text : "";
   } catch (error) {
     console.error("[Anthropic] API call failed:", error);
@@ -360,7 +362,7 @@ async function callOpenAI(
   console.log(`[OpenAI] Using model: ${openaiModel}`);
   const response = await client.chat.completions.create({
     model: openaiModel,
-    max_tokens: 16384,
+    max_completion_tokens: 16384,
     messages,
     response_format: { type: "json_object" },
   });
