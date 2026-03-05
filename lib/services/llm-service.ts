@@ -883,8 +883,17 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   urlCaptureError: string | null;
 }> {
   const parts: string[] = [];
+  const hasReference = !!input.referenceFileContent || !!input.referenceFileData;
 
-  parts.push(`Generate a custom quote page layout JSON for:`);
+  // When a reference is provided, lead with STRONG replication instructions
+  // BEFORE company info so the LLM prioritises the reference design.
+  if (hasReference) {
+    parts.push(`## YOUR TASK: Replicate an existing layout design EXACTLY
+
+You are given a reference layout below. Your ONLY job is to reproduce it faithfully as a JSON layout config. Do NOT generate a generic or default template. The output must look visually identical to the reference.`);
+  }
+
+  parts.push(`\nCompany context (for template variable mapping):`);
   parts.push(`Company: ${input.companyName} (Brand Code: ${input.brandCode})`);
   parts.push(`Primary Color: ${input.primaryColor}`);
   parts.push(`Secondary Color: ${input.secondaryColor}`);
@@ -903,9 +912,9 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
     const fileType = input.referenceFileData!.mediaType === "application/pdf" ? "PDF" : "image";
     const hasHtmlToo = !!input.referenceFileContent;
     if (hasHtmlToo) {
-      parts.push(`\nA reference ${fileType} is attached alongside the HTML source. Use the image to understand the EXACT visual appearance (colors, spacing, alignment) and the HTML to understand the DOM structure. Replicate both faithfully.`);
+      parts.push(`\nA reference ${fileType} is attached alongside the HTML source. Use the image for EXACT visual appearance (colors, spacing, alignment) and the HTML for DOM structure. Your output must match the reference visually.`);
     } else {
-      parts.push(`\nA reference ${fileType} is attached. Study it carefully and replicate the layout you see — match the header design, section order, colors, spacing, and structure exactly. Do not add creative improvements.`);
+      parts.push(`\nA reference ${fileType} is attached. Study it carefully and reproduce this EXACT design — match every section, every color, every layout element you see. Do NOT generate a default template.`);
     }
   }
 
@@ -940,37 +949,43 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
 
   if (input.referenceFileContent) {
     const content = input.referenceFileContent.substring(0, 80000);
-    const looksLikeHtml = /<html|<body|<div|<table/i.test(content);
+    const looksLikeHtml = /<html|<body|<div|<table|style="/i.test(content);
     if (looksLikeHtml) {
-      parts.push(`\n## CRITICAL — Reference HTML (authoritative source)
+      parts.push(`
+## REFERENCE HTML — This is the layout to replicate
 
-The following HTML is the EXACT layout to replicate. This is NOT a suggestion — reproduce the structure, order, colors, spacing, fonts, and table layouts precisely.
+The HTML below has inline styles showing the exact colors, layout, and spacing.
+Your output HTML must reproduce this visual design section by section.
 
 \`\`\`html
 ${content}
 \`\`\`
 
-Instructions for using this HTML:
-1. Reproduce every visible section in the same order as the HTML
-2. Copy inline styles, colors (hex values), font sizes, padding, and margins exactly
-3. Preserve the exact table structure (columns, header colors, cell alignment)
-4. Preserve the exact grid/flex layout used for multi-column sections (e.g. addresses side by side)
-5. Replace hard-coded customer data with the appropriate template variables (e.g. replace a customer name with {{customerName}}, addresses with {{job.upliftLine1}} etc.)
-6. Replace hard-coded inventory rows with {{#each inventory}}...{{/each}} loops
-7. Replace hard-coded pricing/costings with {{#each costings}}...{{/each}} loops
-8. Keep the company logo as {{branding.logoUrl}} and company name as {{branding.companyName}}
-9. Do NOT simplify, reinterpret, or "improve" the layout — match it exactly as-is`);
+## How to use this reference:
+1. Walk through the HTML top to bottom. Each major div is a visual section (header bar, hero image, content card, pricing, acceptance, footer)
+2. READ THE INLINE STYLES — they tell you exact colors (e.g. background-color:#db2919 is brand red), layout (display:flex), and spacing (padding, margins)
+3. Reproduce every section in the same order with the same visual styling
+4. Replace hard-coded data with template variables:
+   - Customer names → {{customerName}}
+   - Addresses → {{job.upliftLine1}}, {{job.upliftCity}}, {{job.upliftState}}, {{job.upliftPostcode}}, {{job.upliftCountry}} (same pattern for delivery*)
+   - Job details → {{job.id}}, {{job.jobValue}}, {{quoteDate}}, {{expiryDate}}
+   - Inventory rows → {{#each inventory}}...{{this.description}}, {{this.quantity}}, {{this.cube}}...{{/each}}
+   - Pricing/costings → {{#each costings}}...{{this.name}}, {{this.totalPrice}}...{{/each}}
+   - Logo → use branding.logoUrl, Company name → {{branding.companyName}}
+5. Do NOT simplify, flatten, or reimagine the layout. If it has 6 sections, output 6 sections
+6. Do NOT use the company Primary/Secondary colors above — use the colors FROM THE REFERENCE HTML inline styles`);
     } else {
       parts.push(`\nExtracted text from reference file:\n${content}`);
     }
   }
 
-  parts.push(`\nImportant output constraints:
+  parts.push(`\nOutput constraints:
 - Return ONLY the JSON object
 - Use custom_html sections only (no built_in sections)
 - Prefer one full-page custom_html section with all content in order
 - If Banner Image URL is provided, include it in the header/hero area using that exact URL
-- If Footer Image URL is provided, include it near the bottom/footer area using that exact URL`);
+- If Footer Image URL is provided, include it near the bottom/footer area using that exact URL
+- CRITICAL: If reference HTML or image was provided, your output MUST match that reference — do NOT fall back to a generic quote template`);
 
   return { prompt: parts.join("\n"), screenshotData, urlCaptureError };
 }

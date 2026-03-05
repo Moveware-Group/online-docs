@@ -20,64 +20,116 @@ import path from "path";
 import JSZip from "jszip";
 
 // ---------------------------------------------------------------------------
-// CSS variable extraction — pull color definitions from <html style="...">
-// so the LLM knows what utility classes like bg-primary actually mean.
+// Extract CSS color variables from <html style="..."> as a lookup map.
+// Returns e.g. { "primary": "#db2919", "on-primary": "#ffffff", ... }
 // ---------------------------------------------------------------------------
 
-function extractCssColorContext(rawHtml: string): string {
+function extractColorVars(rawHtml: string): Record<string, string> {
   const htmlTagMatch = rawHtml.match(/<html[^>]*style\s*=\s*["']([^"']+)["']/i);
-  if (!htmlTagMatch) return "";
+  if (!htmlTagMatch) return {};
 
   const styleAttr = htmlTagMatch[1];
-  const vars: Record<string, string> = {};
-  const varRegex = /--([\w-]+)\s*:\s*([^;]+)/g;
+  const colors: Record<string, string> = {};
+  const varRegex = /--color-sf-([\w-]+)\s*:\s*([^;]+)/g;
   let m;
   while ((m = varRegex.exec(styleAttr)) !== null) {
-    vars[m[1]] = m[2].trim();
-  }
-
-  if (Object.keys(vars).length === 0) return "";
-
-  const lines: string[] = ["Color/theme variables from the original page:"];
-  for (const [name, value] of Object.entries(vars)) {
-    if (/color|primary|secondary|tertiary|grey|white|black|error|success|warning/i.test(name)) {
-      const rgbValues = value.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-      if (rgbValues) {
-        const hex = "#" + [rgbValues[1], rgbValues[2], rgbValues[3]]
-          .map(v => parseInt(v).toString(16).padStart(2, "0"))
-          .join("");
-        lines.push(`  --${name}: rgb(${value}) = ${hex}`);
-      } else {
-        lines.push(`  --${name}: ${value}`);
-      }
+    const rgbValues = m[2].trim().match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbValues) {
+      colors[m[1]] = "#" + [rgbValues[1], rgbValues[2], rgbValues[3]]
+        .map(v => parseInt(v).toString(16).padStart(2, "0"))
+        .join("");
     }
   }
-
-  lines.push("");
-  lines.push("CSS class meanings (from the framework):");
-  lines.push("  bg-primary = background uses --color-sf-primary (brand red)");
-  lines.push("  color-on-primary = text color for primary background (white)");
-  lines.push("  bg-secondary = background uses --color-sf-secondary");
-  lines.push("  color-primary = text color uses --color-sf-primary");
-  lines.push("  color-tertiary = text color uses --color-sf-tertiary");
-  lines.push("  bg-light-grey = light grey background");
-  lines.push("  bg-white = white background");
-  lines.push("  flex-row = horizontal flex layout, flex-col = vertical flex layout");
-  lines.push("  md:w-4 = ~33% width column, md:w-8 = ~67% width column, md:w-6 = 50%");
-  lines.push("  row = 12-column grid row, pad-md/pad-lg = medium/large padding");
-  lines.push("  card = elevated card container, border-radius-lg = rounded corners");
-  lines.push("  font-weight-7 = bold, font-weight-2 = light");
-
-  return lines.join("\n");
+  return colors;
 }
 
 // ---------------------------------------------------------------------------
-// HTML cleaning — strip framework noise so the LLM gets meaningful structure.
-// Handles Angular (lib-*, app-*), React, and generic SPA output.
+// Convert Moveware/Angular utility CSS classes to inline styles so the HTML
+// is self-describing. Claude sees "background:#db2919;color:#fff" instead of
+// "bg-primary color-on-primary" which means nothing without the CSS.
 // ---------------------------------------------------------------------------
 
-function cleanHtmlForLLM(rawHtml: string): { cleanedHtml: string; colorContext: string; imageAssets: string[] } {
-  const colorContext = extractCssColorContext(rawHtml);
+function convertClassesToInlineStyles(html: string, colors: Record<string, string>): string {
+  const classToStyle: Record<string, string> = {
+    "bg-primary": `background-color:${colors["primary"] || "#dc2626"}`,
+    "bg-secondary": `background-color:${colors["secondary"] || "#004266"}`,
+    "bg-tertiary": `background-color:${colors["tertiary"] || "#344048"}`,
+    "bg-white": "background-color:#ffffff",
+    "bg-light-grey": `background-color:${colors["light-grey"] ? colors["light-grey"] : "#e9e9e9"}`,
+    "bg-black": "background-color:#000000",
+    "color-primary": `color:${colors["primary"] || "#dc2626"}`,
+    "color-on-primary": `color:${colors["on-primary"] || "#ffffff"}`,
+    "color-secondary": `color:${colors["secondary"] || "#004266"}`,
+    "color-on-secondary": `color:${colors["on-secondary"] || "#ffffff"}`,
+    "color-tertiary": `color:${colors["tertiary"] || "#344048"}`,
+    "color-on-tertiary": `color:${colors["on-tertiary"] || "#f5f5f5"}`,
+    "color-grey": `color:${colors["grey"] ? colors["grey"] : "#858c91"}`,
+    "color-on-white": `color:${colors["on-white"] ? colors["on-white"] : "#334048"}`,
+    "color-white": "color:#ffffff",
+    "flex-row": "display:flex;flex-direction:row",
+    "flex-col": "display:flex;flex-direction:column",
+    "flex-gap": "gap:8px",
+    "flex-gap-sm": "gap:4px",
+    "flex-gap-md": "gap:16px",
+    "flex-items-center": "align-items:center",
+    "flex-content-space": "justify-content:space-between",
+    "flex-content-center": "justify-content:center",
+    "row": "width:100%",
+    "md:w-4": "width:33.33%",
+    "md:w-6": "width:50%",
+    "md:w-8": "width:66.67%",
+    "pad-sm": "padding:8px",
+    "pad-md": "padding:16px",
+    "pad-lg": "padding:24px",
+    "pad-l-md": "padding-left:16px",
+    "pad-r-md": "padding-right:16px",
+    "pad-b-md": "padding-bottom:16px",
+    "pad-b-lg": "padding-bottom:24px",
+    "pad-b-xl": "padding-bottom:32px",
+    "card": "background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.12);overflow:hidden",
+    "border-radius-lg": "border-radius:12px",
+    "border-radius-md": "border-radius:8px",
+    "border-style-none": "border:none",
+    "font-weight-7": "font-weight:700",
+    "font-weight-4": "font-weight:400",
+    "font-weight-2": "font-weight:200",
+    "text-sm": "font-size:0.875rem",
+    "row-gap-xl": "row-gap:32px",
+    "space": "padding:32px 16px",
+    "overlap-2": "margin-top:-80px;position:relative;z-index:2",
+    "mt-auto": "margin-top:auto",
+  };
+
+  return html.replace(/class="([^"]*)"/g, (_match, classStr: string) => {
+    const classes = classStr.trim().split(/\s+/);
+    const inlineStyles: string[] = [];
+    const remainingClasses: string[] = [];
+
+    for (const cls of classes) {
+      if (classToStyle[cls]) {
+        inlineStyles.push(classToStyle[cls]);
+      } else {
+        remainingClasses.push(cls);
+      }
+    }
+
+    if (inlineStyles.length === 0) return `class="${classStr}"`;
+
+    const styleStr = inlineStyles.join(";");
+    if (remainingClasses.length > 0) {
+      return `style="${styleStr}" class="${remainingClasses.join(" ")}"`;
+    }
+    return `style="${styleStr}"`;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// HTML cleaning — strip framework noise, convert utility classes to inline
+// styles, and produce clean self-describing HTML the LLM can replicate.
+// ---------------------------------------------------------------------------
+
+function cleanHtmlForLLM(rawHtml: string): { cleanedHtml: string; imageAssets: string[] } {
+  const colors = extractColorVars(rawHtml);
 
   let html = rawHtml;
 
@@ -100,7 +152,7 @@ function cleanHtmlForLLM(rawHtml: string): { cleanedHtml: string; colorContext: 
     html = bodyMatch[1];
   }
 
-  // Collect image asset paths/URLs before any further processing
+  // Collect image asset paths/URLs
   const imageAssets: string[] = [];
   const imgRegex = /src\s*=\s*["']([^"']+\.(?:png|jpe?g|webp|gif))[^"']*["']/gi;
   let imgMatch;
@@ -111,49 +163,44 @@ function cleanHtmlForLLM(rawHtml: string): { cleanedHtml: string; colorContext: 
 
   // --- Angular / Moveware framework cleanup ---
 
-  // Strip Angular attributes: _ngcontent-*, _nghost-*, ng-version, ng-reflect-*
+  // Strip Angular attributes
   html = html.replace(/\s+(?:_ngcontent|_nghost|ng-version|ng-reflect)[a-z0-9-]*(?:\s*=\s*"[^"]*")?/gi, "");
 
-  // Unwrap Angular framework container elements — keep their CSS classes as
-  // data attributes on a standard div so the LLM knows the layout intent.
-  // lib-dynamic-container → div, lib-plain-html → (unwrap completely)
+  // Convert framework elements to standard divs
   html = html.replace(/<lib-dynamic-container([^>]*)>/gi, '<div$1>');
   html = html.replace(/<\/lib-dynamic-container>/gi, '</div>');
-
-  // lib-plain-html wraps a single <div> — unwrap the outer tag
   html = html.replace(/<lib-plain-html[^>]*>\s*/gi, "");
   html = html.replace(/\s*<\/lib-plain-html>/gi, "");
-
-  // lib-image → keep as div with image role
   html = html.replace(/<lib-image([^>]*)>/gi, '<div$1>');
   html = html.replace(/<\/lib-image>/gi, '</div>');
 
-  // Unwrap app-root, app-rms, router-outlet
+  // Unwrap app-root, app-rms, router-outlet, form
   html = html.replace(/<(?:app-root|app-rms|router-outlet)[^>]*>\s*/gi, "");
   html = html.replace(/<\/(?:app-root|app-rms)>/gi, "");
-
-  // Unwrap <form> tags (these are Angular reactive forms, not real forms for us)
   html = html.replace(/<form[^>]*>\s*/gi, "");
   html = html.replace(/<\/form>/gi, "");
 
-  // Remove empty divs and containers
+  // Remove empty divs
   html = html.replace(/<div[^>]*>\s*<\/div>/gi, "");
 
-  // Remove elements with "e-hidden" class (Angular hidden overlays/modals)
+  // Remove elements with "e-hidden" class (hidden overlays/modals)
   html = html.replace(/<div[^>]*class="[^"]*e-hidden[^"]*"[^>]*>[\s\S]*?<\/div>/gi, "");
 
-  // Remove id attributes (UUIDs that are just noise)
+  // Remove UUID id attributes
   html = html.replace(/\s+id="[0-9a-f]{8}-[0-9a-f-]+"/gi, "");
 
-  // Remove "novalidate" and Angular form attributes
+  // Remove Angular form attributes
   html = html.replace(/\s+(?:novalidate|ng-untouched|ng-pristine|ng-valid|ng-invalid)/gi, "");
 
-  // Clean up extra whitespace
+  // Convert utility CSS classes to inline styles
+  html = convertClassesToInlineStyles(html, colors);
+
+  // Clean up whitespace
   html = html.replace(/\n\s*\n\s*\n/g, "\n");
   html = html.replace(/[ \t]{3,}/g, " ");
   html = html.replace(/>\s+</g, ">\n<");
 
-  return { cleanedHtml: html.trim(), colorContext, imageAssets };
+  return { cleanedHtml: html.trim(), imageAssets };
 }
 
 // ---------------------------------------------------------------------------
@@ -254,14 +301,12 @@ export async function POST(request: NextRequest) {
 
             if (mediaType === "text/html") {
               const rawHtml = fileBuffer.toString("utf-8");
-              const { cleanedHtml, colorContext, imageAssets } = cleanHtmlForLLM(rawHtml);
-              effectiveReferenceFileContent = colorContext
-                ? `${colorContext}\n\n---\n\nCleaned HTML structure:\n${cleanedHtml}`
-                : cleanedHtml;
+              const { cleanedHtml, imageAssets } = cleanHtmlForLLM(rawHtml);
+              effectiveReferenceFileContent = cleanedHtml;
               if (imageAssets.length > 0) {
-                effectiveReferenceFileContent += `\n\nImage assets found: ${imageAssets.join(", ")}`;
+                effectiveReferenceFileContent += `\n\n<!-- Image assets: ${imageAssets.join(", ")} -->`;
               }
-              console.log(`[Generate] Loaded HTML reference (raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB, colors: ${colorContext ? "yes" : "no"})`);
+              console.log(`[Generate] Loaded HTML reference (raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB)`);
             } else if (mediaType === "application/zip") {
               const zip = await JSZip.loadAsync(fileBuffer);
 
@@ -278,21 +323,18 @@ export async function POST(request: NextRequest) {
                 htmlCandidates[0];
 
               const rawHtml = await preferred.async("string");
-              const { cleanedHtml, colorContext, imageAssets } = cleanHtmlForLLM(rawHtml);
+              const { cleanedHtml, imageAssets } = cleanHtmlForLLM(rawHtml);
 
-              // Also list image assets from the ZIP itself
               const zipImages = listZipImageAssets(zip);
               const allImages = [...new Set([...imageAssets, ...zipImages])];
 
-              effectiveReferenceFileContent = colorContext
-                ? `${colorContext}\n\n---\n\nCleaned HTML structure:\n${cleanedHtml}`
-                : cleanedHtml;
+              effectiveReferenceFileContent = cleanedHtml;
               if (allImages.length > 0) {
-                effectiveReferenceFileContent += `\n\nImage assets in ZIP (these are page content assets like banners/logos, NOT layout screenshots): ${allImages.join(", ")}`;
+                effectiveReferenceFileContent += `\n\n<!-- Image assets: ${allImages.join(", ")} — these are banners/logos/photos for the page content, use branding.logoUrl for logos and bannerImageUrl/footerImageUrl if provided -->`;
               }
 
               console.log(
-                `[Generate] Loaded HTML from ZIP (${preferred.name}, raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB, colors: ${colorContext ? "yes" : "no"}, images: ${allImages.length})`,
+                `[Generate] Loaded HTML from ZIP (${preferred.name}, raw ${(rawHtml.length / 1024).toFixed(1)}KB → cleaned ${(cleanedHtml.length / 1024).toFixed(1)}KB, images: ${allImages.length})`,
               );
             } else {
               referenceFileData = {
