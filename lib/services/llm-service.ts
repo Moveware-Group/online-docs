@@ -128,8 +128,11 @@ Rules:
 {{job.measuresVolumeGrossM3}}, {{job.measuresWeightGrossKg}}, {{job.estimatedDeliveryDetails}}
 {{branding.companyName}}, {{branding.logoUrl}}
 
+Conditionals: {{#if job.upliftLine2}}...{{/if}} (renders content only if value is truthy)
 Loops: {{#each inventory}}...{{this.description}}, {{this.room}}, {{this.quantity}}, {{this.cube}}...{{/each}}
-Costings: {{#each costings}}...{{this.name}}, {{this.description}}, {{this.totalPrice}}, {{this.rawData.inclusions}}, {{this.rawData.exclusions}}...{{/each}}
+Costings: {{#each costings}}...{{this.name}}, {{this.description}}, {{this.totalPrice}}...{{/each}}
+  Inside costings you can use: {{#if this.rawData.inclusions}}...{{#each this.rawData.inclusions}}{{this}}{{/each}}...{{/if}}
+  Same for exclusions: {{#if this.rawData.exclusions}}...{{#each this.rawData.exclusions}}{{this}}{{/each}}...{{/if}}
 
 ## CRITICAL RULE: Reference Takes Priority
 
@@ -847,13 +850,119 @@ async function fetchReferenceContent(url: string): Promise<{
   }
 }
 
+// ---------------------------------------------------------------------------
+// Figma API integration — fetch rendered screenshots from Figma URLs
+// ---------------------------------------------------------------------------
+
+function parseFigmaUrl(url: string): { fileKey: string | null; nodeId: string | null } {
+  // figma.com/design/:fileKey/branch/:branchKey/:fileName → use branchKey
+  const branchMatch = url.match(/figma\.com\/(?:design|file)\/[a-zA-Z0-9]+\/branch\/([a-zA-Z0-9]+)/);
+  if (branchMatch) {
+    const nodeIdMatch = url.match(/node-id=([^&]+)/);
+    return {
+      fileKey: branchMatch[1],
+      nodeId: nodeIdMatch ? nodeIdMatch[1].replace(/-/g, ":") : null,
+    };
+  }
+
+  // figma.com/design/:fileKey/:fileName  OR  figma.com/file/:fileKey/:fileName
+  const designMatch = url.match(/figma\.com\/(?:design|file|board|make)\/([a-zA-Z0-9]+)/);
+  const fileKey = designMatch ? designMatch[1] : null;
+
+  const nodeIdMatch = url.match(/node-id=([^&]+)/);
+  const nodeId = nodeIdMatch ? nodeIdMatch[1].replace(/-/g, ":") : null;
+
+  return { fileKey, nodeId };
+}
+
+async function fetchFigmaScreenshot(figmaUrl: string): Promise<{
+  screenshot: Buffer | null;
+  error: string | null;
+}> {
+  const token = process.env.FIGMA_API_TOKEN;
+  if (!token) {
+    console.warn("[Figma] FIGMA_API_TOKEN not set — cannot fetch Figma screenshot");
+    return { screenshot: null, error: "FIGMA_API_TOKEN not configured. Add it to .env to enable Figma design fetching." };
+  }
+
+  const { fileKey, nodeId } = parseFigmaUrl(figmaUrl);
+  if (!fileKey) {
+    return { screenshot: null, error: "Could not extract file key from Figma URL" };
+  }
+
+  const headers = { "X-Figma-Token": token };
+
+  try {
+    let renderNodeId = nodeId;
+
+    if (!renderNodeId) {
+      // No specific node → get the file structure and find the first frame
+      console.log(`[Figma] No nodeId in URL — fetching file structure for ${fileKey}`);
+      const fileRes = await fetch(`https://api.figma.com/v1/files/${fileKey}?depth=2`, { headers });
+      if (!fileRes.ok) {
+        const errText = await fileRes.text().catch(() => "");
+        return { screenshot: null, error: `Figma API ${fileRes.status}: ${errText.substring(0, 200)}` };
+      }
+      const fileData = await fileRes.json();
+
+      // Walk pages → find the first FRAME child on the first page
+      const firstPage = fileData.document?.children?.[0];
+      if (!firstPage) {
+        return { screenshot: null, error: "Figma file has no pages" };
+      }
+
+      const firstFrame = firstPage.children?.find(
+        (c: { type: string }) => c.type === "FRAME" || c.type === "COMPONENT" || c.type === "SECTION"
+      );
+      renderNodeId = firstFrame?.id || firstPage.id;
+      console.log(`[Figma] Resolved nodeId: ${renderNodeId} (${firstFrame?.name || firstPage.name})`);
+    }
+
+    // Render the node as a PNG via Figma Images API
+    console.log(`[Figma] Rendering node ${renderNodeId} from file ${fileKey}`);
+    const imageRes = await fetch(
+      `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(renderNodeId)}&format=png&scale=1`,
+      { headers },
+    );
+
+    if (!imageRes.ok) {
+      const errText = await imageRes.text().catch(() => "");
+      return { screenshot: null, error: `Figma image API ${imageRes.status}: ${errText.substring(0, 200)}` };
+    }
+
+    const imageData = await imageRes.json();
+    const imageUrl = imageData.images?.[renderNodeId];
+
+    if (!imageUrl) {
+      return { screenshot: null, error: "Figma API returned no image for the requested node" };
+    }
+
+    // Download the rendered image
+    console.log(`[Figma] Downloading rendered screenshot from ${imageUrl.substring(0, 80)}...`);
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) {
+      return { screenshot: null, error: `Failed to download Figma screenshot: ${imgRes.status}` };
+    }
+
+    const buffer = Buffer.from(await imgRes.arrayBuffer());
+    console.log(`[Figma] Screenshot downloaded: ${(buffer.length / 1024).toFixed(1)}KB`);
+    return { screenshot: buffer, error: null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Figma] Error: ${msg}`);
+    return { screenshot: null, error: `Figma fetch error: ${msg}` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   prompt: string;
   screenshotData: ReferenceFileData | null;
   urlCaptureError: string | null;
 }> {
   const parts: string[] = [];
-  const hasReference = !!input.referenceFileContent || !!input.referenceFileData;
+  const hasReference = !!input.referenceFileContent || !!input.referenceFileData || !!input.referenceUrl;
 
   // When a reference is provided, lead with STRONG replication instructions
   // BEFORE company info so the LLM prioritises the reference design.
@@ -895,11 +1004,25 @@ You are given a reference layout below. Your ONLY job is to reproduce it faithfu
     const isFigmaUrl = /figma\.com\/(design|file|board|make)\//i.test(input.referenceUrl);
 
     if (isFigmaUrl) {
-      // Figma URLs can't be fetched as regular pages — they're JS-rendered apps
-      // that return an empty shell. Just note the URL for context.
-      console.log(`[LLM Service] Figma URL detected — skipping HTML fetch: ${input.referenceUrl}`);
-      parts.push(`\nThe user provided a Figma design reference: ${input.referenceUrl}`);
-      parts.push(`Note: The Figma URL cannot be fetched directly. Use the user's description and any uploaded reference file to generate the layout.`);
+      console.log(`[LLM Service] Figma URL detected — fetching screenshot via Figma API: ${input.referenceUrl}`);
+      const figmaResult = await fetchFigmaScreenshot(input.referenceUrl);
+
+      if (figmaResult.screenshot) {
+        const base64Screenshot = figmaResult.screenshot.toString("base64");
+        screenshotData = {
+          data: base64Screenshot,
+          mediaType: "image/png",
+          filename: "figma-design-screenshot.png",
+        };
+        console.log(`[LLM Service] Figma screenshot captured (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
+        parts.push(`\nA screenshot of the Figma design (${input.referenceUrl}) is attached. This is the EXACT design you must replicate — match every section, color, layout element, and visual hierarchy you see.`);
+      } else {
+        const errMsg = figmaResult.error || "Unknown error";
+        console.warn(`[LLM Service] Could not fetch Figma screenshot: ${errMsg}`);
+        urlCaptureError = errMsg;
+        parts.push(`\nThe user provided a Figma design reference: ${input.referenceUrl}`);
+        parts.push(`Note: Could not fetch the Figma design (${errMsg}). Use the user's description and any uploaded reference file to generate the layout.`);
+      }
     } else {
       const { html: referenceContent, screenshot, error: fetchError } = await fetchReferenceContent(input.referenceUrl);
 
