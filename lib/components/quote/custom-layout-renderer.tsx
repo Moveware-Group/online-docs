@@ -58,8 +58,20 @@ function evaluateCondition(condition: SectionCondition, data: QuotePageData): bo
 // ---------------------------------------------------------------------------
 
 /**
- * Simple Handlebars-like template resolver.
- * Supports: {{variable}}, {{#each array}} ... {{/each}}, {{config.key}}
+ * Resolve a dotted path against an arbitrary object.
+ * e.g. resolvePath(item, "rawData.inclusions") → item.rawData.inclusions
+ */
+function resolvePath(obj: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce((cur: unknown, key: string) => {
+    if (cur && typeof cur === 'object') return (cur as Record<string, unknown>)[key];
+    return undefined;
+  }, obj);
+}
+
+/**
+ * Handlebars-like template resolver.
+ * Supports: {{variable}}, {{#each array}}, {{#if condition}}, {{config.key}},
+ * nested {{#each this.rawData.inclusions}} inside costings/inventory blocks.
  *
  * @param sectionConfig  Optional section-level config (stored on the LayoutSection).
  *                       Each key becomes available as {{config.key}} in the HTML.
@@ -71,7 +83,25 @@ function resolveTemplate(
 ): string {
   let result = html;
 
-  // Resolve {{#each inventory}} ... {{/each}}
+  // --- {{#if condition}} ... {{/if}} ---
+  // Only resolve top-level conditions here; skip `this.*` paths which must be
+  // resolved inside their parent {{#each}} block (costings/inventory).
+  for (let pass = 0; pass < 5; pass++) {
+    const before = result;
+    result = result.replace(
+      /\{\{#if\s+([^}]+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
+      (match, condition: string, content: string) => {
+        const path = condition.trim();
+        if (path.startsWith('this.')) return match; // leave for {{#each}} handler
+        const value = resolvePath(data as unknown as Record<string, unknown>, path);
+        const truthy = Boolean(value && (Array.isArray(value) ? value.length > 0 : true));
+        return truthy ? content : '';
+      },
+    );
+    if (result === before) break;
+  }
+
+  // --- {{#each inventory}} ... {{/each}} ---
   result = result.replace(
     /\{\{#each\s+inventory\}\}([\s\S]*?)\{\{\/each\}\}/g,
     (_, itemTemplate: string) => {
@@ -89,7 +119,7 @@ function resolveTemplate(
     },
   );
 
-  // Resolve {{#each costings}} ... {{/each}}
+  // --- {{#each costings}} ... {{/each}} ---
   result = result.replace(
     /\{\{#each\s+costings\}\}([\s\S]*?)\{\{\/each\}\}/g,
     (_, itemTemplate: string) => {
@@ -103,6 +133,40 @@ function resolveTemplate(
           row = row.replace(/\{\{this\.rate\}\}/g, (item.rate || 0).toFixed(2));
           row = row.replace(/\{\{this\.netTotal\}\}/g, item.netTotal || 'N/A');
           row = row.replace(/\{\{this\.totalPrice\}\}/g, (item.totalPrice || 0).toFixed(2));
+          row = row.replace(/\{\{this\.taxIncluded\}\}/g, item.taxIncluded ? 'Yes' : 'No');
+
+          // Nested arrays: {{#each this.rawData.inclusions}} ... {{/each}}
+          row = row.replace(
+            /\{\{#each\s+this\.rawData\.inclusions\}\}([\s\S]*?)\{\{\/each\}\}/g,
+            (_m, tpl: string) => {
+              const arr = item.rawData?.inclusions;
+              if (!Array.isArray(arr) || arr.length === 0) return '';
+              return arr.map((v) => tpl.replace(/\{\{this\}\}/g, String(v))).join('');
+            },
+          );
+          row = row.replace(
+            /\{\{#each\s+this\.rawData\.exclusions\}\}([\s\S]*?)\{\{\/each\}\}/g,
+            (_m, tpl: string) => {
+              const arr = item.rawData?.exclusions;
+              if (!Array.isArray(arr) || arr.length === 0) return '';
+              return arr.map((v) => tpl.replace(/\{\{this\}\}/g, String(v))).join('');
+            },
+          );
+
+          // {{#if this.rawData.inclusions}} ... {{/if}} inside costings
+          row = row.replace(
+            /\{\{#if\s+this\.rawData\.inclusions\}\}([\s\S]*?)\{\{\/if\}\}/g,
+            (_m, content: string) => {
+              return item.rawData?.inclusions?.length ? content : '';
+            },
+          );
+          row = row.replace(
+            /\{\{#if\s+this\.rawData\.exclusions\}\}([\s\S]*?)\{\{\/if\}\}/g,
+            (_m, content: string) => {
+              return item.rawData?.exclusions?.length ? content : '';
+            },
+          );
+
           return row;
         })
         .join('');
@@ -183,6 +247,11 @@ function resolveTemplate(
       }
     }
   }
+
+  // Strip any remaining unresolved {{#if}}/{{#each}} blocks so they don't
+  // render as raw text in the output.
+  result = result.replace(/\{\{#if\s+[^}]+\}\}([\s\S]*?)\{\{\/if\}\}/g, '');
+  result = result.replace(/\{\{#each\s+[^}]+\}\}([\s\S]*?)\{\{\/each\}\}/g, '');
 
   return result;
 }
