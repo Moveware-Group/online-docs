@@ -918,6 +918,10 @@ async function fetchFigmaScreenshot(figmaUrl: string): Promise<{
       console.log(`[Figma] Resolved nodeId: ${renderNodeId} (${firstFrame?.name || firstPage.name})`);
     }
 
+    if (!renderNodeId) {
+      return { screenshot: null, error: "Could not determine a Figma node to render" };
+    }
+
     // Render the node as a PNG via Figma Images API
     console.log(`[Figma] Rendering node ${renderNodeId} from file ${fileKey}`);
     const imageRes = await fetch(
