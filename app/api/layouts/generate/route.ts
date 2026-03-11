@@ -19,6 +19,9 @@ import { existsSync } from "fs";
 import path from "path";
 import JSZip from "jszip";
 
+// Allow up to 5 minutes for Figma fetch + LLM generation
+export const maxDuration = 300;
+
 // ---------------------------------------------------------------------------
 // Extract CSS color variables from <html style="..."> as a lookup map.
 // Returns e.g. { "primary": "#db2919", "on-primary": "#ffffff", ... }
