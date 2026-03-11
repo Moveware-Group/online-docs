@@ -107,7 +107,7 @@ Return ONLY a valid JSON object (no markdown fences, no explanation text):
   "globalStyles": {
     "fontFamily": "Inter, sans-serif",
     "backgroundColor": "#f5f5f5",
-    "maxWidth": "1216px",
+    "maxWidth": "1152px",
     "customCss": ""
   },
   "sections": [
@@ -119,7 +119,7 @@ Rules:
 - Every section MUST use "type": "custom_html"
 - Use a single section (id: "document") with the full page HTML
 - Write complete HTML with INLINE STYLES for precise control
-- Set globalStyles.maxWidth to match the reference design's container width exactly (e.g. "1216px" if the design is 1216px wide)
+- IMPORTANT: Set globalStyles.maxWidth to match the reference design's actual container width. Do NOT default to 1152px — measure from the reference (e.g. if the Figma frame is 1216px, use "1216px")
 
 ## Template Variables (replace hard-coded data with these)
 
@@ -1075,9 +1075,11 @@ A rendered screenshot of the Figma design is attached. You MUST replicate this d
    - Terms & acceptance
    - Footer
 
-3. DETAILS: Match typography sizes, spacing, border-radius, shadows, icon styles (circles with letters/numbers)
+3. CONTAINER WIDTH: The Figma frame width IS the container width. Set globalStyles.maxWidth to match it exactly (do NOT default to 1152px).
 
-4. Replace hard-coded names/dates/addresses with template variables but keep ALL styling identical.`);
+4. DETAILS: Match typography sizes, spacing, border-radius, shadows, icon styles (circles with letters/numbers)
+
+5. Replace hard-coded names/dates/addresses with template variables but keep ALL styling identical.`);
       } else {
         const errMsg = figmaResult.error || "Unknown error";
         console.warn(`[LLM Service] Could not fetch Figma screenshot: ${errMsg}`);
