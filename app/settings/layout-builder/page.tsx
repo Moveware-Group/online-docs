@@ -738,12 +738,23 @@ function LayoutBuilderContent() {
         }),
       });
 
-      const data = await res.json();
+      let data;
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('[Layout Builder] Non-JSON response:', res.status, text.substring(0, 300));
+        throw new Error(
+          res.status >= 500
+            ? `Server error (${res.status}). The request may have timed out — try a simpler reference or a smaller file.`
+            : `Unexpected response from server (${res.status}). Please try again.`
+        );
+      }
+
+      data = await res.json();
       if (!res.ok || !data.success) {
         const errorMsg = data.error || 'Generation failed';
         console.error('[Layout Builder] Generation failed:', data);
         
-        // Show detailed error if available
         if (data.details) {
           console.error('[Layout Builder] Error details:', data.details);
         }
@@ -753,10 +764,8 @@ function LayoutBuilderContent() {
 
       setLayoutConfig(data.data);
       setChatOpen(true);
-      // Switch to Blocks tab so editing is immediately accessible
       setLeftPanelTab('blocks');
       
-      // Show warnings in chat if URL capture failed
       if (data.warnings && data.warnings.length > 0) {
         addAssistantMessage(data.message);
       } else {
@@ -769,7 +778,6 @@ function LayoutBuilderContent() {
       console.error('[Layout Builder] Error:', err);
       setError(errorMsg);
       
-      // Add error to chat as well
       addAssistantMessage(`Sorry, I encountered an error: ${errorMsg}`);
     } finally {
       setGenerating(false);
@@ -803,6 +811,11 @@ function LayoutBuilderContent() {
         }),
       });
 
+      const refineContentType = res.headers.get('content-type') || '';
+      if (!refineContentType.includes('application/json')) {
+        throw new Error(`Server error (${res.status}). The request may have timed out — try a simpler change.`);
+      }
+
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Refinement failed');
@@ -814,7 +827,6 @@ function LayoutBuilderContent() {
       updatePreview(data.data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      // Give the user actionable feedback rather than a generic apology
       addAssistantMessage(
         msg.toLowerCase().includes('json')
           ? `I couldn't apply that change — the AI returned an unexpected response. Try rephrasing your request and I'll have another go.`

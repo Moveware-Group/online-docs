@@ -407,9 +407,14 @@ function extractJSON(text: string): string {
   // Detect when the LLM returned HTML instead of JSON — this happens when
   // a fetched reference URL's HTML leaks into the response.
   const trimmed = text.trim();
-  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+  if (/^(<\!|<html|<HTML|<head|<body)/i.test(trimmed)) {
     console.error("[LLM Service] AI returned HTML instead of JSON. First 200 chars:", trimmed.substring(0, 200));
-    throw new Error("AI returned HTML instead of JSON. This usually means the reference URL returned a web page that confused the AI. Try uploading a screenshot or PDF instead of using a URL.");
+    throw new Error("AI returned HTML instead of JSON. Try uploading a screenshot or PDF instead of using a URL.");
+  }
+  // Also check if the response contains no JSON-like content at all
+  if (!trimmed.includes("{")) {
+    console.error("[LLM Service] AI response contains no JSON. First 200 chars:", trimmed.substring(0, 200));
+    throw new Error("AI response did not contain a valid layout. Try again or provide a clearer reference.");
   }
 
   // 1. Try markdown code fence first
@@ -478,6 +483,17 @@ function normaliseTemplateSyntax(html: string): string {
 }
 
 function parseAndNormaliseConfig(json: string): LayoutConfig {
+  // Guard: if the extracted string still looks like HTML, give a clear error
+  const jsonTrimmed = json.trim();
+  if (/^<[a-zA-Z!]/.test(jsonTrimmed)) {
+    console.error("[LLM Service] Attempted to parse HTML as JSON. First 200 chars:", jsonTrimmed.substring(0, 200));
+    throw new Error(
+      "The AI returned an HTML page instead of a layout configuration. " +
+      "This usually happens when a reference URL could not be processed. " +
+      "Try uploading a screenshot (PNG/JPEG) or PDF of the design instead."
+    );
+  }
+
   const config = JSON.parse(json) as LayoutConfig;
   config.version = config.version || 1;
 
