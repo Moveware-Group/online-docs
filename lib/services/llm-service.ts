@@ -121,19 +121,37 @@ Rules:
 - Write complete HTML with INLINE STYLES for precise control
 - IMPORTANT: Set globalStyles.maxWidth to match the reference design's actual container width. Do NOT default to 1152px — measure from the reference (e.g. if the Figma frame is 1216px, use "1216px")
 
-## Template Variables (replace hard-coded data with these)
+## Template Variables — ONLY use these (nothing else is supported)
 
-{{customerName}}, {{quoteDate}}, {{expiryDate}}, {{job.id}}, {{job.jobValue}}
-{{job.upliftLine1}}, {{job.upliftLine2}}, {{job.upliftCity}}, {{job.upliftState}}, {{job.upliftPostcode}}, {{job.upliftCountry}}
-{{job.deliveryLine1}}, {{job.deliveryLine2}}, {{job.deliveryCity}}, {{job.deliveryState}}, {{job.deliveryPostcode}}, {{job.deliveryCountry}}
-{{job.measuresVolumeGrossM3}}, {{job.measuresWeightGrossKg}}, {{job.estimatedDeliveryDetails}}
-{{branding.companyName}}, {{branding.logoUrl}}
+Simple variables:
+  {{customerName}}, {{quoteDate}}, {{expiryDate}}, {{job.id}}, {{job.jobValue}}
+  {{job.upliftLine1}}, {{job.upliftLine2}}, {{job.upliftCity}}, {{job.upliftState}}, {{job.upliftPostcode}}, {{job.upliftCountry}}
+  {{job.deliveryLine1}}, {{job.deliveryLine2}}, {{job.deliveryCity}}, {{job.deliveryState}}, {{job.deliveryPostcode}}, {{job.deliveryCountry}}
+  {{job.measuresVolumeGrossM3}}, {{job.measuresWeightGrossKg}}, {{job.estimatedDeliveryDetails}}
+  {{branding.companyName}}, {{branding.logoUrl}}, {{branding.heroBannerUrl}}, {{branding.footerImageUrl}}
+  {{branding.primaryColor}}, {{branding.secondaryColor}}
+  {{moveManager}}, {{moveType}}, {{totalCube}}
 
-Conditionals: {{#if job.upliftLine2}}...{{/if}} (renders content only if value is truthy)
-Loops: {{#each inventory}}...{{this.description}}, {{this.room}}, {{this.quantity}}, {{this.cube}}...{{/each}}
-Costings: {{#each costings}}...{{this.name}}, {{this.description}}, {{this.totalPrice}}...{{/each}}
-  Inside costings you can use: {{#if this.rawData.inclusions}}...{{#each this.rawData.inclusions}}{{this}}{{/each}}...{{/if}}
-  Same for exclusions: {{#if this.rawData.exclusions}}...{{#each this.rawData.exclusions}}{{this}}{{/each}}...{{/if}}
+Conditionals (show/hide content):
+  {{#if job.upliftLine2}}...{{/if}}
+
+Loops — inventory:
+  {{#each inventory}}
+    {{this.description}}, {{this.room}}, {{this.quantity}}, {{this.cube}}
+  {{/each}}
+
+Loops — costings (pricing options):
+  {{#each costings}}
+    {{this.name}}, {{this.description}}, {{this.totalPrice}}, {{this.quantity}}, {{this.rate}}
+    {{#if this.rawData.inclusions}}{{#each this.rawData.inclusions}}{{this}}{{/each}}{{/if}}
+    {{#if this.rawData.exclusions}}{{#each this.rawData.exclusions}}{{this}}{{/each}}{{/if}}
+  {{/each}}
+
+## FORBIDDEN — do NOT use any of these:
+- {{#calc}}, {{#helper}}, {{#math}}, {{#format}} or ANY custom helpers — they do not exist
+- Expressions like {{this.totalPrice * 0.2}} — no math expressions are supported
+- {{#unless}}, {{else}}, {{#with}} — not supported
+- For VAT/tax, just display {{this.totalPrice}} as the total; do NOT try to compute subtotals or tax amounts
 
 ## CRITICAL RULE: Reference Takes Priority
 
@@ -477,10 +495,19 @@ function extractJSON(text: string): string {
 }
 
 function normaliseTemplateSyntax(html: string): string {
-  return html
+  let result = html
     .replace(/\{\{#each[-_\s]*inventory\}\}/gi, "{{#each inventory}}")
     .replace(/\{\{#each[-_\s]*costings\}\}/gi, "{{#each costings}}")
     .replace(/\{\{\/each[-_\s]*(?:inventory|costings)\}\}/gi, "{{/each}}");
+
+  // Strip invented helpers the LLM might generate ({{#calc}}, {{#math}}, etc.)
+  // These don't exist in the renderer and would show as raw text.
+  result = result.replace(/\{\{#(?:calc|math|helper|format|unless|with)\}\}([\s\S]*?)\{\{\/(?:calc|math|helper|format|unless|with)\}\}/gi, "$1");
+
+  // Strip math expressions inside variables: {{this.totalPrice * 0.2}} → {{this.totalPrice}}
+  result = result.replace(/\{\{([a-zA-Z_.]+)\s*[*\/+\-]\s*[\d.]+\}\}/g, "{{$1}}");
+
+  return result;
 }
 
 function parseAndNormaliseConfig(json: string): LayoutConfig {
