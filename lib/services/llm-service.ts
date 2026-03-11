@@ -106,8 +106,8 @@ Return ONLY a valid JSON object (no markdown fences, no explanation text):
   "version": 1,
   "globalStyles": {
     "fontFamily": "Inter, sans-serif",
-    "backgroundColor": "#f9fafb",
-    "maxWidth": "1152px",
+    "backgroundColor": "#f5f5f5",
+    "maxWidth": "1216px",
     "customCss": ""
   },
   "sections": [
@@ -119,6 +119,7 @@ Rules:
 - Every section MUST use "type": "custom_html"
 - Use a single section (id: "document") with the full page HTML
 - Write complete HTML with INLINE STYLES for precise control
+- Set globalStyles.maxWidth to match the reference design's container width exactly (e.g. "1216px" if the design is 1216px wide)
 
 ## Template Variables (replace hard-coded data with these)
 
