@@ -138,12 +138,12 @@ Costings: {{#each costings}}...{{this.name}}, {{this.description}}, {{this.total
 
 When a reference image, PDF, or HTML is provided:
 - REPLICATE the reference design EXACTLY — colors, layout, sections, typography, everything
-- Use the colors FROM THE REFERENCE, NOT the company primaryColor/secondaryColor from the prompt
-- If the reference shows a red header, make the header red — even if the company primaryColor is blue
-- Include EVERY section visible in the reference: header, hero image, intro text, locations, pricing, inventory, acceptance/signature, terms, footer
-- Match the visual hierarchy: if the reference has white cards on a grey background, do that
-- Do NOT generate a generic "Moving Quote" template — replicate what you SEE
-- For logos, use {{branding.logoUrl}}. For banner/hero images, use bannerImageUrl if provided, otherwise use a styled placeholder with the brand color
+- EXTRACT colors by looking at the reference: identify the primary accent color, header background, section bars, buttons, text. Use those EXACT hex values
+- NEVER substitute the company primaryColor/secondaryColor from the prompt — those are IGNORED when a reference is provided
+- If the reference shows red accents (#dc2626 etc), use red. If it shows navy headers (#1a1a2e etc), use navy. Match what you SEE.
+- Include EVERY section visible in the reference: header, intro, info cards, locations, pricing tables, inventory, acceptance/terms, footer
+- Match the visual hierarchy: card styles, border-radius, shadows, spacing, circle badges, icon styles
+- Use {{branding.logoUrl}} for logos, {{branding.heroBannerUrl}} or bannerImageUrl for banner images
 - No script tags or event handlers
 `;
 
@@ -989,14 +989,30 @@ async function buildGeneratePrompt(input: GenerateLayoutInput): Promise<{
   if (hasReference) {
     parts.push(`## YOUR TASK: Replicate an existing layout design EXACTLY
 
-You are given a reference layout below. Your ONLY job is to reproduce it faithfully as a JSON layout config. Do NOT generate a generic or default template. The output must look visually identical to the reference.`);
+You are given a reference design. Your ONLY job is to reproduce it faithfully as a JSON layout config.
+
+CRITICAL COLOR RULE:
+- Extract the EXACT hex colors from the reference design (screenshot/image/HTML)
+- Use THOSE colors in your output — do NOT substitute the company primaryColor/secondaryColor listed below
+- If the reference uses red (#dc2626), dark navy (#1a1a2e), etc. — use those exact values
+- The company colors below are ONLY for fallback when NO reference is provided
+
+Do NOT generate a generic or default template. The output must be visually IDENTICAL to the reference.`);
   }
 
-  parts.push(`\nCompany context (for template variable mapping):`);
+  if (hasReference) {
+    parts.push(`\nCompany context (for template variables ONLY — do NOT use these colors, use colors from the reference):`);
+  } else {
+    parts.push(`\nCompany context:`);
+  }
   parts.push(`Company: ${input.companyName} (Brand Code: ${input.brandCode})`);
-  parts.push(`Primary Color: ${input.primaryColor}`);
-  parts.push(`Secondary Color: ${input.secondaryColor}`);
-  if (input.tertiaryColor) parts.push(`Tertiary Color: ${input.tertiaryColor}`);
+  if (!hasReference) {
+    parts.push(`Primary Color: ${input.primaryColor}`);
+    parts.push(`Secondary Color: ${input.secondaryColor}`);
+    if (input.tertiaryColor) parts.push(`Tertiary Color: ${input.tertiaryColor}`);
+  } else {
+    parts.push(`(Company colors: ${input.primaryColor} / ${input.secondaryColor} — IGNORE these, use colors from the reference design instead)`);
+  }
   if (input.logoUrl) parts.push(`Logo URL: ${input.logoUrl}`);
   if (input.bannerImageUrl) parts.push(`Banner Image URL: ${input.bannerImageUrl}`);
   if (input.footerImageUrl) parts.push(`Footer Image URL: ${input.footerImageUrl}`);
@@ -1035,7 +1051,32 @@ You are given a reference layout below. Your ONLY job is to reproduce it faithfu
           filename: "figma-design-screenshot.png",
         };
         console.log(`[LLM Service] Figma screenshot captured (${(base64Screenshot.length / 1024).toFixed(2)}KB)`);
-        parts.push(`\nA screenshot of the Figma design (${input.referenceUrl}) is attached. This is the EXACT design you must replicate — match every section, color, layout element, and visual hierarchy you see.`);
+        parts.push(`\n## FIGMA DESIGN SCREENSHOT ATTACHED
+
+A rendered screenshot of the Figma design is attached. You MUST replicate this design pixel-for-pixel:
+
+1. COLORS: Look at the screenshot carefully. Extract every color you see:
+   - Header/navbar background color (likely dark navy)
+   - Accent/highlight color (likely red — use the EXACT red from the design, not the company primaryColor)
+   - Section header bar colors
+   - Card background colors
+   - Text colors (headings, body, labels)
+   - Button colors
+   - Border colors
+
+2. STRUCTURE: Reproduce EVERY section in order, top to bottom:
+   - Header with logo and company name
+   - Quote title/intro section
+   - Info cards (service provider, client, date)
+   - Location details
+   - Service package / pricing tables
+   - Inventory/equipment summary
+   - Terms & acceptance
+   - Footer
+
+3. DETAILS: Match typography sizes, spacing, border-radius, shadows, icon styles (circles with letters/numbers)
+
+4. Replace hard-coded names/dates/addresses with template variables but keep ALL styling identical.`);
       } else {
         const errMsg = figmaResult.error || "Unknown error";
         console.warn(`[LLM Service] Could not fetch Figma screenshot: ${errMsg}`);
